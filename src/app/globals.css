@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* App globals */
+html, body {
+  height: 100%;
+  background: #000;       /* dark background */
+  color: #fff;            /* default text */
+}
+
+/* Smooth fonts */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Utility tweak examples */
+.table-row-hover:hover {
+  background: rgba(255,255,255,0.04);
+}
