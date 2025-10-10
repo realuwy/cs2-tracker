@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 const links = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/import", label: "Import" },
-  { href: "/storage", label: "Storage" },
 ];
 
 export function SiteHeader() {
