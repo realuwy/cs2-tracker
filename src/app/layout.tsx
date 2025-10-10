@@ -1,6 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { SiteHeader } from "@/components/site-header";
+import { SiteHeader } from "../components/site-header";
 
 export const metadata: Metadata = {
   title: "CS2 Tracker",
