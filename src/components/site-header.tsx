@@ -32,22 +32,21 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-black/60 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center px-4">
-        {/* Left: logo */}
+      <div className="relative mx-auto flex h-16 max-w-6xl items-center px-4">
+        {/* Left logo */}
         <Link href="/" className="flex items-center gap-2">
           <span className="inline-block h-3 w-3 rounded bg-amber-400" />
           <span className="text-sm font-semibold">CS2 Tracker</span>
         </Link>
 
-        {/* Center: nav (Dashboard) */}
-        <nav className="absolute left-1/2 -translate-x-1/2">
-  <Link href="/dashboard" className={linkClass("/dashboard")}>
-    Dashboard
-  </Link>
-</nav>
+        {/* Center nav */}
+        <nav className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          <Link href="/dashboard" className={linkClass("/dashboard")}>
+            Dashboard
+          </Link>
+        </nav>
 
-
-        {/* Right: account */}
+        {/* Right account */}
         <div className="ml-auto">
           {auth === "user" ? (
             <div className="flex items-center gap-2">
@@ -78,3 +77,4 @@ export function SiteHeader() {
     </header>
   );
 }
+
