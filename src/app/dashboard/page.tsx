@@ -1,7 +1,7 @@
 // src/app/dashboard/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, startTransition } from "react";
 import { fetchInventory, fetchSkinportMap, InvItem } from "@/lib/api";
 
 /* ---------- local persistence ---------- */
@@ -68,6 +68,7 @@ const cmpWear = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
   return (ra === rb ? 0 : (ra < rb ? -1 : 1)) * dir;
 };
 
+/* ---------- row type ---------- */
 // Make pattern/float optional on top of InvItem
 type Row = Omit<InvItem, "pattern" | "float"> & {
   pattern?: string;
@@ -83,7 +84,6 @@ type Row = Omit<InvItem, "pattern" | "float"> & {
   skinportH1?: number; skinportD1?: number; skinportM1?: number;
   steamH1?: number;    steamD1?: number;    steamM1?: number;
 };
-
 
 /* ---------- sorting state ---------- */
 type SortKey = "item" | "wear" | "pattern" | "float" | "qty" | "skinport" | "steam";
@@ -285,14 +285,23 @@ export default function DashboardPage() {
     return [copy, { totalItems, totalSkinport, totalSteam }] as const;
   }, [rows, sortKey, sortDir]);
 
-  /* sortable header button (full-width click target) */
+  /* Map each row object to its original index—O(1) lookup for actions */
+  const origIndexMap = useMemo(() => {
+    const m = new Map<Row, number>();
+    rows.forEach((r, i) => m.set(r, i));
+    return m;
+  }, [rows]);
+
+  /* sortable header button (full-width click target, transitioned) */
   function Th({ label, keyId }: { label: string; keyId: SortKey }) {
     const active = sortKey === keyId;
     const ariaSort: React.AriaAttributes["aria-sort"] =
       active ? (sortDir === "asc" ? "ascending" : "descending") : "none";
     const handleClick = () => {
-      if (active) setSortDir(d => (d === "asc" ? "desc" : "asc"));
-      else { setSortKey(keyId); setSortDir("asc"); }
+      startTransition(() => {
+        if (active) setSortDir(d => (d === "asc" ? "desc" : "asc"));
+        else { setSortKey(keyId); setSortDir("asc"); }
+      });
     };
     return (
       <th className="p-0" aria-sort={ariaSort}>
@@ -473,7 +482,7 @@ export default function DashboardPage() {
               </tr>
             ) : (
               sorted.map((r) => {
-                const orig = rows.indexOf(r);
+                const orig = origIndexMap.get(r)!; // O(1) lookup
                 return (
                   <tr key={r.market_hash_name + "|" + orig} className="border-t border-zinc-800">
                     <td className="px-4 py-2">
