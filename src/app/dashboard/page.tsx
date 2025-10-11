@@ -33,6 +33,16 @@ const toMarketHash = (nameNoWear: string, wear?: WearCode) => {
   const full = wearLabel(wear);
   return full ? `${nameNoWear} (${full})` : nameNoWear;
 };
+function sanitizeSteam(aud: number | undefined, skinport?: number): number | undefined {
+  if (aud === undefined || !isFinite(aud) || aud <= 0) return undefined;
+  if (aud > 100000) return undefined; // hard sanity cap
+  // If we have a Skinport unit price, filter out extreme outliers
+  if (typeof skinport === "number" && skinport > 0) {
+    // allow some premium on Steam, but not ridiculous spikes
+    if (aud > skinport * 5 && aud > 50) return undefined;
+  }
+  return aud;
+};
 
 /** Parse pasted names like "AK-47 | Redline (Factory New)" to extract wear */
 const LABEL_TO_CODE: Record<string, WearCode> = {
