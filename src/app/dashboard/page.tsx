@@ -68,19 +68,22 @@ const cmpWear = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
   return (ra === rb ? 0 : (ra < rb ? -1 : 1)) * dir;
 };
 
-/* ---------- row type ---------- */
-type Row = InvItem & {
+// Make pattern/float optional on top of InvItem
+type Row = Omit<InvItem, "pattern" | "float"> & {
+  pattern?: string;
+  float?: string;
+
   skinportAUD?: number;
   steamAUD?: number;
   priceAUD?: number;
   totalAUD?: number;
-  float?: string;
-  pattern?: string;
   source: "steam" | "manual";
-  // optional % chips (rendered only if present)
+
+  // optional % chips
   skinportH1?: number; skinportD1?: number; skinportM1?: number;
   steamH1?: number;    steamD1?: number;    steamM1?: number;
 };
+
 
 /* ---------- sorting state ---------- */
 type SortKey = "item" | "wear" | "pattern" | "float" | "qty" | "skinport" | "steam";
