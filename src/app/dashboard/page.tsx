@@ -1,8 +1,7 @@
-// src/app/dashboard/page.tsx
 "use client";
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { fetchInventory, InvItem } from "@/lib/api"; // <- fetchSkinportMap removed
+import { fetchInventory, InvItem } from "@/lib/api";
 
 /* ---------- local persistence ---------- */
 const STORAGE_KEY = "cs2:dashboard:rows";
@@ -113,14 +112,13 @@ type Row = Omit<InvItem, "pattern" | "float"> & {
   priceAUD?: number; // unit (skinport)
   totalAUD?: number; // unit * qty (skinport)
   source: "steam" | "manual";
-  // optional % chips
+  // optional % chips (future)
   skinportH1?: number;
   skinportD1?: number;
   skinportM1?: number;
   steamH1?: number;
   steamD1?: number;
   steamM1?: number;
-  // timestamps to rate-limit refresh
   steamFetchedAt?: number; // ms
 };
 
@@ -136,70 +134,41 @@ function sortReducer(state: SortState, action: SortAction): SortState {
   return { key: action.key, dir: "asc" };
 }
 
-/* ---------- tiny UI helpers ---------- */
-function ChangeBadge({ label, value }: { label: string; value: number | undefined }) {
-  if (value === undefined || Number.isNaN(value)) return null;
-  const neg = value < 0;
-  const zero = value === 0;
-  const color = zero
-    ? "text-zinc-400 border-zinc-700"
-    : neg
-    ? "text-red-400 border-red-700"
-    : "text-emerald-400 border-emerald-700";
-  const arrow = zero ? "" : neg ? "↓" : "↑";
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] ${color}`}
-      title={`${label} change`}
-    >
-      <span className="opacity-75">{label}</span>
-      <span className="tabular-nums">
-        {arrow}
-        {Math.abs(value).toFixed(1)}%
-      </span>
-    </span>
+/* ---------- image helpers ---------- */
+const NONE_SUFFIX_RE = /\s+\(none\)$/i;
+
+// small inline SVG fallback (dark rounded square)
+const FALLBACK_DATA_URL =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+      <rect x="0" y="0" width="40" height="40" rx="6" ry="6" fill="#3f3f46"/>
+    </svg>`
   );
+
+/** Find an image by trying multiple key variants */
+function findImage(
+  images: Record<string, string>,
+  row: { market_hash_name: string; nameNoWear: string; wear?: string }
+): string | undefined {
+  const exact = images[row.market_hash_name];
+  if (exact) return exact;
+
+  const noNone = images[row.market_hash_name.replace(NONE_SUFFIX_RE, "")];
+  if (noNone) return noNone;
+
+  const plain = images[row.nameNoWear];
+  if (plain) return plain;
+
+  const label = wearLabel(row.wear as WearCode);
+  if (label) {
+    const withWear = `${row.nameNoWear} (${label})`;
+    if (images[withWear]) return images[withWear];
+  }
+  return undefined;
 }
 
-/** Price cell: unit + (if qty>1) subtotal line */
-function PriceCell({
-  price,
-  qty,
-  h1,
-  d1,
-  m1,
-}: {
-  price?: number;
-  qty: number;
-  h1?: number;
-  d1?: number;
-  m1?: number;
-}) {
-  const hasAny = [h1, d1, m1].some((v) => v !== undefined && !Number.isNaN(Number(v)));
-  const hasUnit = typeof price === "number";
-  const subtotal = hasUnit ? price! * Math.max(1, qty || 1) : undefined;
-
-  return (
-    <div className="text-right leading-tight">
-      <div>{hasUnit ? `A$${price!.toFixed(2)}` : "—"}</div>
-      {hasUnit && qty > 1 && (
-        <div className="mt-0.5 text-[11px] text-zinc-400">
-          ×{qty} = <span className="tabular-nums">A${subtotal!.toFixed(2)}</span>
-        </div>
-      )}
-      {hasAny && (
-        <div className="mt-1 flex flex-wrap justify-end gap-1">
-          <ChangeBadge label="1h" value={h1} />
-          <ChangeBadge label="24h" value={d1} />
-          <span className="hidden sm:inline">
-            <ChangeBadge label="30d" value={m1} />
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
-
+/* ---------- component ---------- */
 export default function DashboardPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [spMap, setSpMap] = useState<Record<string, number>>({});
@@ -260,49 +229,58 @@ export default function DashboardPage() {
     };
   }, [rows]);
 
-  /* load/refresh Skinport map via server route */
+  /* load/refresh Skinport map via server route (also hydrate images) */
   async function refreshSkinport() {
-  try {
-    const r = await fetch("/api/prices/skinport-map", { cache: "no-store" });
-    const data: { map: Record<string, number>; images?: Record<string, string>; updatedAt?: number } =
-      await r.json();
+    try {
+      const r = await fetch("/api/prices/skinport-map", { cache: "no-store" });
+      const data: {
+        map: Record<string, number>;
+        images?: Record<string, string>;
+        updatedAt?: number;
+      } = await r.json();
 
-    const map = data.map || {};
-    const images = data.images || {};
-    setSkinportUpdatedAt(data.updatedAt ?? Date.now());
-    setSpMap(map);
+      const map = data.map || {};
+      const images = data.images || {};
+      setSkinportUpdatedAt(data.updatedAt ?? Date.now());
+      setSpMap(map);
 
-    // apply fresh prices AND hydrate missing thumbnails
-    setRows(prev =>
-      prev.map(row => {
-        const sp = map[row.market_hash_name] ?? map[row.market_hash_name.replace(/\s+\(none\)$/i, "")];
-        const priceAUD = typeof sp === "number" ? sp : undefined;
-        const qty = row.quantity ?? 1;
+      // apply fresh prices AND hydrate missing thumbnails
+      setRows((prev) =>
+        prev.map((row) => {
+          const sp =
+            map[row.market_hash_name] ??
+            map[row.market_hash_name.replace(NONE_SUFFIX_RE, "")] ??
+            map[row.nameNoWear];
 
-        // choose image if row.image is missing/empty
-       // inside setRows(prev => prev.map(row => ({...})))
-const candidateImg =
-  images[row.market_hash_name] ??
-  images[row.market_hash_name.replace(/\s+\(none\)$/i, "")];
+          const priceAUD = typeof sp === "number" ? sp : undefined;
+          const qty = row.quantity ?? 1;
 
-return {
-  ...row,
-  skinportAUD: sp,
-  priceAUD,
-  totalAUD: priceAUD ? priceAUD * qty : undefined,
-  image: row.image && row.image.trim() !== "" ? row.image : (candidateImg ?? row.image),
-};
+          // Only update the image if we actually found one
+          const img =
+            row.image && row.image.trim() !== ""
+              ? row.image
+              : findImage(images, {
+                  market_hash_name: row.market_hash_name,
+                  nameNoWear: row.nameNoWear,
+                  wear: row.wear as string | undefined,
+                });
 
-      })
-    );
-  } catch {
-    // ignore; keep last-good data
+          return {
+            ...row,
+            skinportAUD: sp,
+            priceAUD,
+            totalAUD: priceAUD ? priceAUD * qty : undefined,
+            image: img ?? row.image,
+          };
+        })
+      );
+    } catch {
+      // keep last-good values
+    }
   }
-}
-
 
   useEffect(() => {
-    refreshSkinport(); // initial
+    refreshSkinport(); // initial load
   }, []);
 
   useEffect(() => {
@@ -494,41 +472,22 @@ return {
     copy.sort((a, b) => {
       let c = 0;
       switch (sort.key) {
-        case "item":
-          c = cmpStr(a.nameNoWear, b.nameNoWear, dir);
-          break;
-        case "wear":
-          c = cmpWear(a.wear as string, b.wear as string, dir);
-          break;
-        case "pattern":
-          c = cmpNum(a.pattern, b.pattern, dir);
-          break;
-        case "float":
-          c = cmpNum(a.float, b.float, dir);
-          break;
-        case "qty":
-          c = cmpNum(a.quantity, b.quantity, dir);
-          break;
-        case "skinport":
-          c = cmpNum(a.skinportAUD, b.skinportAUD, dir);
-          break;
-        case "steam":
-          c = cmpNum(a.steamAUD, b.steamAUD, dir);
-          break;
+        case "item":      c = cmpStr(a.nameNoWear, b.nameNoWear, dir); break;
+        case "wear":      c = cmpWear(a.wear as string, b.wear as string, dir); break;
+        case "pattern":   c = cmpNum(a.pattern, b.pattern, dir); break;
+        case "float":     c = cmpNum(a.float, b.float, dir); break;
+        case "qty":       c = cmpNum(a.quantity, b.quantity, dir); break;
+        case "skinport":  c = cmpNum(a.skinportAUD, b.skinportAUD, dir); break;
+        case "steam":     c = cmpNum(a.steamAUD, b.steamAUD, dir); break;
       }
-      if (c === 0) c = cmpStr(a.nameNoWear, b.nameNoWear, 1);
+      if (c === 0) c = cmpStr(a.nameNoWear, b.nameNoWear, 1); // tie-break
       return c;
     });
 
     const totalItems = copy.reduce((acc, r) => acc + (r.quantity ?? 1), 0);
-    const totalSkinport = copy.reduce(
-      (s, r) => s + (r.skinportAUD ?? 0) * (r.quantity ?? 1),
-      0
-    );
-    const totalSteam = copy.reduce(
-      (s, r) => s + (r.steamAUD ?? 0) * (r.quantity ?? 1),
-      0
-    );
+    const totalSkinport = copy.reduce((s, r) => s + (r.skinportAUD ?? 0) * (r.quantity ?? 1), 0);
+    const totalSteam = copy.reduce((s, r) => s + (r.steamAUD ?? 0) * (r.quantity ?? 1), 0);
+
     return [copy, { totalItems, totalSkinport, totalSteam }] as const;
   }, [rows, sort]);
 
@@ -544,9 +503,7 @@ return {
     const active = sort.key === keyId;
     const ariaSort: React.AriaAttributes["aria-sort"] =
       active ? (sort.dir === "asc" ? "ascending" : "descending") : "none";
-    const onClick = () => {
-      dispatchSort({ type: "toggle", key: keyId });
-    };
+    const onClick = () => dispatchSort({ type: "toggle", key: keyId });
     return (
       <th
         aria-sort={ariaSort}
@@ -584,17 +541,11 @@ return {
           <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">
             Total items: {totals.totalItems}
           </div>
-          <div
-            className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200"
-            title={`Skinport last updated: ${formatTime(skinportUpdatedAt)}`}
-          >
+          <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200" title={`Skinport last updated: ${formatTime(skinportUpdatedAt)}`}>
             Skinport: A${totals.totalSkinport.toFixed(2)}{" "}
             <span className="text-zinc-400">({formatTime(skinportUpdatedAt)})</span>
           </div>
-          <div
-            className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200"
-            title={`Steam last updated: ${formatTime(steamUpdatedAt)}`}
-          >
+          <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200" title={`Steam last updated: ${formatTime(steamUpdatedAt)}`}>
             Steam: A${totals.totalSteam.toFixed(2)}{" "}
             <span className="text-zinc-400">({formatTime(steamUpdatedAt)})</span>
           </div>
@@ -763,15 +714,22 @@ return {
                       <div className="flex items-center gap-3">
                         {r.image ? (
                           <img
-  src={r.image}
-  alt={r.name}
-  loading="lazy"
-  decoding="async"
-  className="h-10 w-10 rounded object-contain"
-/>
-
+                            src={r.image}
+                            alt={r.name}
+                            loading="lazy"
+                            decoding="async"
+                            onError={(e) => {
+                              const el = e.currentTarget as HTMLImageElement;
+                              if (el.src !== FALLBACK_DATA_URL) el.src = FALLBACK_DATA_URL;
+                            }}
+                            className="h-10 w-10 rounded object-contain bg-zinc-800"
+                          />
                         ) : (
-                          <div className="h-10 w-10 rounded bg-zinc-800" />
+                          <img
+                            src={FALLBACK_DATA_URL}
+                            alt=""
+                            className="h-10 w-10 rounded object-contain"
+                          />
                         )}
                         <div className="leading-tight">
                           <div className="font-medium">{r.nameNoWear}</div>
@@ -808,22 +766,30 @@ return {
 
                     {/* Prices (unit + subtotal) */}
                     <td className="px-4 py-2">
-                      <PriceCell
-                        price={r.skinportAUD}
-                        qty={r.quantity ?? 1}
-                        h1={r.skinportH1}
-                        d1={r.skinportD1}
-                        m1={r.skinportM1}
-                      />
+                      <div className="text-right leading-tight">
+                        <div>{typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}</div>
+                        {typeof r.skinportAUD === "number" && (r.quantity ?? 1) > 1 && (
+                          <div className="mt-0.5 text-[11px] text-zinc-400">
+                            ×{r.quantity ?? 1} ={" "}
+                            <span className="tabular-nums">
+                              A${(r.skinportAUD * (r.quantity ?? 1)).toFixed(2)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-2">
-                      <PriceCell
-                        price={r.steamAUD}
-                        qty={r.quantity ?? 1}
-                        h1={r.steamH1}
-                        d1={r.steamD1}
-                        m1={r.steamM1}
-                      />
+                      <div className="text-right leading-tight">
+                        <div>{typeof r.steamAUD === "number" ? `A$${r.steamAUD.toFixed(2)}` : "—"}</div>
+                        {typeof r.steamAUD === "number" && (r.quantity ?? 1) > 1 && (
+                          <div className="mt-0.5 text-[11px] text-zinc-400">
+                            ×{r.quantity ?? 1} ={" "}
+                            <span className="tabular-nums">
+                              A${(r.steamAUD * (r.quantity ?? 1)).toFixed(2)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </td>
 
                     <td className="px-4 py-2 text-right">
