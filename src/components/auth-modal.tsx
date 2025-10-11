@@ -61,7 +61,7 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex min-h-screen items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="relative w-full max-w-md rounded-xl bg-zinc-900 p-6 text-white shadow-lg">
         <h2 className="mb-4 text-center text-2xl font-bold">{isLogin ? "Log In" : "Sign Up"}</h2>
 
