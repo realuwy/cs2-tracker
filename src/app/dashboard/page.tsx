@@ -21,10 +21,12 @@ type WearCode = (typeof WEAR_OPTIONS)[number]["code"];
 const wearLabel = (code?: string) =>
   WEAR_OPTIONS.find((w) => w.code === code)?.label ?? "";
 
+/** Remove trailing " (none)" if present */
+const stripNone = (s: string) => s.replace(/\s+\(none\)$/i, "");
+
 /**
- * IMPORTANT:
- * - Only append a wear label for actual wear variants (FN/MW/FT/WW/BS)
- * - DO NOT append "(none)" to non-wear items (stickers, agents, cases, etc.)
+ * Append a wear label only for actual wear variants (FN/MW/FT/WW/BS).
+ * Never append "(none)" to non-wear items.
  */
 const toMarketHash = (nameNoWear: string, wear?: WearCode) => {
   if (!wear) return nameNoWear;
@@ -33,10 +35,33 @@ const toMarketHash = (nameNoWear: string, wear?: WearCode) => {
   return full ? `${nameNoWear} (${full})` : nameNoWear;
 };
 
-/** Remove trailing " (none)" if present (some inventories persist it) */
-const stripNone = (s: string) => s.replace(/\s+\(none\)$/i, "");
+/** Parse pasted names like "AK-47 | Redline (Factory New)" to extract wear */
+const LABEL_TO_CODE: Record<string, WearCode> = {
+  "factory new": "FN",
+  "minimal wear": "MW",
+  "field-tested": "FT",
+  "well-worn": "WW",
+  "battle-scarred": "BS",
+};
+function parseNameForWear(raw: string): { nameNoWear: string; wear?: WearCode } {
+  const trimmed = raw.trim();
+  // strip explicit "(none)" if user pasted it
+  const noNone = stripNone(trimmed);
+  const m = noNone.match(/\s+\((Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)\)\s*$/i);
+  if (!m) return { nameNoWear: noNone };
+  const code = LABEL_TO_CODE[m[1].toLowerCase()] as WearCode | undefined;
+  return { nameNoWear: noNone.replace(m[0], ""), wear: code };
+}
 
-/* ---------- sorting helpers (bidirectional, missing always last) ---------- */
+/** Detect items that do not support wear */
+function isNonWearCategory(nameNoWear: string): boolean {
+  const s = nameNoWear.trim().toLowerCase();
+  return /^(sticker|patch|graffiti|music kit|agent|case|capsule|souvenir|storage unit|gift|key|collectible|pin|autograph)/i.test(
+    s
+  );
+}
+
+/* ---------- sorting helpers (missing always last) ---------- */
 const WEAR_TO_RANK: Record<string, number> = { FN: 0, MW: 1, FT: 2, WW: 3, BS: 4 };
 const wearRank = (code?: string) => (code ? WEAR_TO_RANK[code] ?? 99 : 99);
 
@@ -60,7 +85,7 @@ const cmpNum = (a: unknown, b: unknown, dir: 1 | -1) => {
   const am = isMissingNum(a);
   const bm = isMissingNum(b);
   if (am && bm) return 0;
-  if (am) return 1; // missing -> bottom
+  if (am) return 1;
   if (bm) return -1;
   const na = Number(a);
   const nb = Number(b);
@@ -191,6 +216,7 @@ export default function DashboardPage() {
           // clean old "(none)" suffixes if any were saved previously
           market_hash_name: r.market_hash_name ? stripNone(r.market_hash_name) : r.market_hash_name,
           name: r.name ? stripNone(r.name) : r.name,
+          nameNoWear: r.nameNoWear ? stripNone(r.nameNoWear) : r.nameNoWear,
           pattern: r.pattern && String(r.pattern).trim() !== "" ? r.pattern : undefined,
           float: r.float && String(r.float).trim() !== "" ? r.float : undefined,
           skinportAUD: isMissingNum(r.skinportAUD) ? undefined : Number(r.skinportAUD),
@@ -251,8 +277,7 @@ export default function DashboardPage() {
       const inv = await fetchInventory(id);
       const mapped: Row[] = inv.items.map((it) => {
         // use server-provided market_hash_name, else build WITHOUT "(none)"
-        const mhnRaw =
-          it.market_hash_name || toMarketHash(it.nameNoWear, it.wear as WearCode);
+        const mhnRaw = it.market_hash_name || toMarketHash(it.nameNoWear, it.wear as WearCode);
         const mhn = stripNone(mhnRaw);
         const spAUD = spMap[mhn] ?? spMap[stripNone(mhn)];
         const qty = it.quantity ?? 1;
@@ -261,6 +286,7 @@ export default function DashboardPage() {
           ...it,
           market_hash_name: mhn,
           name: stripNone(it.name || mhn),
+          nameNoWear: stripNone(it.nameNoWear || mhn),
           skinportAUD: spAUD,
           priceAUD,
           totalAUD: priceAUD ? priceAUD * qty : undefined,
@@ -268,10 +294,7 @@ export default function DashboardPage() {
         };
       });
       // keep manual rows
-      setRows((prev) => [
-        ...prev.filter((r) => r.source === "manual"),
-        ...mapped,
-      ]);
+      setRows((prev) => [...prev.filter((r) => r.source === "manual"), ...mapped]);
     } finally {
       setLoading(false);
     }
@@ -279,8 +302,12 @@ export default function DashboardPage() {
 
   function addManual() {
     if (!mName.trim()) return;
-    const nameNoWear = stripNone(mName.trim());
-    const market_hash_name = stripNone(toMarketHash(nameNoWear, mWear));
+    const parsed = parseNameForWear(mName.trim());
+    const nameNoWear = stripNone(parsed.nameNoWear);
+    const nonWear = isNonWearCategory(nameNoWear);
+    const wearToUse: WearCode = nonWear ? "" : (mWear || parsed.wear || "");
+
+    const market_hash_name = stripNone(toMarketHash(nameNoWear, wearToUse));
     const spAUD = spMap[market_hash_name] ?? spMap[stripNone(market_hash_name)];
     const priceAUD = typeof spAUD === "number" ? spAUD : undefined;
 
@@ -288,7 +315,7 @@ export default function DashboardPage() {
       market_hash_name,
       name: market_hash_name,
       nameNoWear,
-      wear: mWear,
+      wear: wearToUse,
       pattern: mPattern.trim() || undefined,
       float: mFloat.trim() || undefined,
       image: "",
@@ -320,9 +347,7 @@ export default function DashboardPage() {
               ...row,
               quantity: q,
               totalAUD:
-                typeof row.skinportAUD === "number"
-                  ? row.skinportAUD * q
-                  : row.totalAUD,
+                typeof row.skinportAUD === "number" ? row.skinportAUD * q : row.totalAUD,
             }
           : row
       )
@@ -352,9 +377,7 @@ export default function DashboardPage() {
 
             for (const name of candidates) {
               try {
-                const resp = await fetch(
-                  `/api/prices/steam?name=${encodeURIComponent(name)}`
-                );
+                const resp = await fetch(`/api/prices/steam?name=${encodeURIComponent(name)}`);
                 const data: { aud?: number | null } = await resp.json();
                 const val = typeof data?.aud === "number" ? data.aud : undefined;
                 if (val !== undefined) return { idx: i, val };
@@ -371,9 +394,7 @@ export default function DashboardPage() {
         const map = new Map<number, number | undefined>();
         results.forEach(({ idx, val }) => map.set(idx, val));
 
-        setRows((prev) =>
-          prev.map((row, idx) => (map.has(idx) ? { ...row, steamAUD: map.get(idx) } : row))
-        );
+        setRows((prev) => prev.map((row, idx) => (map.has(idx) ? { ...row, steamAUD: map.get(idx) } : row)));
       } finally {
         pricesFetchingRef.current = false;
       }
@@ -419,14 +440,8 @@ export default function DashboardPage() {
     });
 
     const totalItems = copy.reduce((acc, r) => acc + (r.quantity ?? 1), 0);
-    const totalSkinport = copy.reduce(
-      (s, r) => s + (r.skinportAUD ?? 0) * (r.quantity ?? 1),
-      0
-    );
-    const totalSteam = copy.reduce(
-      (s, r) => s + (r.steamAUD ?? 0) * (r.quantity ?? 1),
-      0
-    );
+    const totalSkinport = copy.reduce((s, r) => s + (r.skinportAUD ?? 0) * (r.quantity ?? 1), 0);
+    const totalSteam = copy.reduce((s, r) => s + (r.steamAUD ?? 0) * (r.quantity ?? 1), 0);
     return [copy, { totalItems, totalSkinport, totalSteam }] as const;
   }, [rows, sort]);
 
@@ -463,13 +478,13 @@ export default function DashboardPage() {
       >
         <span className="inline-flex items-center gap-2">
           {label}
-          {active && (
-            <span className="opacity-70">{sort.dir === "asc" ? "▲" : "▼"}</span>
-          )}
+          {active && <span className="opacity-70">{sort.dir === "asc" ? "▲" : "▼"}</span>}
         </span>
       </th>
     );
   }
+
+  const nonWearForCurrentInput = isNonWearCategory(stripNone(mName || ""));
 
   return (
     <div className="mx-auto max-w-6xl p-6">
@@ -496,10 +511,7 @@ export default function DashboardPage() {
           <div className="text-lg font-medium">Import from Steam</div>
           <p className="mb-3 mt-1 text-sm text-zinc-400">
             Paste your <span className="font-medium">SteamID64</span> or a{" "}
-            <span className="font-mono">
-              steamcommunity.com/profiles/&lt;id&gt;
-            </span>{" "}
-            URL (public inventory).
+            <span className="font-mono">steamcommunity.com/profiles/&lt;id&gt;</span> URL (public inventory).
           </p>
           <div className="mt-auto flex gap-2">
             <input
@@ -537,12 +549,16 @@ export default function DashboardPage() {
 
             <div className="md:col-span-3">
               <label className="mb-1 block text-[11px] leading-none text-zinc-400">
-                Wear (used for pricing)
+                Wear {nonWearForCurrentInput && <span className="text-zinc-500">(not applicable)</span>}
               </label>
               <select
-                className="h-12 w-full appearance-none rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm"
+                className={`h-12 w-full appearance-none rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm ${
+                  nonWearForCurrentInput ? "opacity-50" : ""
+                }`}
                 value={mWear}
                 onChange={(e) => setMWear(e.target.value as WearCode)}
+                disabled={nonWearForCurrentInput}
+                title={nonWearForCurrentInput ? "This item type doesn't use wear" : "Wear used for pricing"}
               >
                 {WEAR_OPTIONS.map((w) => (
                   <option key={w.code} value={w.code}>
@@ -553,9 +569,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="mb-1 block text-[11px] leading-none text-zinc-400">
-                Float (note only)
-              </label>
+              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Float (note only)</label>
               <input
                 className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
                 placeholder="0.1234"
@@ -565,9 +579,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="mb-1 block text-[11px] leading-none text-zinc-400">
-                Pattern (note only)
-              </label>
+              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Pattern (note only)</label>
               <input
                 className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
                 placeholder="123"
@@ -580,9 +592,7 @@ export default function DashboardPage() {
             <div className="md:col-span-12">
               <div className="flex items-center gap-3">
                 <div className="w-40">
-                  <label className="mb-1 block text-[11px] leading-none text-zinc-400">
-                    Quantity
-                  </label>
+                  <label className="mb-1 block text-[11px] leading-none text-zinc-400">Quantity</label>
                   <div className="flex h-12 items-center gap-2">
                     <button
                       type="button"
@@ -618,8 +628,7 @@ export default function DashboardPage() {
               </div>
 
               <p className="mt-2 text-xs text-zinc-400">
-                Pricing uses only <span className="font-medium">Item name + Wear</span>. Float/Pattern
-                are for display.
+                Pricing uses only <span className="font-medium">Item name + Wear</span>. Float/Pattern are for display.
               </p>
             </div>
           </div>
@@ -645,8 +654,7 @@ export default function DashboardPage() {
             {sorted.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-6 text-center text-zinc-400">
-                  No items yet. Use <span className="underline">Add manual item</span> or import from
-                  Steam.
+                  No items yet. Use <span className="underline">Add manual item</span> or import from Steam.
                 </td>
               </tr>
             ) : (
@@ -657,11 +665,7 @@ export default function DashboardPage() {
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-3">
                         {r.image ? (
-                          <img
-                            src={r.image}
-                            alt={r.name}
-                            className="h-10 w-10 rounded object-contain"
-                          />
+                          <img src={r.image} alt={r.name} className="h-10 w-10 rounded object-contain" />
                         ) : (
                           <div className="h-10 w-10 rounded bg-zinc-800" />
                         )}
@@ -700,12 +704,7 @@ export default function DashboardPage() {
 
                     {/* Prices */}
                     <td className="px-4 py-2">
-                      <PriceCell
-                        price={r.skinportAUD}
-                        h1={r.skinportH1}
-                        d1={r.skinportD1}
-                        m1={r.skinportM1}
-                      />
+                      <PriceCell price={r.skinportAUD} h1={r.skinportH1} d1={r.skinportD1} m1={r.skinportM1} />
                     </td>
                     <td className="px-4 py-2">
                       <PriceCell price={r.steamAUD} h1={r.steamH1} d1={r.steamD1} m1={r.steamM1} />
@@ -738,23 +737,16 @@ export default function DashboardPage() {
           "backdrop-blur px-4 h-12 inline-flex items-center gap-2",
           "border border-zinc-700 hover:bg-zinc-700/80",
           "transition-all duration-200",
-          showBackToTop
-            ? "opacity-100 translate-y-0 pointer-events-auto"
-            : "opacity-0 translate-y-3 pointer-events-none",
+          showBackToTop ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-3 pointer-events-none",
         ].join(" ")}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="-mt-[1px]">
-          <path
-            d="M6 14l6-6 6 6"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          <path d="M6 14l6-6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         <span className="text-sm">Top</span>
       </button>
     </div>
   );
 }
+
 
