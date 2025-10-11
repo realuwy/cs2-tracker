@@ -13,14 +13,11 @@ const WEAR_OPTIONS = [
   { code: "BS", label: "Battle-Scarred" },
 ] as const;
 type WearCode = typeof WEAR_OPTIONS[number]["code"];
-
-function wearLabel(code?: string) {
-  return WEAR_OPTIONS.find((w) => w.code === code)?.label ?? "";
-}
-function toMarketHash(nameNoWear: string, wear?: WearCode) {
+const wearLabel = (code?: string) => WEAR_OPTIONS.find(w => w.code === code)?.label ?? "";
+const toMarketHash = (nameNoWear: string, wear?: WearCode) => {
   const full = wearLabel(wear);
   return full ? `${nameNoWear} (${full})` : nameNoWear;
-}
+};
 
 type Row = InvItem & {
   skinportAUD?: number;
@@ -32,28 +29,22 @@ type Row = InvItem & {
 };
 
 export default function DashboardPage() {
-  // rows & prices
   const [rows, setRows] = useState<Row[]>([]);
   const [spMap, setSpMap] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
 
-  // import controls
   const [steamId, setSteamId] = useState("");
 
-  // manual form state
+  // manual form
   const [mName, setMName] = useState("");
   const [mWear, setMWear] = useState<WearCode>("");
   const [mFloat, setMFloat] = useState("");
   const [mPattern, setMPattern] = useState("");
 
-  // load prices once
   useEffect(() => {
-    fetchSkinportMap()
-      .then((res) => setSpMap(res.map))
-      .catch(() => {});
+    fetchSkinportMap().then(res => setSpMap(res.map)).catch(() => {});
   }, []);
 
-  // auto-load default SteamID if present
   useEffect(() => {
     const def = process.env.NEXT_PUBLIC_DEFAULT_STEAM_ID64;
     if (def) void load(def);
@@ -78,10 +69,7 @@ export default function DashboardPage() {
           source: "steam",
         };
       });
-      setRows((prev) => {
-        const manual = prev.filter((r) => r.source === "manual");
-        return [...manual, ...mapped];
-      });
+      setRows(prev => [...prev.filter(r => r.source === "manual"), ...mapped]);
     } finally {
       setLoading(false);
     }
@@ -89,7 +77,6 @@ export default function DashboardPage() {
 
   function addManual() {
     if (!mName.trim()) return;
-
     const nameNoWear = mName.trim();
     const market_hash_name = toMarketHash(nameNoWear, mWear);
     const spAUD = spMap[market_hash_name];
@@ -97,7 +84,7 @@ export default function DashboardPage() {
 
     const newRow: Row = {
       market_hash_name,
-      name: market_hash_name, // full with wear for display under hash
+      name: market_hash_name,
       nameNoWear,
       wear: mWear,
       pattern: mPattern.trim(),
@@ -110,16 +97,12 @@ export default function DashboardPage() {
       totalAUD: priceAUD ?? undefined,
       source: "manual",
     };
-
-    setRows((r) => [newRow, ...r]);
-    setMName("");
-    setMWear("");
-    setMFloat("");
-    setMPattern("");
+    setRows(r => [newRow, ...r]);
+    setMName(""); setMWear(""); setMFloat(""); setMPattern("");
   }
 
   function removeRow(idx: number) {
-    setRows((r) => r.filter((_, i) => i !== idx));
+    setRows(r => r.filter((_, i) => i !== idx));
   }
 
   const totalItems = useMemo(
@@ -130,32 +113,30 @@ export default function DashboardPage() {
   return (
     <div className="mx-auto max-w-6xl p-6">
       {/* Header */}
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-5 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">
-          Total items: {totalItems}
-        </div>
+        <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">Total items: {totalItems}</div>
       </div>
 
-      {/* Import + Manual */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* Import from Steam */}
-        <div className="rounded-2xl border border-zinc-800 p-4">
-          <div className="mb-2 text-lg font-medium">Import from Steam</div>
-          <p className="mb-3 text-sm text-zinc-400">
+      {/* Cards – equal height, aligned controls */}
+      <div className="grid items-stretch grid-cols-1 gap-6 md:grid-cols-2">
+        {/* Import card */}
+        <div className="flex h-full flex-col rounded-2xl border border-zinc-800 p-4">
+          <div className="text-lg font-medium">Import from Steam</div>
+          <p className="mb-3 mt-1 text-sm text-zinc-400">
             Paste your <span className="font-medium">SteamID64</span> or a{" "}
             <span className="font-mono">steamcommunity.com/profiles/&lt;id&gt;</span> URL (public inventory).
           </p>
-          <div className="flex items-center gap-2">
+          <div className="mt-auto flex gap-2">
             <input
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-2"
+              className="h-11 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4"
               placeholder="76561198XXXXXXXXXX or /profiles/<id>"
               value={steamId}
               onChange={(e) => setSteamId(e.target.value)}
             />
             <button
               onClick={() => load(steamId || undefined)}
-              className="rounded-xl bg-amber-600 px-4 py-2 text-black hover:bg-amber-500 disabled:opacity-60"
+              className="h-11 shrink-0 rounded-xl bg-amber-600 px-5 text-black hover:bg-amber-500 disabled:opacity-60"
               disabled={loading}
             >
               {loading ? "Importing…" : "Import"}
@@ -163,69 +144,63 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Add manual item */}
-        <div className="rounded-2xl border border-zinc-800 p-4">
-          <div className="mb-2 text-lg font-medium">Add manual item</div>
+        {/* Manual card */}
+        <div className="flex h-full flex-col rounded-2xl border border-zinc-800 p-4">
+          <div className="text-lg font-medium">Add manual item</div>
 
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-12">
-            {/* Name (no wear) */}
+          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-12">
+            {/* Name */}
             <div className="md:col-span-5">
-              <label className="mb-1 block text-xs text-zinc-400">
-                Item name (paste WITHOUT wear)
-              </label>
+              <label className="mb-1 block text-xs text-zinc-400">Item name (paste WITHOUT wear)</label>
               <input
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
+                className="h-11 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3"
                 placeholder="AK-47 | Redline"
                 value={mName}
                 onChange={(e) => setMName(e.target.value)}
               />
             </div>
 
-            {/* Wear selector */}
+            {/* Wear */}
             <div className="md:col-span-3">
-              <label className="mb-1 block text-xs text-zinc-400">
-                Wear (used for pricing)
-              </label>
+              <label className="mb-1 block text-xs text-zinc-400">Wear (used for pricing)</label>
               <select
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
+                className="h-11 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3"
                 value={mWear}
                 onChange={(e) => setMWear(e.target.value as WearCode)}
               >
-                {WEAR_OPTIONS.map((w) => (
-                  <option key={w.code} value={w.code}>
-                    {w.label}
-                  </option>
+                {WEAR_OPTIONS.map(w => (
+                  <option key={w.code} value={w.code}>{w.label}</option>
                 ))}
               </select>
             </div>
 
-            {/* Float (note only) */}
+            {/* Float */}
             <div className="md:col-span-2">
               <label className="mb-1 block text-xs text-zinc-400">Float (note only)</label>
               <input
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
+                className="h-11 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3"
                 placeholder="0.1234"
                 value={mFloat}
                 onChange={(e) => setMFloat(e.target.value)}
               />
             </div>
 
-            {/* Pattern (note only) */}
+            {/* Pattern */}
             <div className="md:col-span-2">
               <label className="mb-1 block text-xs text-zinc-400">Pattern (note only)</label>
               <input
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
+                className="h-11 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3"
                 placeholder="123"
                 value={mPattern}
                 onChange={(e) => setMPattern(e.target.value)}
               />
             </div>
 
-            {/* Add button */}
+            {/* Add */}
             <div className="md:col-span-12">
               <button
                 onClick={addManual}
-                className="mt-2 w-full rounded-xl bg-amber-600 px-4 py-2 text-black hover:bg-amber-500 disabled:opacity-60"
+                className="h-11 w-full rounded-xl bg-amber-600 px-4 text-black hover:bg-amber-500 disabled:opacity-60"
                 disabled={!mName.trim()}
               >
                 Add
@@ -305,3 +280,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
