@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { fetchInventory, fetchSkinportMap, InvItem } from "@/lib/api";
+import { fetchInventory, InvItem } from "@/lib/api"; // <- fetchSkinportMap removed
 
 /* ---------- local persistence ---------- */
 const STORAGE_KEY = "cs2:dashboard:rows";
@@ -113,7 +113,7 @@ type Row = Omit<InvItem, "pattern" | "float"> & {
   priceAUD?: number; // unit (skinport)
   totalAUD?: number; // unit * qty (skinport)
   source: "steam" | "manual";
-  // optional % chips (render only if present)
+  // optional % chips
   skinportH1?: number;
   skinportD1?: number;
   skinportM1?: number;
@@ -161,7 +161,7 @@ function ChangeBadge({ label, value }: { label: string; value: number | undefine
   );
 }
 
-/** Price cell: shows unit price, and if qty>1, shows a small subtotal line */
+/** Price cell: unit + (if qty>1) subtotal line */
 function PriceCell({
   price,
   qty,
@@ -181,17 +181,12 @@ function PriceCell({
 
   return (
     <div className="text-right leading-tight">
-      {/* unit price */}
       <div>{hasUnit ? `A$${price!.toFixed(2)}` : "—"}</div>
-
-      {/* subtotal when qty > 1 */}
       {hasUnit && qty > 1 && (
         <div className="mt-0.5 text-[11px] text-zinc-400">
           ×{qty} = <span className="tabular-nums">A${subtotal!.toFixed(2)}</span>
         </div>
       )}
-
-      {/* change chips if present */}
       {hasAny && (
         <div className="mt-1 flex flex-wrap justify-end gap-1">
           <ChangeBadge label="1h" value={h1} />
@@ -236,7 +231,6 @@ export default function DashboardPage() {
         const parsed = JSON.parse(raw) as Row[];
         const normalized = parsed.map((r) => ({
           ...r,
-          // clean old "(none)" suffixes if any were saved previously
           market_hash_name: r.market_hash_name ? stripNone(r.market_hash_name) : r.market_hash_name,
           name: r.name ? stripNone(r.name) : r.name,
           nameNoWear: r.nameNoWear ? stripNone(r.nameNoWear) : r.nameNoWear,
@@ -266,17 +260,19 @@ export default function DashboardPage() {
     };
   }, [rows]);
 
-  /* load Skinport map once */
+  /* load/refresh Skinport map via server route */
   async function refreshSkinport() {
     try {
-      const res = await fetchSkinportMap();
-      setSpMap(res.map);
-      setSkinportUpdatedAt(Date.now());
+      const r = await fetch("/api/prices/skinport-map", { cache: "no-store" });
+      const data: { map: Record<string, number>; updatedAt?: number } = await r.json();
+      const map = data.map || {};
+      setSkinportUpdatedAt(data.updatedAt ?? Date.now());
+      setSpMap(map);
 
       // apply fresh prices to rows (unit + total)
       setRows((prev) =>
         prev.map((r) => {
-          const sp = res.map[r.market_hash_name] ?? res.map[stripNone(r.market_hash_name)];
+          const sp = map[r.market_hash_name] ?? map[stripNone(r.market_hash_name)];
           const priceAUD = typeof sp === "number" ? sp : undefined;
           const qty = r.quantity ?? 1;
           return {
@@ -288,7 +284,7 @@ export default function DashboardPage() {
         })
       );
     } catch {
-      // ignore
+      // ignore; keep last good spMap/prices
     }
   }
 
@@ -345,7 +341,6 @@ export default function DashboardPage() {
           source: "steam",
         };
       });
-      // keep manual rows
       setRows((prev) => [...prev.filter((r) => r.source === "manual"), ...mapped]);
     } finally {
       setLoading(false);
@@ -416,7 +411,6 @@ export default function DashboardPage() {
     const STALE_MS = 45 * 60 * 1000;
 
     try {
-      // pick items that are missing steam price or stale
       const candidates = rows
         .map((r, i) => ({ r, i }))
         .filter(
@@ -467,19 +461,17 @@ export default function DashboardPage() {
     }
   }
 
-  // initial backfill
   useEffect(() => {
-    backfillSomeSteamPrices(12);
+    backfillSomeSteamPrices(12); // initial
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // auto-refresh every 5 minutes
   useEffect(() => {
     const id = window.setInterval(() => {
       backfillSomeSteamPrices(8);
     }, 5 * 60 * 1000);
     return () => window.clearInterval(id);
-  }, [rows]); // rows in deps so new rows also considered
+  }, [rows]);
 
   /* sorting + totals (stable, missing pinned to bottom) */
   const [sorted, totals] = useMemo(() => {
@@ -511,7 +503,7 @@ export default function DashboardPage() {
           c = cmpNum(a.steamAUD, b.steamAUD, dir);
           break;
       }
-      if (c === 0) c = cmpStr(a.nameNoWear, b.nameNoWear, 1); // stable tiebreak
+      if (c === 0) c = cmpStr(a.nameNoWear, b.nameNoWear, 1);
       return c;
     });
 
@@ -567,7 +559,6 @@ export default function DashboardPage() {
   }
 
   const nonWearForCurrentInput = isNonWearCategory(stripNone(mName || ""));
-
   const formatTime = (ts: number | null) =>
     ts ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—";
 
@@ -752,7 +743,7 @@ export default function DashboardPage() {
               </tr>
             ) : (
               sorted.map((r) => {
-                const orig = origIndexMap.get(r)!; // O(1) lookup
+                const orig = origIndexMap.get(r)!;
                 return (
                   <tr key={r.market_hash_name + "|" + orig} className="border-t border-zinc-800">
                     <td className="px-4 py-2">
