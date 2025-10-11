@@ -280,19 +280,19 @@ export default function DashboardPage() {
         const qty = row.quantity ?? 1;
 
         // choose image if row.image is missing/empty
-        const img =
-          row.image && row.image.trim() !== ""
-            ? row.image
-            : images[row.market_hash_name] ??
-              images[row.market_hash_name.replace(/\s+\(none\)$/i, "")];
+       // inside setRows(prev => prev.map(row => ({...})))
+const candidateImg =
+  images[row.market_hash_name] ??
+  images[row.market_hash_name.replace(/\s+\(none\)$/i, "")];
 
-        return {
-          ...row,
-          skinportAUD: sp,
-          priceAUD,
-          totalAUD: priceAUD ? priceAUD * qty : undefined,
-          image: img ?? row.image, // only overwrite if we found one
-        };
+return {
+  ...row,
+  skinportAUD: sp,
+  priceAUD,
+  totalAUD: priceAUD ? priceAUD * qty : undefined,
+  image: row.image && row.image.trim() !== "" ? row.image : (candidateImg ?? row.image),
+};
+
       })
     );
   } catch {
