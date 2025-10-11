@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 const FX_AUD_PER_USD = Number(process.env.FX_AUD_PER_USD || "1.55");
-const URL = (mhn: string) =>
+const buildMarketUrl = (mhn: string) =>
   `https://steamcommunity.com/market/priceoverview/?appid=730&currency=1&market_hash_name=${encodeURIComponent(mhn)}`;
 
 type SteamResp = { success: boolean; lowest_price?: string; median_price?: string };
@@ -12,7 +12,7 @@ const TTL = 10 * 60 * 1000; // 10 min
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
+  const { searchParams } = new globalThis.URL(req.url);
   const name = searchParams.get("name");
   if (!name) return NextResponse.json({ error: "Missing ?name" }, { status: 400 });
 
@@ -22,7 +22,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    const r = await fetch(URL(name), { cache: "no-store", next: { revalidate: 0 } });
+    const r = await fetch(buildMarketUrl(name), { cache: "no-store", next: { revalidate: 0 } });
     if (!r.ok) throw new Error(String(r.status));
     const data = (await r.json()) as SteamResp;
     if (!data?.success) {
