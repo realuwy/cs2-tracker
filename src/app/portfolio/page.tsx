@@ -1,10 +1,11 @@
 "use client";
+
 import { useEffect, useMemo, useState } from "react";
 import { fetchInventory, fetchSkinportMap, InvItem } from "@/lib/api";
 
-// Wear options and helpers
+// Wear options & helpers
 const WEAR_OPTIONS = [
-  { code: "",  label: "(none)" },
+  { code: "", label: "(none)" },
   { code: "FN", label: "Factory New" },
   { code: "MW", label: "Minimal Wear" },
   { code: "FT", label: "Field-Tested" },
@@ -13,7 +14,7 @@ const WEAR_OPTIONS = [
 ] as const;
 type WearCode = typeof WEAR_OPTIONS[number]["code"];
 
-function wearLabel(code: string | undefined) {
+function wearLabel(code?: string) {
   return WEAR_OPTIONS.find((w) => w.code === code)?.label ?? "";
 }
 function toMarketHash(nameNoWear: string, wear?: WearCode) {
@@ -22,41 +23,40 @@ function toMarketHash(nameNoWear: string, wear?: WearCode) {
 }
 
 type Row = InvItem & {
-  // optional enrichments
   skinportAUD?: number;
   priceAUD?: number;
   totalAUD?: number;
-  // manual-only display fields
   float?: string;
   pattern?: string;
   source: "steam" | "manual";
 };
 
 export default function PortfolioPage() {
-  // Import
+  // rows & prices
   const [rows, setRows] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [steamId, setSteamId] = useState<string>("");
-
-  // Prices
   const [spMap, setSpMap] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(false);
 
-  // Manual form
+  // import controls
+  const [steamId, setSteamId] = useState("");
+
+  // manual form
   const [mName, setMName] = useState("");
-const [mWear, setMWear] = useState<WearCode>("");
-const [mFloat, setMFloat] = useState("");
-const [mPattern, setMPattern] = useState("");
+  const [mWear, setMWear] = useState<WearCode>("");
+  const [mFloat, setMFloat] = useState("");
+  const [mPattern, setMPattern] = useState("");
 
-
-  // Load prices once
+  // load prices once
   useEffect(() => {
-    fetchSkinportMap().then((res) => setSpMap(res.map)).catch(() => {});
+    fetchSkinportMap()
+      .then((res) => setSpMap(res.map))
+      .catch(() => {});
   }, []);
 
-  // Auto-load default Steam id (if provided in env)
+  // auto-load default steam id if provided
   useEffect(() => {
     const def = process.env.NEXT_PUBLIC_DEFAULT_STEAM_ID64;
-    if (def) load(def);
+    if (def) void load(def);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -65,7 +65,6 @@ const [mPattern, setMPattern] = useState("");
     try {
       const inv = await fetchInventory(id);
       const mapped: Row[] = inv.items.map((it) => {
-        // Build market_hash_name like manual does (guarantees same price key)
         const mhn = it.market_hash_name || toMarketHash(it.nameNoWear, it.wear as WearCode);
         const spAUD = spMap[mhn];
         const qty = it.quantity ?? 1;
@@ -80,7 +79,6 @@ const [mPattern, setMPattern] = useState("");
         };
       });
       setRows((prev) => {
-        // Replace steam-sourced rows but keep manual ones
         const manual = prev.filter((r) => r.source === "manual");
         return [...manual, ...mapped];
       });
@@ -89,46 +87,45 @@ const [mPattern, setMPattern] = useState("");
     }
   }
 
- function addManual() {
-  if (!mName.trim()) return;
+  function addManual() {
+    if (!mName.trim()) return;
+    const nameNoWear = mName.trim();
+    const market_hash_name = toMarketHash(nameNoWear, mWear);
+    const spAUD = spMap[market_hash_name];
+    const priceAUD = typeof spAUD === "number" ? spAUD : undefined;
 
-  const nameNoWear = mName.trim();
-  const market_hash_name = toMarketHash(nameNoWear, mWear);
-  const image = ""; // optional future field
-  const spAUD = spMap[market_hash_name];
-  const priceAUD = typeof spAUD === "number" ? spAUD : undefined;
-
-  const newRow: Row = {
-    market_hash_name,
-    name: market_hash_name,
-    nameNoWear,
-    wear: mWear,
-    pattern: mPattern.trim(),
-    float: mFloat.trim(),
-    image,
-    inspectLink: "",
-    quantity: 1,             // default 1; you can add a qty control later
-    skinportAUD: spAUD,
-    priceAUD,
-    totalAUD: priceAUD ?? undefined,
-    source: "manual",
-  };
-  setRows((r) => [newRow, ...r]);
-
-  setMName(""); setMWear(""); setMFloat(""); setMPattern("");
-}
-
+    const newRow: Row = {
+      market_hash_name,
+      name: market_hash_name,
+      nameNoWear,
+      wear: mWear,
+      pattern: mPattern.trim(),
+      float: mFloat.trim(),
+      image: "",
+      inspectLink: "",
+      quantity: 1,
+      skinportAUD: spAUD,
+      priceAUD,
+      totalAUD: priceAUD ?? undefined,
+      source: "manual",
+    };
+    setRows((r) => [newRow, ...r]);
+    setMName("");
+    setMWear("");
+    setMFloat("");
+    setMPattern("");
+  }
 
   function removeRow(idx: number) {
     setRows((r) => r.filter((_, i) => i !== idx));
   }
 
- const totalItems = useMemo(
-  () => rows.reduce((acc, r) => acc + (r.quantity ?? 1), 0),
-  [rows]
-);
-return (
+  const totalItems = useMemo(
+    () => rows.reduce((acc, r) => acc + (r.quantity ?? 1), 0),
+    [rows]
+  );
 
+  return (
     <div className="mx-auto max-w-6xl p-6">
       {/* Header Row */}
       <div className="mb-2 flex items-center justify-between">
@@ -165,73 +162,83 @@ return (
         </div>
 
         {/* Add manual item */}
-       <div className="rounded-2xl border border-zinc-800 p-4">
-  <div className="mb-2 text-lg font-medium">Add manual item</div>
+        <div className="rounded-2xl border border-zinc-800 p-4">
+          <div className="mb-2 text-lg font-medium">Add manual item</div>
 
-  <div className="grid grid-cols-1 gap-2 md:grid-cols-12">
-    {/* Name (no wear) */}
-    <div className="md:col-span-5">
-      <label className="mb-1 block text-xs text-zinc-400">Item name (paste WITHOUT wear)</label>
-      <input
-        className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
-        placeholder="AK-47 | Redline"
-        value={mName}
-        onChange={(e) => setMName(e.target.value)}
-      />
-    </div>
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-12">
+            {/* Name (no wear) */}
+            <div className="md:col-span-5">
+              <label className="mb-1 block text-xs text-zinc-400">
+                Item name (paste WITHOUT wear)
+              </label>
+              <input
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
+                placeholder="AK-47 | Redline"
+                value={mName}
+                onChange={(e) => setMName(e.target.value)}
+              />
+            </div>
 
-    {/* Wear selector */}
-    <div className="md:col-span-3">
-      <label className="mb-1 block text-xs text-zinc-400">Wear (used for pricing)</label>
-      <select
-        className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
-        value={mWear}
-        onChange={(e) => setMWear(e.target.value as WearCode)}
-      >
-        {WEAR_OPTIONS.map((w) => (
-          <option key={w.code} value={w.code}>{w.label}</option>
-        ))}
-      </select>
-    </div>
+            {/* Wear selector */}
+            <div className="md:col-span-3">
+              <label className="mb-1 block text-xs text-zinc-400">
+                Wear (used for pricing)
+              </label>
+              <select
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
+                value={mWear}
+                onChange={(e) => setMWear(e.target.value as WearCode)}
+              >
+                {WEAR_OPTIONS.map((w) => (
+                  <option key={w.code} value={w.code}>
+                    {w.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-    {/* Float (note only) */}
-    <div className="md:col-span-2">
-      <label className="mb-1 block text-xs text-zinc-400">Float (note only)</label>
-      <input
-        className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
-        placeholder="0.1234"
-        value={mFloat}
-        onChange={(e) => setMFloat(e.target.value)}
-      />
-    </div>
+            {/* Float (note only) */}
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs text-zinc-400">
+                Float (note only)
+              </label>
+              <input
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
+                placeholder="0.1234"
+                value={mFloat}
+                onChange={(e) => setMFloat(e.target.value)}
+              />
+            </div>
 
-    {/* Pattern (note only) */}
-    <div className="md:col-span-2">
-      <label className="mb-1 block text-xs text-zinc-400">Pattern (note only)</label>
-      <input
-        className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
-        placeholder="123"
-        value={mPattern}
-        onChange={(e) => setMPattern(e.target.value)}
-      />
-    </div>
+            {/* Pattern (note only) */}
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs text-zinc-400">
+                Pattern (note only)
+              </label>
+              <input
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
+                placeholder="123"
+                value={mPattern}
+                onChange={(e) => setMPattern(e.target.value)}
+              />
+            </div>
 
-    {/* Add button */}
-    <div className="md:col-span-12">
-      <button
-        onClick={addManual}
-        className="mt-2 rounded-xl bg-amber-600 px-4 py-2 text-black hover:bg-amber-500 disabled:opacity-60"
-        disabled={!mName.trim()}
-      >
-        Add
-      </button>
-      <p className="mt-2 text-xs text-zinc-400">
-        Pricing uses only <span className="font-medium">Item name + Wear</span>. Float/Pattern are for display.
-      </p>
-    </div>
-  </div>
-</div>
-
+            {/* Add button */}
+            <div className="md:col-span-12">
+              <button
+                onClick={addManual}
+                className="mt-2 rounded-xl bg-amber-600 px-4 py-2 text-black hover:bg-amber-500 disabled:opacity-60"
+                disabled={!mName.trim()}
+              >
+                Add
+              </button>
+              <p className="mt-2 text-xs text-zinc-400">
+                Pricing uses only <span className="font-medium">Item name + Wear</span>. Float/Pattern are for display.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Table */}
       <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-800">
