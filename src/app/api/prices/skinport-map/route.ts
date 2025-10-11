@@ -36,7 +36,7 @@ export async function GET() {
   }
 
   const map: Record<string, number> = {};
-  // try to read price from priced list first; if missing, fall back to generic (has suggested/min too)
+  // Fallback: if priced is empty for some reason, use generic for prices too.
   const byNameFromGeneric = new Map(generic.map((g) => [g.market_hash_name, g]));
   const all = priced.length > 0 ? priced : generic;
 
@@ -71,3 +71,4 @@ export async function GET() {
     { status: 200 }
   );
 }
+
