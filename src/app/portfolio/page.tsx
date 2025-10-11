@@ -4,6 +4,7 @@ import { fetchInventory, fetchSkinportMap, InvItem } from "@/lib/api";
 
 // Wear options and helpers
 const WEAR_OPTIONS = [
+  { code: "",  label: "(none)" },
   { code: "FN", label: "Factory New" },
   { code: "MW", label: "Minimal Wear" },
   { code: "FT", label: "Field-Tested" },
@@ -16,8 +17,8 @@ function wearLabel(code: string | undefined) {
   return WEAR_OPTIONS.find((w) => w.code === code)?.label ?? "";
 }
 function toMarketHash(nameNoWear: string, wear?: WearCode) {
-  const wearFull = wearLabel(wear);
-  return wearFull ? `${nameNoWear} (${wearFull})` : nameNoWear;
+  const full = wearLabel(wear);
+  return full ? `${nameNoWear} (${full})` : nameNoWear;
 }
 
 type Row = InvItem & {
@@ -42,10 +43,10 @@ export default function PortfolioPage() {
 
   // Manual form
   const [mName, setMName] = useState("");
-  const [mWear, setMWear] = useState<WearCode>("FN");
-  const [mPattern, setMPattern] = useState("");
-  const [mFloat, setMFloat] = useState("");
-  const [mQty, setMQty] = useState<number>(1);
+const [mWear, setMWear] = useState<WearCode>("");
+const [mFloat, setMFloat] = useState("");
+const [mPattern, setMPattern] = useState("");
+
 
   // Load prices once
   useEffect(() => {
@@ -88,38 +89,35 @@ export default function PortfolioPage() {
     }
   }
 
-  function addManual() {
-    if (!mName.trim()) return;
+ function addManual() {
+  if (!mName.trim()) return;
 
-    const nameNoWear = mName.trim();
-    const market_hash_name = toMarketHash(nameNoWear, mWear);
-    const image = ""; // user can paste URL later if you add an icon field
-    const spAUD = spMap[market_hash_name];
-    const priceAUD = typeof spAUD === "number" ? spAUD : undefined;
+  const nameNoWear = mName.trim();
+  const market_hash_name = toMarketHash(nameNoWear, mWear);
+  const image = ""; // optional future field
+  const spAUD = spMap[market_hash_name];
+  const priceAUD = typeof spAUD === "number" ? spAUD : undefined;
 
-    const newRow: Row = {
-      market_hash_name,
-      name: market_hash_name, // full name with wear
-      nameNoWear,
-      wear: mWear,
-      pattern: mPattern.trim(),
-      float: mFloat.trim(),
-      image,
-      inspectLink: "",
-      quantity: mQty,
-      skinportAUD: spAUD,
-      priceAUD,
-      totalAUD: priceAUD ? priceAUD * mQty : undefined,
-      source: "manual",
-    };
-    setRows((r) => [newRow, ...r]);
+  const newRow: Row = {
+    market_hash_name,
+    name: market_hash_name,
+    nameNoWear,
+    wear: mWear,
+    pattern: mPattern.trim(),
+    float: mFloat.trim(),
+    image,
+    inspectLink: "",
+    quantity: 1,             // default 1; you can add a qty control later
+    skinportAUD: spAUD,
+    priceAUD,
+    totalAUD: priceAUD ?? undefined,
+    source: "manual",
+  };
+  setRows((r) => [newRow, ...r]);
 
-    // reset minimal
-    setMName("");
-    setMPattern("");
-    setMFloat("");
-    setMQty(1);
-  }
+  setMName(""); setMWear(""); setMFloat(""); setMPattern("");
+}
+
 
   function removeRow(idx: number) {
     setRows((r) => r.filter((_, i) => i !== idx));
@@ -167,76 +165,73 @@ export default function PortfolioPage() {
         </div>
 
         {/* Add manual item */}
-        <div className="rounded-2xl border border-zinc-800 p-4">
-          <div className="mb-2 text-lg font-medium">Add manual item</div>
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-            <input
-              className="rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
-              placeholder="Item name (no wear), e.g., AK-47 | Redline"
-              value={mName}
-              onChange={(e) => setMName(e.target.value)}
-            />
-            <select
-              className="rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
-              value={mWear}
-              onChange={(e) => setMWear(e.target.value as WearCode)}
-            >
-              {WEAR_OPTIONS.map((w) => (
-                <option key={w.code} value={w.code}>{w.label}</option>
-              ))}
-            </select>
+       <div className="rounded-2xl border border-zinc-800 p-4">
+  <div className="mb-2 text-lg font-medium">Add manual item</div>
 
-            <input
-              className="rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
-              placeholder="Pattern (display only)"
-              value={mPattern}
-              onChange={(e) => setMPattern(e.target.value)}
-            />
-            <input
-              className="rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
-              placeholder="Float (display only)"
-              value={mFloat}
-              onChange={(e) => setMFloat(e.target.value)}
-            />
+  <div className="grid grid-cols-1 gap-2 md:grid-cols-12">
+    {/* Name (no wear) */}
+    <div className="md:col-span-5">
+      <label className="mb-1 block text-xs text-zinc-400">Item name (paste WITHOUT wear)</label>
+      <input
+        className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
+        placeholder="AK-47 | Redline"
+        value={mName}
+        onChange={(e) => setMName(e.target.value)}
+      />
+    </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                className="h-10 w-10 rounded-xl border border-zinc-700 bg-zinc-900"
-                onClick={() => setMQty((q) => Math.max(1, q - 1))}
-                type="button"
-              >
-                –
-              </button>
-              <input
-                type="number"
-                min={1}
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-center"
-                value={mQty}
-                onChange={(e) => setMQty(Math.max(1, Number(e.target.value) || 1))}
-              />
-              <button
-                className="h-10 w-10 rounded-xl border border-zinc-700 bg-zinc-900"
-                onClick={() => setMQty((q) => q + 1)}
-                type="button"
-              >
-                +
-              </button>
-            </div>
-          </div>
+    {/* Wear selector */}
+    <div className="md:col-span-3">
+      <label className="mb-1 block text-xs text-zinc-400">Wear (used for pricing)</label>
+      <select
+        className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
+        value={mWear}
+        onChange={(e) => setMWear(e.target.value as WearCode)}
+      >
+        {WEAR_OPTIONS.map((w) => (
+          <option key={w.code} value={w.code}>{w.label}</option>
+        ))}
+      </select>
+    </div>
 
-          <div className="mt-3">
-            <button
-              onClick={addManual}
-              className="w-full rounded-xl bg-amber-600 px-4 py-2 text-black hover:bg-amber-500 disabled:opacity-60"
-            >
-              Add
-            </button>
-            <p className="mt-2 text-xs text-zinc-400">
-              Price lookup uses only <span className="font-medium">Item name + Wear</span>. Pattern/Float are shown for display.
-            </p>
-          </div>
-        </div>
-      </div>
+    {/* Float (note only) */}
+    <div className="md:col-span-2">
+      <label className="mb-1 block text-xs text-zinc-400">Float (note only)</label>
+      <input
+        className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
+        placeholder="0.1234"
+        value={mFloat}
+        onChange={(e) => setMFloat(e.target.value)}
+      />
+    </div>
+
+    {/* Pattern (note only) */}
+    <div className="md:col-span-2">
+      <label className="mb-1 block text-xs text-zinc-400">Pattern (note only)</label>
+      <input
+        className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
+        placeholder="123"
+        value={mPattern}
+        onChange={(e) => setMPattern(e.target.value)}
+      />
+    </div>
+
+    {/* Add button */}
+    <div className="md:col-span-12">
+      <button
+        onClick={addManual}
+        className="mt-2 rounded-xl bg-amber-600 px-4 py-2 text-black hover:bg-amber-500 disabled:opacity-60"
+        disabled={!mName.trim()}
+      >
+        Add
+      </button>
+      <p className="mt-2 text-xs text-zinc-400">
+        Pricing uses only <span className="font-medium">Item name + Wear</span>. Float/Pattern are for display.
+      </p>
+    </div>
+  </div>
+</div>
+
 
       {/* Table */}
       <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-800">
