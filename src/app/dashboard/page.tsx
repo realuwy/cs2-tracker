@@ -16,14 +16,25 @@ const WEAR_OPTIONS = [
   { code: "WW", label: "Well-Worn" },
   { code: "BS", label: "Battle-Scarred" },
 ] as const;
-type WearCode = typeof WEAR_OPTIONS[number]["code"];
+type WearCode = (typeof WEAR_OPTIONS)[number]["code"];
+
 const wearLabel = (code?: string) =>
   WEAR_OPTIONS.find((w) => w.code === code)?.label ?? "";
 
+/**
+ * IMPORTANT:
+ * - Only append a wear label for actual wear variants (FN/MW/FT/WW/BS)
+ * - DO NOT append "(none)" to non-wear items (stickers, agents, cases, etc.)
+ */
 const toMarketHash = (nameNoWear: string, wear?: WearCode) => {
+  if (!wear) return nameNoWear;
+  if (!["FN", "MW", "FT", "WW", "BS"].includes(wear)) return nameNoWear;
   const full = wearLabel(wear);
   return full ? `${nameNoWear} (${full})` : nameNoWear;
 };
+
+/** Remove trailing " (none)" if present (some inventories persist it) */
+const stripNone = (s: string) => s.replace(/\s+\(none\)$/i, "");
 
 /* ---------- sorting helpers (bidirectional, missing always last) ---------- */
 const WEAR_TO_RANK: Record<string, number> = { FN: 0, MW: 1, FT: 2, WW: 3, BS: 4 };
@@ -39,7 +50,6 @@ const cmpStr = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
   return (a ?? "").toLocaleLowerCase().localeCompare((b ?? "").toLocaleLowerCase()) * dir;
 };
 
-// treat undefined/null/"" as missing; only real numbers count
 const isMissingNum = (v: unknown) =>
   v === undefined ||
   v === null ||
@@ -57,15 +67,15 @@ const cmpNum = (a: unknown, b: unknown, dir: 1 | -1) => {
   return na === nb ? 0 : (na < nb ? -1 : 1) * dir;
 };
 
-// Wear rank comparator; non-wear always bottom
 const cmpWear = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
   const ra = wearRank(a);
   const rb = wearRank(b);
-  const am = ra === 99, bm = rb === 99;
+  const am = ra === 99,
+    bm = rb === 99;
   if (am && bm) return 0;
   if (am) return 1;
   if (bm) return -1;
-  return (ra === rb ? 0 : (ra < rb ? -1 : 1)) * dir;
+  return (ra === rb ? 0 : ra < rb ? -1 : 1) * dir;
 };
 
 /* ---------- row type ---------- */
@@ -78,11 +88,15 @@ type Row = Omit<InvItem, "pattern" | "float"> & {
   totalAUD?: number;
   source: "steam" | "manual";
   // optional % chips (render only if present)
-  skinportH1?: number; skinportD1?: number; skinportM1?: number;
-  steamH1?: number;    steamD1?: number;    steamM1?: number;
+  skinportH1?: number;
+  skinportD1?: number;
+  skinportM1?: number;
+  steamH1?: number;
+  steamD1?: number;
+  steamM1?: number;
 };
 
-/* ---------- sorting state (reducer = reliable toggles) ---------- */
+/* ---------- sorting state ---------- */
 type SortKey = "item" | "wear" | "pattern" | "float" | "qty" | "skinport" | "steam";
 type SortDir = "asc" | "desc";
 type SortState = { key: SortKey; dir: SortDir };
@@ -99,18 +113,38 @@ function ChangeBadge({ label, value }: { label: string; value: number | undefine
   if (value === undefined || Number.isNaN(value)) return null;
   const neg = value < 0;
   const zero = value === 0;
-  const color = zero ? "text-zinc-400 border-zinc-700" : neg ? "text-red-400 border-red-700" : "text-emerald-400 border-emerald-700";
+  const color = zero
+    ? "text-zinc-400 border-zinc-700"
+    : neg
+    ? "text-red-400 border-red-700"
+    : "text-emerald-400 border-emerald-700";
   const arrow = zero ? "" : neg ? "↓" : "↑";
   return (
-    <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] ${color}`} title={`${label} change`}>
+    <span
+      className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] ${color}`}
+      title={`${label} change`}
+    >
       <span className="opacity-75">{label}</span>
-      <span className="tabular-nums">{arrow}{Math.abs(value).toFixed(1)}%</span>
+      <span className="tabular-nums">
+        {arrow}
+        {Math.abs(value).toFixed(1)}%
+      </span>
     </span>
   );
 }
 
-function PriceCell({ price, h1, d1, m1 }: { price?: number; h1?: number; d1?: number; m1?: number; }) {
-  const hasAny = [h1, d1, m1].some(v => v !== undefined && !Number.isNaN(Number(v)));
+function PriceCell({
+  price,
+  h1,
+  d1,
+  m1,
+}: {
+  price?: number;
+  h1?: number;
+  d1?: number;
+  m1?: number;
+}) {
+  const hasAny = [h1, d1, m1].some((v) => v !== undefined && !Number.isNaN(Number(v)));
   return (
     <div className="text-right leading-tight">
       <div>{typeof price === "number" ? `A$${price.toFixed(2)}` : "—"}</div>
@@ -118,7 +152,9 @@ function PriceCell({ price, h1, d1, m1 }: { price?: number; h1?: number; d1?: nu
         <div className="mt-1 flex flex-wrap justify-end gap-1">
           <ChangeBadge label="1h" value={h1} />
           <ChangeBadge label="24h" value={d1} />
-          <span className="hidden sm:inline"><ChangeBadge label="30d" value={m1} /></span>
+          <span className="hidden sm:inline">
+            <ChangeBadge label="30d" value={m1} />
+          </span>
         </div>
       )}
     </div>
@@ -152,6 +188,9 @@ export default function DashboardPage() {
         const parsed = JSON.parse(raw) as Row[];
         const normalized = parsed.map((r) => ({
           ...r,
+          // clean old "(none)" suffixes if any were saved previously
+          market_hash_name: r.market_hash_name ? stripNone(r.market_hash_name) : r.market_hash_name,
+          name: r.name ? stripNone(r.name) : r.name,
           pattern: r.pattern && String(r.pattern).trim() !== "" ? r.pattern : undefined,
           float: r.float && String(r.float).trim() !== "" ? r.float : undefined,
           skinportAUD: isMissingNum(r.skinportAUD) ? undefined : Number(r.skinportAUD),
@@ -180,7 +219,9 @@ export default function DashboardPage() {
 
   /* load Skinport map once */
   useEffect(() => {
-    fetchSkinportMap().then((res) => setSpMap(res.map)).catch(() => {});
+    fetchSkinportMap()
+      .then((res) => setSpMap(res.map))
+      .catch(() => {});
   }, []);
 
   /* optional: auto-load default steam id */
@@ -204,17 +245,22 @@ export default function DashboardPage() {
   };
 
   async function load(id?: string) {
+    if (!id) return;
     setLoading(true);
     try {
       const inv = await fetchInventory(id);
       const mapped: Row[] = inv.items.map((it) => {
-        const mhn = it.market_hash_name || toMarketHash(it.nameNoWear, it.wear as WearCode);
-        const spAUD = spMap[mhn];
+        // use server-provided market_hash_name, else build WITHOUT "(none)"
+        const mhnRaw =
+          it.market_hash_name || toMarketHash(it.nameNoWear, it.wear as WearCode);
+        const mhn = stripNone(mhnRaw);
+        const spAUD = spMap[mhn] ?? spMap[stripNone(mhn)];
         const qty = it.quantity ?? 1;
         const priceAUD = typeof spAUD === "number" ? spAUD : undefined;
         return {
           ...it,
           market_hash_name: mhn,
+          name: stripNone(it.name || mhn),
           skinportAUD: spAUD,
           priceAUD,
           totalAUD: priceAUD ? priceAUD * qty : undefined,
@@ -222,7 +268,10 @@ export default function DashboardPage() {
         };
       });
       // keep manual rows
-      setRows((prev) => [...prev.filter((r) => r.source === "manual"), ...mapped]);
+      setRows((prev) => [
+        ...prev.filter((r) => r.source === "manual"),
+        ...mapped,
+      ]);
     } finally {
       setLoading(false);
     }
@@ -230,9 +279,9 @@ export default function DashboardPage() {
 
   function addManual() {
     if (!mName.trim()) return;
-    const nameNoWear = mName.trim();
-    const market_hash_name = toMarketHash(nameNoWear, mWear);
-    const spAUD = spMap[market_hash_name];
+    const nameNoWear = stripNone(mName.trim());
+    const market_hash_name = stripNone(toMarketHash(nameNoWear, mWear));
+    const spAUD = spMap[market_hash_name] ?? spMap[stripNone(market_hash_name)];
     const priceAUD = typeof spAUD === "number" ? spAUD : undefined;
 
     const newRow: Row = {
@@ -251,7 +300,11 @@ export default function DashboardPage() {
       source: "manual",
     };
     setRows((r) => [newRow, ...r]);
-    setMName(""); setMWear(""); setMFloat(""); setMPattern(""); setMQty(1);
+    setMName("");
+    setMWear("");
+    setMFloat("");
+    setMPattern("");
+    setMQty(1);
   }
 
   function removeRow(idx: number) {
@@ -263,7 +316,14 @@ export default function DashboardPage() {
     setRows((r) =>
       r.map((row, i) =>
         i === idx
-          ? { ...row, quantity: q, totalAUD: typeof row.skinportAUD === "number" ? row.skinportAUD * q : row.totalAUD }
+          ? {
+              ...row,
+              quantity: q,
+              totalAUD:
+                typeof row.skinportAUD === "number"
+                  ? row.skinportAUD * q
+                  : row.totalAUD,
+            }
           : row
       )
     );
@@ -285,14 +345,24 @@ export default function DashboardPage() {
       try {
         const results = await Promise.all(
           missing.map(async ({ r, i }) => {
-            try {
-              const resp = await fetch(`/api/prices/steam?name=${encodeURIComponent(r.market_hash_name)}`);
-              const data: { aud?: number | null } = await resp.json();
-              const val = typeof data?.aud === "number" ? data.aud : undefined;
-              return { idx: i, val };
-            } catch {
-              return { idx: i, val: undefined };
+            // Try with exact name, then with stripped "(none)" as a fallback
+            const candidates = [r.market_hash_name, stripNone(r.market_hash_name)].filter(
+              (v, idx, arr) => v && arr.indexOf(v) === idx
+            ) as string[];
+
+            for (const name of candidates) {
+              try {
+                const resp = await fetch(
+                  `/api/prices/steam?name=${encodeURIComponent(name)}`
+                );
+                const data: { aud?: number | null } = await resp.json();
+                const val = typeof data?.aud === "number" ? data.aud : undefined;
+                if (val !== undefined) return { idx: i, val };
+              } catch {
+                // try next candidate
+              }
             }
+            return { idx: i, val: undefined as number | undefined };
           })
         );
 
@@ -301,7 +371,7 @@ export default function DashboardPage() {
         const map = new Map<number, number | undefined>();
         results.forEach(({ idx, val }) => map.set(idx, val));
 
-        setRows(prev =>
+        setRows((prev) =>
           prev.map((row, idx) => (map.has(idx) ? { ...row, steamAUD: map.get(idx) } : row))
         );
       } finally {
@@ -309,7 +379,9 @@ export default function DashboardPage() {
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [rows]);
 
   /* sorting + totals (stable, missing pinned to bottom) */
@@ -320,21 +392,41 @@ export default function DashboardPage() {
     copy.sort((a, b) => {
       let c = 0;
       switch (sort.key) {
-        case "item":     c = cmpStr(a.nameNoWear, b.nameNoWear, dir); break;
-        case "wear":     c = cmpWear(a.wear as string, b.wear as string, dir); break;
-        case "pattern":  c = cmpNum(a.pattern, b.pattern, dir); break;
-        case "float":    c = cmpNum(a.float, b.float, dir); break;
-        case "qty":      c = cmpNum(a.quantity, b.quantity, dir); break;
-        case "skinport": c = cmpNum(a.skinportAUD, b.skinportAUD, dir); break;
-        case "steam":    c = cmpNum(a.steamAUD, b.steamAUD, dir); break;
+        case "item":
+          c = cmpStr(a.nameNoWear, b.nameNoWear, dir);
+          break;
+        case "wear":
+          c = cmpWear(a.wear as string, b.wear as string, dir);
+          break;
+        case "pattern":
+          c = cmpNum(a.pattern, b.pattern, dir);
+          break;
+        case "float":
+          c = cmpNum(a.float, b.float, dir);
+          break;
+        case "qty":
+          c = cmpNum(a.quantity, b.quantity, dir);
+          break;
+        case "skinport":
+          c = cmpNum(a.skinportAUD, b.skinportAUD, dir);
+          break;
+        case "steam":
+          c = cmpNum(a.steamAUD, b.steamAUD, dir);
+          break;
       }
       if (c === 0) c = cmpStr(a.nameNoWear, b.nameNoWear, 1); // stable tiebreak
       return c;
     });
 
     const totalItems = copy.reduce((acc, r) => acc + (r.quantity ?? 1), 0);
-    const totalSkinport = copy.reduce((s, r) => s + ((r.skinportAUD ?? 0) * (r.quantity ?? 1)), 0);
-    const totalSteam = copy.reduce((s, r) => s + ((r.steamAUD ?? 0) * (r.quantity ?? 1)), 0);
+    const totalSkinport = copy.reduce(
+      (s, r) => s + (r.skinportAUD ?? 0) * (r.quantity ?? 1),
+      0
+    );
+    const totalSteam = copy.reduce(
+      (s, r) => s + (r.steamAUD ?? 0) * (r.quantity ?? 1),
+      0
+    );
     return [copy, { totalItems, totalSkinport, totalSteam }] as const;
   }, [rows, sort]);
 
@@ -350,19 +442,30 @@ export default function DashboardPage() {
     const active = sort.key === keyId;
     const ariaSort: React.AriaAttributes["aria-sort"] =
       active ? (sort.dir === "asc" ? "ascending" : "descending") : "none";
-    const onClick = () => { dispatchSort({ type: "toggle", key: keyId }); };
+    const onClick = () => {
+      dispatchSort({ type: "toggle", key: keyId });
+    };
     return (
       <th
         aria-sort={ariaSort}
         onClick={onClick}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
-        className={`px-4 py-2 text-left select-none cursor-pointer ${active ? "text-white" : "text-zinc-300"} hover:bg-zinc-900/40`}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+        className={`px-4 py-2 text-left select-none cursor-pointer ${
+          active ? "text-white" : "text-zinc-300"
+        } hover:bg-zinc-900/40`}
       >
         <span className="inline-flex items-center gap-2">
           {label}
-          {active && <span className="opacity-70">{sort.dir === "asc" ? "▲" : "▼"}</span>}
+          {active && (
+            <span className="opacity-70">{sort.dir === "asc" ? "▲" : "▼"}</span>
+          )}
         </span>
       </th>
     );
@@ -374,9 +477,15 @@ export default function DashboardPage() {
       <div className="mb-5 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Dashboard</h1>
         <div className="flex items-center gap-2">
-          <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">Total items: {totals.totalItems}</div>
-          <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">Skinport: A${totals.totalSkinport.toFixed(2)}</div>
-          <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">Steam: A${totals.totalSteam.toFixed(2)}</div>
+          <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">
+            Total items: {totals.totalItems}
+          </div>
+          <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">
+            Skinport: A${totals.totalSkinport.toFixed(2)}
+          </div>
+          <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">
+            Steam: A${totals.totalSteam.toFixed(2)}
+          </div>
         </div>
       </div>
 
@@ -387,7 +496,10 @@ export default function DashboardPage() {
           <div className="text-lg font-medium">Import from Steam</div>
           <p className="mb-3 mt-1 text-sm text-zinc-400">
             Paste your <span className="font-medium">SteamID64</span> or a{" "}
-            <span className="font-mono">steamcommunity.com/profiles/&lt;id&gt;</span> URL (public inventory).
+            <span className="font-mono">
+              steamcommunity.com/profiles/&lt;id&gt;
+            </span>{" "}
+            URL (public inventory).
           </p>
           <div className="mt-auto flex gap-2">
             <input
@@ -412,7 +524,9 @@ export default function DashboardPage() {
 
           <div className="mt-3 grid items-end grid-cols-1 gap-3 md:grid-cols-12">
             <div className="md:col-span-5">
-              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Item name (paste WITHOUT wear)</label>
+              <label className="mb-1 block text-[11px] leading-none text-zinc-400">
+                Item name (paste WITHOUT wear)
+              </label>
               <input
                 className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
                 placeholder="AK-47 | Redline"
@@ -422,18 +536,26 @@ export default function DashboardPage() {
             </div>
 
             <div className="md:col-span-3">
-              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Wear (used for pricing)</label>
+              <label className="mb-1 block text-[11px] leading-none text-zinc-400">
+                Wear (used for pricing)
+              </label>
               <select
                 className="h-12 w-full appearance-none rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm"
                 value={mWear}
                 onChange={(e) => setMWear(e.target.value as WearCode)}
               >
-                {WEAR_OPTIONS.map((w) => (<option key={w.code} value={w.code}>{w.label}</option>))}
+                {WEAR_OPTIONS.map((w) => (
+                  <option key={w.code} value={w.code}>
+                    {w.label}
+                  </option>
+                ))}
               </select>
             </div>
 
             <div className="md:col-span-2">
-              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Float (note only)</label>
+              <label className="mb-1 block text-[11px] leading-none text-zinc-400">
+                Float (note only)
+              </label>
               <input
                 className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
                 placeholder="0.1234"
@@ -443,7 +565,9 @@ export default function DashboardPage() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Pattern (note only)</label>
+              <label className="mb-1 block text-[11px] leading-none text-zinc-400">
+                Pattern (note only)
+              </label>
               <input
                 className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
                 placeholder="123"
@@ -456,21 +580,46 @@ export default function DashboardPage() {
             <div className="md:col-span-12">
               <div className="flex items-center gap-3">
                 <div className="w-40">
-                  <label className="mb-1 block text-[11px] leading-none text-zinc-400">Quantity</label>
+                  <label className="mb-1 block text-[11px] leading-none text-zinc-400">
+                    Quantity
+                  </label>
                   <div className="flex h-12 items-center gap-2">
-                    <button type="button" className="h-12 w-12 rounded-xl border border-zinc-700 bg-zinc-900" onClick={() => setMQty((q) => Math.max(1, q - 1))} aria-label="Decrease quantity">−</button>
-                    <div className="flex h-12 min-w-[3rem] items-center justify-center rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm">{mQty}</div>
-                    <button type="button" className="h-12 w-12 rounded-xl border border-zinc-700 bg-zinc-900" onClick={() => setMQty((q) => q + 1)} aria-label="Increase quantity">+</button>
+                    <button
+                      type="button"
+                      className="h-12 w-12 rounded-xl border border-zinc-700 bg-zinc-900"
+                      onClick={() => setMQty((q) => Math.max(1, q - 1))}
+                      aria-label="Decrease quantity"
+                    >
+                      −
+                    </button>
+
+                    <div className="flex h-12 min-w-[3rem] items-center justify-center rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm">
+                      {mQty}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="h-12 w-12 rounded-xl border border-zinc-700 bg-zinc-900"
+                      onClick={() => setMQty((q) => q + 1)}
+                      aria-label="Increase quantity"
+                    >
+                      +
+                    </button>
                   </div>
                 </div>
 
-                <button onClick={addManual} className="h-12 grow rounded-xl bg-amber-600 px-4 text-black hover:bg-amber-500 disabled:opacity-60" disabled={!mName.trim()}>
+                <button
+                  onClick={addManual}
+                  className="h-12 grow rounded-xl bg-amber-600 px-4 text-black hover:bg-amber-500 disabled:opacity-60"
+                  disabled={!mName.trim()}
+                >
                   Add
                 </button>
               </div>
 
               <p className="mt-2 text-xs text-zinc-400">
-                Pricing uses only <span className="font-medium">Item name + Wear</span>. Float/Pattern are for display.
+                Pricing uses only <span className="font-medium">Item name + Wear</span>. Float/Pattern
+                are for display.
               </p>
             </div>
           </div>
@@ -496,7 +645,8 @@ export default function DashboardPage() {
             {sorted.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-6 text-center text-zinc-400">
-                  No items yet. Use <span className="underline">Add manual item</span> or import from Steam.
+                  No items yet. Use <span className="underline">Add manual item</span> or import from
+                  Steam.
                 </td>
               </tr>
             ) : (
@@ -507,7 +657,11 @@ export default function DashboardPage() {
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-3">
                         {r.image ? (
-                          <img src={r.image} alt={r.name} className="h-10 w-10 rounded object-contain" />
+                          <img
+                            src={r.image}
+                            alt={r.name}
+                            className="h-10 w-10 rounded object-contain"
+                          />
                         ) : (
                           <div className="h-10 w-10 rounded bg-zinc-800" />
                         )}
@@ -524,24 +678,44 @@ export default function DashboardPage() {
                     {/* Qty */}
                     <td className="px-4 py-2">
                       <div className="flex items-center justify-end gap-2">
-                        <button className="h-8 w-8 rounded border border-zinc-700" onClick={() => updateQty(orig, (r.quantity ?? 1) - 1)} aria-label={`Decrease quantity for ${r.nameNoWear}`}>−</button>
+                        <button
+                          className="h-8 w-8 rounded border border-zinc-700"
+                          onClick={() => updateQty(orig, (r.quantity ?? 1) - 1)}
+                          aria-label={`Decrease quantity for ${r.nameNoWear}`}
+                        >
+                          −
+                        </button>
                         <div className="flex h-8 min-w-[2.5rem] items-center justify-center rounded border border-zinc-700 bg-zinc-900 text-sm">
                           {r.quantity ?? 1}
                         </div>
-                        <button className="h-8 w-8 rounded border border-zinc-700" onClick={() => updateQty(orig, (r.quantity ?? 1) + 1)} aria-label={`Increase quantity for ${r.nameNoWear}`}>+</button>
+                        <button
+                          className="h-8 w-8 rounded border border-zinc-700"
+                          onClick={() => updateQty(orig, (r.quantity ?? 1) + 1)}
+                          aria-label={`Increase quantity for ${r.nameNoWear}`}
+                        >
+                          +
+                        </button>
                       </div>
                     </td>
 
                     {/* Prices */}
                     <td className="px-4 py-2">
-                      <PriceCell price={r.skinportAUD} h1={r.skinportH1} d1={r.skinportD1} m1={r.skinportM1} />
+                      <PriceCell
+                        price={r.skinportAUD}
+                        h1={r.skinportH1}
+                        d1={r.skinportD1}
+                        m1={r.skinportM1}
+                      />
                     </td>
                     <td className="px-4 py-2">
                       <PriceCell price={r.steamAUD} h1={r.steamH1} d1={r.steamD1} m1={r.steamM1} />
                     </td>
 
                     <td className="px-4 py-2 text-right">
-                      <button onClick={() => removeRow(orig)} className="rounded-lg border border-zinc-700 px-3 py-1 text-zinc-300 hover:bg-zinc-800">
+                      <button
+                        onClick={() => removeRow(orig)}
+                        className="rounded-lg border border-zinc-700 px-3 py-1 text-zinc-300 hover:bg-zinc-800"
+                      >
                         Remove
                       </button>
                     </td>
@@ -564,14 +738,23 @@ export default function DashboardPage() {
           "backdrop-blur px-4 h-12 inline-flex items-center gap-2",
           "border border-zinc-700 hover:bg-zinc-700/80",
           "transition-all duration-200",
-          showBackToTop ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-3 pointer-events-none",
+          showBackToTop
+            ? "opacity-100 translate-y-0 pointer-events-auto"
+            : "opacity-0 translate-y-3 pointer-events-none",
         ].join(" ")}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="-mt-[1px]">
-          <path d="M6 14l6-6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          <path
+            d="M6 14l6-6 6 6"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
         <span className="text-sm">Top</span>
       </button>
     </div>
   );
 }
+
