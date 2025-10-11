@@ -20,6 +20,10 @@ type WearCode = (typeof WEAR_OPTIONS)[number]["code"];
 const wearLabel = (code?: string) =>
   WEAR_OPTIONS.find((w) => w.code === code)?.label ?? "";
 
+/** Only for display under item name — hides "(none)". */
+const wearLabelForRow = (code?: WearCode) =>
+  code && code !== "" ? wearLabel(code) : "";
+
 const LABEL_TO_CODE: Record<string, WearCode> = {
   "factory new": "FN",
   "minimal wear": "MW",
@@ -630,7 +634,7 @@ export default function DashboardPage() {
               </select>
             </div>
             <div className="md:col-span-2">
-              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Float (note only)</label>
+              <label className="mb-1 block text_[11px] leading-none text-zinc-400">Float (note only)</label>
               <input
                 className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
                 placeholder="0.1234"
@@ -728,7 +732,10 @@ export default function DashboardPage() {
                             {r.nameNoWear}
                           </div>
                           <div className="mt-1 flex flex-wrap gap-1">
-                            {wearLabel(r.wear as WearCode) && <Pill>{wearLabel(r.wear as WearCode)}</Pill>}
+                            {/* NOTE: wear hidden if code==="" */}
+                            {wearLabelForRow(r.wear as WearCode) && (
+                              <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>
+                            )}
                             {r.pattern && <Pill>Pattern: {r.pattern}</Pill>}
                             {r.float && <Pill>Float: {r.float}</Pill>}
                           </div>
@@ -807,3 +814,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
