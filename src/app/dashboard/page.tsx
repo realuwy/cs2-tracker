@@ -762,7 +762,14 @@ return {
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-3">
                         {r.image ? (
-                          <img src={r.image} alt={r.name} className="h-10 w-10 rounded object-contain" />
+                          <img
+  src={r.image}
+  alt={r.name}
+  loading="lazy"
+  decoding="async"
+  className="h-10 w-10 rounded object-contain"
+/>
+
                         ) : (
                           <div className="h-10 w-10 rounded bg-zinc-800" />
                         )}
