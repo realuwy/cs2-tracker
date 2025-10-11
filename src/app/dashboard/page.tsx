@@ -9,7 +9,7 @@ const STORAGE_KEY = "cs2:dashboard:rows";
 
 /* ---------- wear options & helpers ---------- */
 const WEAR_OPTIONS = [
-  { code: "",  label: "(none)" },
+  { code: "", label: "(none)" },
   { code: "FN", label: "Factory New" },
   { code: "MW", label: "Minimal Wear" },
   { code: "FT", label: "Field-Tested" },
@@ -26,17 +26,41 @@ const toMarketHash = (nameNoWear: string, wear?: WearCode) => {
   return full ? `${nameNoWear} (${full})` : nameNoWear;
 };
 
-/* ---------- sorting helpers ---------- */
+/* ---------- sorting helpers (bidirectional, missing always last) ---------- */
 const WEAR_TO_RANK: Record<string, number> = { FN: 0, MW: 1, FT: 2, WW: 3, BS: 4 };
 const wearRank = (code?: string) => (code ? WEAR_TO_RANK[code] ?? 99 : 99);
-const ci = (s: string) => s?.toLocaleLowerCase?.() ?? "";
-const numOrEndAsc = (x: unknown) => {
-  const n = Number(x);
-  return Number.isFinite(n) ? n : Number.POSITIVE_INFINITY; // undefined/NaN -> end (asc)
+
+const isMissingStr = (s?: string | null) => !s || s.trim() === "";
+const cmpStr = (a?: string, b?: string, dir: 1 | -1) => {
+  const am = isMissingStr(a);
+  const bm = isMissingStr(b);
+  if (am && bm) return 0;
+  if (am) return 1; // missing goes to bottom
+  if (bm) return -1;
+  return a!.toLocaleLowerCase().localeCompare(b!.toLocaleLowerCase()) * dir;
 };
-const numOrEndDesc = (x: unknown) => {
-  const n = Number(x);
-  return Number.isFinite(n) ? n : Number.NEGATIVE_INFINITY; // undefined/NaN -> end (desc)
+
+const isMissingNum = (v: unknown) => !Number.isFinite(Number(v));
+const cmpNum = (a: unknown, b: unknown, dir: 1 | -1) => {
+  const am = isMissingNum(a);
+  const bm = isMissingNum(b);
+  if (am && bm) return 0;
+  if (am) return 1;
+  if (bm) return -1;
+  const na = Number(a);
+  const nb = Number(b);
+  return na === nb ? 0 : (na < nb ? -1 : 1) * dir;
+};
+
+// Wear rank comparator; non-wear always bottom
+const cmpWear = (a?: string, b?: string, dir: 1 | -1) => {
+  const ra = wearRank(a);
+  const rb = wearRank(b);
+  const am = ra === 99, bm = rb === 99;
+  if (am && bm) return 0;
+  if (am) return 1;
+  if (bm) return -1;
+  return (ra === rb ? 0 : (ra < rb ? -1 : 1)) * dir;
 };
 
 /* ---------- row type ---------- */
@@ -50,7 +74,7 @@ type Row = InvItem & {
   source: "steam" | "manual";
 };
 
-/* ---------- sorting ---------- */
+/* ---------- sorting state ---------- */
 type SortKey = "item" | "wear" | "pattern" | "float" | "qty" | "skinport" | "steam";
 type SortDir = "asc" | "desc";
 
@@ -190,37 +214,27 @@ export default function DashboardPage() {
   /* sorting + totals */
   const [sorted, totals] = useMemo(() => {
     const copy = [...rows];
+    const dir: 1 | -1 = sortDir === "asc" ? 1 : -1;
 
     copy.sort((a, b) => {
-      let c = 0;
-
-      if (sortKey === "item") {
-        c = ci(a.nameNoWear).localeCompare(ci(b.nameNoWear));
-      } else if (sortKey === "wear") {
-        c = wearRank(a.wear as string) - wearRank(b.wear as string);
-      } else if (sortKey === "pattern") {
-        const va = sortDir === "asc" ? numOrEndAsc(a.pattern) : numOrEndDesc(a.pattern);
-        const vb = sortDir === "asc" ? numOrEndAsc(b.pattern) : numOrEndDesc(b.pattern);
-        c = va < vb ? -1 : va > vb ? 1 : 0;
-      } else if (sortKey === "float") {
-        const va = sortDir === "asc" ? numOrEndAsc(a.float) : numOrEndDesc(a.float);
-        const vb = sortDir === "asc" ? numOrEndAsc(b.float) : numOrEndDesc(b.float);
-        c = va < vb ? -1 : va > vb ? 1 : 0;
-      } else if (sortKey === "qty") {
-        const va = sortDir === "asc" ? numOrEndAsc(a.quantity) : numOrEndDesc(a.quantity);
-        const vb = sortDir === "asc" ? numOrEndAsc(b.quantity) : numOrEndDesc(b.quantity);
-        c = va < vb ? -1 : va > vb ? 1 : 0;
-      } else if (sortKey === "skinport") {
-        const va = sortDir === "asc" ? numOrEndAsc(a.skinportAUD) : numOrEndDesc(a.skinportAUD);
-        const vb = sortDir === "asc" ? numOrEndAsc(b.skinportAUD) : numOrEndDesc(b.skinportAUD);
-        c = va < vb ? -1 : va > vb ? 1 : 0;
-      } else if (sortKey === "steam") {
-        const va = sortDir === "asc" ? numOrEndAsc(a.steamAUD) : numOrEndDesc(a.steamAUD);
-        const vb = sortDir === "asc" ? numOrEndAsc(b.steamAUD) : numOrEndDesc(b.steamAUD);
-        c = va < vb ? -1 : va > vb ? 1 : 0;
+      switch (sortKey) {
+        case "item":
+          return cmpStr(a.nameNoWear, b.nameNoWear, dir);
+        case "wear":
+          return cmpWear(a.wear as string, b.wear as string, dir);
+        case "pattern":
+          return cmpNum(a.pattern, b.pattern, dir);
+        case "float":
+          return cmpNum(a.float, b.float, dir);
+        case "qty":
+          return cmpNum(a.quantity, b.quantity, dir);
+        case "skinport":
+          return cmpNum(a.skinportAUD, b.skinportAUD, dir);
+        case "steam":
+          return cmpNum(a.steamAUD, b.steamAUD, dir);
+        default:
+          return 0;
       }
-
-      return sortDir === "asc" ? c : c; // c already accounts for dir via numOrEnd helpers
     });
 
     const totalItems = copy.reduce((acc, r) => acc + (r.quantity ?? 1), 0);
@@ -475,5 +489,4 @@ export default function DashboardPage() {
     </div>
   );
 }
-
 
