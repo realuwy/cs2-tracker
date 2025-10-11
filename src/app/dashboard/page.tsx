@@ -142,17 +142,6 @@ function sortReducer(state: SortState, action: SortAction): SortState {
 
 /* ----------------------------- UI atoms ----------------------------- */
 
-function Th({
-  label,
-  keyId,
-}: {
-  label: string;
-  keyId: SortKey;
-}) {
-  // sort state will be picked from closure in DashboardPage
-  return null as any;
-}
-
 function Pill({ children }: { children: React.ReactNode }) {
   return (
     <span className="inline-flex items-center rounded-full bg-zinc-800/70 px-2 py-0.5 text-[11px] text-zinc-300">
@@ -545,34 +534,6 @@ export default function DashboardPage() {
     return m;
   }, [rows]);
 
-  /* ---- inline atoms needing sort state (Th & SortChip) ---- */
-  function ThReal({ label, keyId }: { label: string; keyId: SortKey }) {
-    const active = sort.key === keyId;
-    const ariaSort: React.AriaAttributes["aria-sort"] =
-      active ? (sort.dir === "asc" ? "ascending" : "descending") : "none";
-    const onClick = () => dispatchSort({ type: "toggle", key: keyId });
-    return (
-      <th
-        aria-sort={ariaSort}
-        onClick={onClick}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault(); onClick();
-          }
-        }}
-        className={`px-4 py-2 text-left select-none cursor-pointer ${
-          active ? "text-white" : "text-zinc-300"
-        } hover:bg-zinc-900/40`}
-      >
-        <span className="inline-flex items-center gap-2">
-          {label}
-          {active && <span className="opacity-70">{sort.dir === "asc" ? "▲" : "▼"}</span>}
-        </span>
-      </th>
-    );
-  }
   function SortChip({ k, label }: { k: SortKey; label: string }) {
     const active = sort.key === k;
     const arrow = active ? (sort.dir === "asc" ? "▲" : "▼") : "";
@@ -723,10 +684,10 @@ export default function DashboardPage() {
         <table className="min-w-full text-sm">
           <thead className="bg-zinc-900/60 text-zinc-300">
             <tr>
-              <ThReal label="Item" keyId="item" />
-              <ThReal label="Qty" keyId="qty" />
-              <ThReal label="Skinport (AUD)" keyId="skinport" />
-              <ThReal label="Steam (AUD)" keyId="steam" />
+              <th className="px-4 py-2 text-left">Item</th>
+              <th className="px-4 py-2 text-left">Qty</th>
+              <th className="px-4 py-2 text-left">Skinport (AUD)</th>
+              <th className="px-4 py-2 text-left">Steam (AUD)</th>
               <th className="px-4 py-2" />
             </tr>
           </thead>
@@ -743,7 +704,7 @@ export default function DashboardPage() {
                 const orig = origIndexMap.get(r)!;
                 return (
                   <tr key={r.market_hash_name + "|" + orig} className="border-t border-zinc-800">
-                    {/* ITEM (with meta pills) */}
+                    {/* ITEM (title w/ hover + meta pills) */}
                     <td className="px-4 py-2">
                       <div className="flex items-start gap-3">
                         {r.image ? (
@@ -763,8 +724,9 @@ export default function DashboardPage() {
                         )}
 
                         <div className="min-w-0">
-                          <div className="truncate font-medium">{r.nameNoWear}</div>
-                          <div className="truncate text-xs text-zinc-500">{r.market_hash_name}</div>
+                          <div className="truncate font-medium" title={r.market_hash_name}>
+                            {r.nameNoWear}
+                          </div>
                           <div className="mt-1 flex flex-wrap gap-1">
                             {wearLabel(r.wear as WearCode) && <Pill>{wearLabel(r.wear as WearCode)}</Pill>}
                             {r.pattern && <Pill>Pattern: {r.pattern}</Pill>}
