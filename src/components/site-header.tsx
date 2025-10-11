@@ -29,13 +29,6 @@ export function SiteHeader() {
             </Link>
           ))}
         </nav>
-
-        <Link
-          href="/dashboard"
-          className="rounded-full bg-white/10 px-4 py-1.5 text-sm text-white hover:bg-white/15"
-        >
-          Dashboard
-        </Link>
       </div>
     </header>
   );
