@@ -2,34 +2,78 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const links = [
-  { href: "/dashboard", label: "Dashboard" }, 
-];
+import { useEffect, useState } from "react";
+import AuthModal from "@/components/auth-modal";
 
 export function SiteHeader() {
   const pathname = usePathname();
+  const [auth, setAuth] = useState<"guest" | "user" | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
+  const [showAuth, setShowAuth] = useState(false);
+
+  useEffect(() => {
+    const isGuest = typeof window !== "undefined" && sessionStorage.getItem("auth_mode") === "guest";
+    const email = typeof window !== "undefined" ? localStorage.getItem("current_user") : null;
+    setAuth(isGuest ? "guest" : email ? "user" : null);
+
+    if (email) {
+      try {
+        const users = JSON.parse(localStorage.getItem("users") || "[]");
+        const u = users.find((x: any) => x.email === email);
+        setUsername(u?.username || email);
+      } catch {}
+    }
+  }, [pathname]);
+
   const linkClass = (href: string) =>
-    `text-sm transition hover:text-white ${
-      pathname === href ? "text-white" : "text-white/70"
+    `px-3 py-1.5 rounded-full text-sm transition ${
+      pathname.startsWith(href) ? "text-white bg-white/10" : "text-white/70 hover:text-white"
     }`;
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-white/10 bg-black/50 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-        <Link href="/" className="flex items-center gap-2 font-semibold">
-          <span className="inline-block h-5 w-5 rounded bg-amber-500" />
-          <span>CS2 Tracker</span>
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-black/60 backdrop-blur">
+      <div className="mx-auto flex h-16 max-w-6xl items-center px-4">
+        {/* Left: logo */}
+        <Link href="/" className="flex items-center gap-2">
+          <span className="inline-block h-3 w-3 rounded bg-amber-400" />
+          <span className="text-sm font-semibold">CS2 Tracker</span>
         </Link>
 
-        <nav className="hidden gap-6 sm:flex">
-          {links.map((l) => (
-            <Link key={l.href} href={l.href} className={linkClass(l.href)}>
-              {l.label}
-            </Link>
-          ))}
+        {/* Center: nav (Dashboard) */}
+        <nav className="mx-auto">
+          <Link href="/dashboard" className={linkClass("/dashboard")}>
+            Dashboard
+          </Link>
         </nav>
+
+        {/* Right: account */}
+        <div className="ml-auto">
+          {auth === "user" ? (
+            <div className="flex items-center gap-2">
+              <span className="hidden text-sm text-white/70 sm:inline">Hi, {username}</span>
+              <button
+                onClick={() => {
+                  localStorage.removeItem("current_user");
+                  localStorage.removeItem("auth_mode");
+                  window.location.href = "/";
+                }}
+                className="rounded-full border border-white/15 px-3 py-1.5 text-sm text-white/80 hover:bg-white/10"
+              >
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowAuth(true)}
+              className="rounded-full border border-white/15 px-3 py-1.5 text-sm text-white/80 hover:bg-white/10"
+            >
+              Account
+            </button>
+          )}
+        </div>
       </div>
+
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
     </header>
   );
 }
