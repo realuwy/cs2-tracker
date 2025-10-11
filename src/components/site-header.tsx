@@ -40,11 +40,12 @@ export function SiteHeader() {
         </Link>
 
         {/* Center: nav (Dashboard) */}
-        <nav className="mx-auto">
-          <Link href="/dashboard" className={linkClass("/dashboard")}>
-            Dashboard
-          </Link>
-        </nav>
+        <nav className="absolute left-1/2 -translate-x-1/2">
+  <Link href="/dashboard" className={linkClass("/dashboard")}>
+    Dashboard
+  </Link>
+</nav>
+
 
         {/* Right: account */}
         <div className="ml-auto">
