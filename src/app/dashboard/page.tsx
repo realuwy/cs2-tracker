@@ -20,7 +20,7 @@ type WearCode = (typeof WEAR_OPTIONS)[number]["code"];
 const wearLabel = (code?: string) =>
   WEAR_OPTIONS.find((w) => w.code === code)?.label ?? "";
 
-/** Only for display under item name — hides "(none)". */
+/** Row-only label (hide "(none)") */
 const wearLabelForRow = (code?: WearCode) => (code ? wearLabel(code) : "");
 
 const LABEL_TO_CODE: Record<string, WearCode> = {
@@ -118,43 +118,13 @@ function sanitizeSteam(aud: number | undefined, skinport?: number): number | und
   }
   return aud;
 }
-// Build a unique list of base item names from Skinport map keys
-const baseNameFrom = (mhn: string) => stripNone(mhn).replace(
-  /\s+\((Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)\)\s*$/i,
-  ""
-);
 
-const allBaseNames = useMemo(() => {
-  const s = new Set<string>();
-  Object.keys(spMap || {}).forEach((k) => s.add(baseNameFrom(k)));
-  return Array.from(s).sort((a, b) => a.localeCompare(b));
-}, [spMap]);
-
-// Filtered suggestions for the current input (match all tokens, up to 8)
-const nameSuggestions = useMemo(() => {
-  const q = (mName || "").trim().toLowerCase();
-  if (!q) return [];
-  const tokens = q.split(/\s+/).filter(Boolean);
-  const res: string[] = [];
-  for (const name of allBaseNames) {
-    const lc = name.toLowerCase();
-    let ok = true;
-    for (const t of tokens) if (!lc.includes(t)) { ok = false; break; }
-    if (ok) res.push(name);
-    if (res.length >= 8) break;
-  }
-  return res;
-}, [mName, allBaseNames]);
-
-// Close the menu on outside click
-useEffect(() => {
-  const onDoc = (e: MouseEvent) => {
-    if (!nameWrapRef.current) return;
-    if (!nameWrapRef.current.contains(e.target as Node)) setNameOpen(false);
-  };
-  document.addEventListener("mousedown", onDoc);
-  return () => document.removeEventListener("mousedown", onDoc);
-}, []);
+// Build a base name (no wear) from a market_hash_name
+const baseNameFrom = (mhn: string) =>
+  stripNone(mhn).replace(
+    /\s+\((Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)\)\s*$/i,
+    ""
+  );
 
 /* ----------------------------- types ----------------------------- */
 
@@ -233,16 +203,50 @@ export default function DashboardPage() {
   const [mFloat, setMFloat] = useState("");
   const [mPattern, setMPattern] = useState("");
   const [mQty, setMQty] = useState(1);
-// --- typeahead state ---
-const [nameOpen, setNameOpen] = useState(false);
-const [nameHot, setNameHot] = useState(0);
-const nameWrapRef = useRef<HTMLDivElement | null>(null);
 
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [skinportUpdatedAt, setSkinportUpdatedAt] = useState<number | null>(null);
   const [steamUpdatedAt, setSteamUpdatedAt] = useState<number | null>(null);
 
   const [editor, setEditor] = useState<EditorState>(null);
+
+  // ---- typeahead state (inside component)
+  const [nameOpen, setNameOpen] = useState(false);
+  const [nameHot, setNameHot] = useState(0);
+  const nameWrapRef = useRef<HTMLDivElement | null>(null);
+
+  // unique base item names from Skinport map
+  const allBaseNames = useMemo(() => {
+    const s = new Set<string>();
+    Object.keys(spMap || {}).forEach((k) => s.add(baseNameFrom(k)));
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  }, [spMap]);
+
+  // suggestions for current input
+  const nameSuggestions = useMemo(() => {
+    const q = (mName || "").trim().toLowerCase();
+    if (!q) return [];
+    const tokens = q.split(/\s+/).filter(Boolean);
+    const res: string[] = [];
+    for (const name of allBaseNames) {
+      const lc = name.toLowerCase();
+      let ok = true;
+      for (const t of tokens) if (!lc.includes(t)) { ok = false; break; }
+      if (ok) res.push(name);
+      if (res.length >= 8) break;
+    }
+    return res;
+  }, [mName, allBaseNames]);
+
+  // close dropdown on outside click
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (!nameWrapRef.current) return;
+      if (!nameWrapRef.current.contains(e.target as Node)) setNameOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
 
   /* ---- restore rows ---- */
   useEffect(() => {
@@ -556,8 +560,7 @@ const nameWrapRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     backfillSomeSteamPrices(12);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const id = window.setInterval(() => backfillSomeSteamPrices(8), 5 * 60 * 1000);
     return () => window.clearInterval(id);
@@ -647,7 +650,7 @@ const nameWrapRef = useRef<HTMLDivElement | null>(null);
     setEditor(null);
   };
 
-  /* ----------------------------- derived stats for right card ----------------------------- */
+  /* ----------------------------- derived stats (right card) ----------------------------- */
   const pricedSkinportCount = useMemo(
     () => rows.reduce((n, r) => n + (typeof r.skinportAUD === "number" ? 1 : 0), 0),
     [rows]
@@ -667,95 +670,98 @@ const nameWrapRef = useRef<HTMLDivElement | null>(null);
         <h1 className="text-2xl font-semibold">Dashboard</h1>
       </div>
 
-      {/* Top area: two cards — Left: Add manual, Right: Stats */}
+      {/* Top: Left Add manual / Right Stats */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* Left: Manual add */}
+        {/* Left: Manual add with typeahead */}
         <div className="flex h-full flex-col rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4">
           <div className="text-lg font-medium">Add manual item</div>
           <div className="mt-3 grid items-end grid-cols-1 gap-3 md:grid-cols-12">
+            {/* Typeahead name */}
             <div className="md:col-span-5" ref={nameWrapRef}>
-  <label className="mb-1 block text-[11px] leading-none text-zinc-400">
-    Item name (paste WITHOUT wear)
-  </label>
+              <label className="mb-1 block text-[11px] leading-none text-zinc-400">
+                Item name (paste WITHOUT wear)
+              </label>
 
-  <div className="relative">
-    <input
-      className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
-      placeholder="AK-47 | Redline"
-      value={mName}
-      onChange={(e) => {
-        setMName(e.target.value);
-        setNameOpen(true);
-        setNameHot(0);
-      }}
-      onFocus={() => {
-        if ((mName || "").trim()) setNameOpen(true);
-      }}
-      onKeyDown={(e) => {
-        if (!nameOpen || nameSuggestions.length === 0) return;
-        if (e.key === "ArrowDown") {
-          e.preventDefault();
-          setNameHot((i) => Math.min(nameSuggestions.length - 1, i + 1));
-        } else if (e.key === "ArrowUp") {
-          e.preventDefault();
-          setNameHot((i) => Math.max(0, i - 1));
-        } else if (e.key === "Enter") {
-          e.preventDefault();
-          const pick = nameSuggestions[nameHot];
-          if (pick) {
-            setMName(pick);
-            setNameOpen(false);
-          }
-        } else if (e.key === "Escape") {
-          setNameOpen(false);
-        }
-      }}
-    />
+              <div className="relative">
+                <input
+                  className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
+                  placeholder="AK-47 | Redline"
+                  value={mName}
+                  onChange={(e) => {
+                    setMName(e.target.value);
+                    setNameOpen(true);
+                    setNameHot(0);
+                  }}
+                  onFocus={() => {
+                    if ((mName || "").trim()) setNameOpen(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (!nameOpen || nameSuggestions.length === 0) return;
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setNameHot((i) => Math.min(nameSuggestions.length - 1, i + 1));
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setNameHot((i) => Math.max(0, i - 1));
+                    } else if (e.key === "Enter") {
+                      e.preventDefault();
+                      const pick = nameSuggestions[nameHot];
+                      if (pick) {
+                        setMName(pick);
+                        setNameOpen(false);
+                      }
+                    } else if (e.key === "Escape") {
+                      setNameOpen(false);
+                    }
+                  }}
+                />
 
-    {/* Suggestions dropdown */}
-    {nameOpen && nameSuggestions.length > 0 && (
-      <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-zinc-700 bg-zinc-950 shadow-xl shadow-black/40">
-        <ul className="max-h-72 overflow-auto py-1">
-          {nameSuggestions.map((s, i) => (
-            <li key={s}>
-              <button
-                type="button"
-                className={[
-                  "w-full px-3 py-2 text-left text-sm",
-                  i === nameHot ? "bg-zinc-800 text-zinc-100" : "text-zinc-200 hover:bg-zinc-900"
-                ].join(" ")}
-                onMouseEnter={() => setNameHot(i)}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  setMName(s);
-                  setNameOpen(false);
-                }}
-              >
-                {s}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-    )}
-  </div>
-</div>
+                {nameOpen && nameSuggestions.length > 0 && (
+                  <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-zinc-700 bg-zinc-950 shadow-xl shadow-black/40">
+                    <ul className="max-h-72 overflow-auto py-1">
+                      {nameSuggestions.map((s, i) => (
+                        <li key={s}>
+                          <button
+                            type="button"
+                            className={[
+                              "w-full px-3 py-2 text-left text-sm",
+                              i === nameHot ? "bg-zinc-800 text-zinc-100" : "text-zinc-200 hover:bg-zinc-900",
+                            ].join(" ")}
+                            onMouseEnter={() => setNameHot(i)}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setMName(s);
+                              setNameOpen(false);
+                            }}
+                          >
+                            {s}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
 
+            {/* Wear */}
             <div className="md:col-span-3">
               <label className="mb-1 block text-[11px] leading-none text-zinc-400">
-                Wear {nonWearForCurrentInput && <span className="text-zinc-500">(not applicable)</span>}
+                Wear {isNonWearCategory(stripNone(mName || "")) && <span className="text-zinc-500">(not applicable)</span>}
               </label>
               <select
-                className={`h-12 w-full appearance-none rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm ${nonWearForCurrentInput ? "opacity-50" : ""}`}
+                className={`h-12 w-full appearance-none rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm ${isNonWearCategory(stripNone(mName || "")) ? "opacity-50" : ""}`}
                 value={mWear}
                 onChange={(e) => setMWear(e.target.value as WearCode)}
-                disabled={nonWearForCurrentInput}
+                disabled={isNonWearCategory(stripNone(mName || ""))}
               >
                 {WEAR_OPTIONS.map((w) => (
                   <option key={w.code} value={w.code}>{w.label}</option>
                 ))}
               </select>
             </div>
+
+            {/* Float */}
             <div className="md:col-span-2">
               <label className="mb-1 block text-[11px] leading-none text-zinc-400">Float (note only)</label>
               <input
@@ -765,6 +771,7 @@ const nameWrapRef = useRef<HTMLDivElement | null>(null);
                 onChange={(e) => setMFloat(e.target.value)}
               />
             </div>
+            {/* Pattern */}
             <div className="md:col-span-2">
               <label className="mb-1 block text-[11px] leading-none text-zinc-400">Pattern (note only)</label>
               <input
@@ -774,6 +781,8 @@ const nameWrapRef = useRef<HTMLDivElement | null>(null);
                 onChange={(e) => setMPattern(e.target.value)}
               />
             </div>
+
+            {/* Qty + Add */}
             <div className="md:col-span-12">
               <div className="flex items-center gap-3">
                 <div className="w-40">
@@ -829,8 +838,6 @@ const nameWrapRef = useRef<HTMLDivElement | null>(null);
               </div>
             </div>
           </div>
-
-          {/* Room for future mini-widgets: wear distribution, top items, etc. */}
         </div>
       </div>
 
