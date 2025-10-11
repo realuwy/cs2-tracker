@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchInventory, fetchSkinportMap, InvItem } from "@/lib/api";
 
-// Wear options & helpers
+/* ---------- lightweight persistence ---------- */
+const STORAGE_KEY = "cs2:dashboard:rows";
+
+/* ---------- wear options & helpers ---------- */
 const WEAR_OPTIONS = [
   { code: "", label: "(none)" },
   { code: "FN", label: "Factory New" },
@@ -13,18 +16,20 @@ const WEAR_OPTIONS = [
   { code: "BS", label: "Battle-Scarred" },
 ] as const;
 type WearCode = typeof WEAR_OPTIONS[number]["code"];
-const wearLabel = (code?: string) => WEAR_OPTIONS.find(w => w.code === code)?.label ?? "";
+const wearLabel = (code?: string) =>
+  WEAR_OPTIONS.find((w) => w.code === code)?.label ?? "";
 const toMarketHash = (nameNoWear: string, wear?: WearCode) => {
   const full = wearLabel(wear);
   return full ? `${nameNoWear} (${full})` : nameNoWear;
 };
 
+/* ---------- row type ---------- */
 type Row = InvItem & {
   skinportAUD?: number;
   priceAUD?: number;
   totalAUD?: number;
-  float?: string;    // display only
-  pattern?: string;  // display only
+  float?: string; // display only
+  pattern?: string; // display only
   source: "steam" | "manual";
 };
 
@@ -33,6 +38,7 @@ export default function DashboardPage() {
   const [spMap, setSpMap] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
 
+  // import controls
   const [steamId, setSteamId] = useState("");
 
   // manual form
@@ -41,10 +47,29 @@ export default function DashboardPage() {
   const [mFloat, setMFloat] = useState("");
   const [mPattern, setMPattern] = useState("");
 
+  /* load saved rows (local) */
   useEffect(() => {
-    fetchSkinportMap().then(res => setSpMap(res.map)).catch(() => {});
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) setRows(JSON.parse(raw));
+    } catch {}
   }, []);
 
+  /* save rows on change (local) */
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+    } catch {}
+  }, [rows]);
+
+  /* prices once */
+  useEffect(() => {
+    fetchSkinportMap()
+      .then((res) => setSpMap(res.map))
+      .catch(() => {});
+  }, []);
+
+  /* optional: auto-load default steam id */
   useEffect(() => {
     const def = process.env.NEXT_PUBLIC_DEFAULT_STEAM_ID64;
     if (def) void load(def);
@@ -56,7 +81,8 @@ export default function DashboardPage() {
     try {
       const inv = await fetchInventory(id);
       const mapped: Row[] = inv.items.map((it) => {
-        const mhn = it.market_hash_name || toMarketHash(it.nameNoWear, it.wear as WearCode);
+        const mhn =
+          it.market_hash_name || toMarketHash(it.nameNoWear, it.wear as WearCode);
         const spAUD = spMap[mhn];
         const qty = it.quantity ?? 1;
         const priceAUD = typeof spAUD === "number" ? spAUD : undefined;
@@ -69,7 +95,7 @@ export default function DashboardPage() {
           source: "steam",
         };
       });
-      setRows(prev => [...prev.filter(r => r.source === "manual"), ...mapped]);
+      setRows((prev) => [...prev.filter((r) => r.source === "manual"), ...mapped]);
     } finally {
       setLoading(false);
     }
@@ -84,7 +110,7 @@ export default function DashboardPage() {
 
     const newRow: Row = {
       market_hash_name,
-      name: market_hash_name,
+      name: market_hash_name, // show full with wear under hash
       nameNoWear,
       wear: mWear,
       pattern: mPattern.trim(),
@@ -97,12 +123,16 @@ export default function DashboardPage() {
       totalAUD: priceAUD ?? undefined,
       source: "manual",
     };
-    setRows(r => [newRow, ...r]);
-    setMName(""); setMWear(""); setMFloat(""); setMPattern("");
+    setRows((r) => [newRow, ...r]);
+
+    setMName("");
+    setMWear("");
+    setMFloat("");
+    setMPattern("");
   }
 
   function removeRow(idx: number) {
-    setRows(r => r.filter((_, i) => i !== idx));
+    setRows((r) => r.filter((_, i) => i !== idx));
   }
 
   const totalItems = useMemo(() => {
@@ -114,7 +144,9 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="mb-5 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">Total items: {totalItems}</div>
+        <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">
+          Total items: {totalItems}
+        </div>
       </div>
 
       {/* Cards */}
@@ -124,7 +156,8 @@ export default function DashboardPage() {
           <div className="text-lg font-medium">Import from Steam</div>
           <p className="mb-3 mt-1 text-sm text-zinc-400">
             Paste your <span className="font-medium">SteamID64</span> or a{" "}
-            <span className="font-mono">steamcommunity.com/profiles/&lt;id&gt;</span> URL (public inventory).
+            <span className="font-mono">steamcommunity.com/profiles/&lt;id&gt;</span>{" "}
+            URL (public inventory).
           </p>
           <div className="mt-auto flex gap-2">
             <input
@@ -173,14 +206,18 @@ export default function DashboardPage() {
                 onChange={(e) => setMWear(e.target.value as WearCode)}
               >
                 {WEAR_OPTIONS.map((w) => (
-                  <option key={w.code} value={w.code}>{w.label}</option>
+                  <option key={w.code} value={w.code}>
+                    {w.label}
+                  </option>
                 ))}
               </select>
             </div>
 
             {/* Float */}
             <div className="md:col-span-2">
-              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Float (note only)</label>
+              <label className="mb-1 block text-[11px] leading-none text-zinc-400">
+                Float (note only)
+              </label>
               <input
                 className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
                 placeholder="0.1234"
@@ -191,7 +228,9 @@ export default function DashboardPage() {
 
             {/* Pattern */}
             <div className="md:col-span-2">
-              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Pattern (note only)</label>
+              <label className="mb-1 block text-[11px] leading-none text-zinc-400">
+                Pattern (note only)
+              </label>
               <input
                 className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
                 placeholder="123"
@@ -246,13 +285,19 @@ export default function DashboardPage() {
                   <td className="px-4 py-2">
                     <div className="flex items-center gap-3">
                       {r.image ? (
-                        <img src={r.image} alt={r.name} className="h-10 w-10 rounded object-contain" />
+                        <img
+                          src={r.image}
+                          alt={r.name}
+                          className="h-10 w-10 rounded object-contain"
+                        />
                       ) : (
                         <div className="h-10 w-10 rounded bg-zinc-800" />
                       )}
                       <div className="leading-tight">
                         <div className="font-medium">{r.nameNoWear}</div>
-                        <div className="text-xs text-zinc-500">{r.market_hash_name}</div>
+                        <div className="text-xs text-zinc-500">
+                          {r.market_hash_name}
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -261,10 +306,14 @@ export default function DashboardPage() {
                   <td className="px-4 py-2">{r.float || "—"}</td>
                   <td className="px-4 py-2 text-right">{r.quantity ?? 1}</td>
                   <td className="px-4 py-2 text-right">
-                    {typeof r.priceAUD === "number" ? `A$${r.priceAUD.toFixed(2)}` : "—"}
+                    {typeof r.priceAUD === "number"
+                      ? `A$${r.priceAUD.toFixed(2)}`
+                      : "—"}
                   </td>
                   <td className="px-4 py-2 text-right">
-                    {typeof r.totalAUD === "number" ? `A$${r.totalAUD.toFixed(2)}` : "—"}
+                    {typeof r.totalAUD === "number"
+                      ? `A$${r.totalAUD.toFixed(2)}`
+                      : "—"}
                   </td>
                   <td className="px-4 py-2">{r.source}</td>
                   <td className="px-4 py-2 text-right">
