@@ -356,7 +356,7 @@ export default function DashboardPage() {
     };
   }, [rows]);
 
-  /* ---- optional default import (via env) ---- */
+  /* ---- optional default import (env) ---- */
   useEffect(() => {
     const def = process.env.NEXT_PUBLIC_DEFAULT_STEAM_ID64;
     if (def) void load(def);
@@ -434,6 +434,22 @@ export default function DashboardPage() {
 
   function removeRow(idx: number) {
     setRows((r) => r.filter((_, i) => i !== idx));
+  }
+
+  function updateQty(idx: number, qty: number) {
+    const q = Math.max(1, Math.floor(qty || 1));
+    setRows((r) =>
+      r.map((row, i) =>
+        i === idx
+          ? {
+              ...row,
+              quantity: q,
+              totalAUD:
+                typeof row.skinportAUD === "number" ? row.skinportAUD * q : row.totalAUD,
+            }
+          : row
+      )
+    );
   }
 
   /* ---- Steam backfill ---- */
@@ -590,28 +606,29 @@ export default function DashboardPage() {
     setEditor(null);
   };
 
+  /* ----------------------------- derived stats for right card ----------------------------- */
+  const pricedSkinportCount = useMemo(
+    () => rows.reduce((n, r) => n + (typeof r.skinportAUD === "number" ? 1 : 0), 0),
+    [rows]
+  );
+  const pricedSteamCount = useMemo(
+    () => rows.reduce((n, r) => n + (typeof r.steamAUD === "number" ? 1 : 0), 0),
+    [rows]
+  );
+  const deltaSteamMinusSkinport = (totals.totalSteam || 0) - (totals.totalSkinport || 0);
+
+  /* ------------------------------------------- UI ------------------------------------------- */
+
   return (
     <div className="mx-auto max-w-6xl p-6">
-      {/* Header (no import) */}
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      {/* Title */}
+      <div className="mb-5">
         <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <div className="flex items-center gap-2">
-          <div className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-sm text-zinc-200">
-            Total items: <span className="tabular-nums">{totals.totalItems}</span>
-          </div>
-          <div className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-sm text-zinc-200" title={`Skinport last updated: ${formatTime(skinportUpdatedAt)}`}>
-            Skinport: <span className="tabular-nums">A${totals.totalSkinport.toFixed(2)}</span>{" "}
-            <span className="text-zinc-400">({formatTime(skinportUpdatedAt)})</span>
-          </div>
-          <div className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-sm text-zinc-200" title={`Steam last updated: ${formatTime(steamUpdatedAt)}`}>
-            Steam: <span className="tabular-nums">A${totals.totalSteam.toFixed(2)}</span>{" "}
-            <span className="text-zinc-400">({formatTime(steamUpdatedAt)})</span>
-          </div>
-        </div>
       </div>
 
-      {/* Manual add only (import card removed) */}
-      <div className="grid items-stretch grid-cols-1 gap-6">
+      {/* Top area: two cards — Left: Add manual, Right: Stats */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {/* Left: Manual add */}
         <div className="flex h-full flex-col rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4">
           <div className="text-lg font-medium">Add manual item</div>
           <div className="mt-3 grid items-end grid-cols-1 gap-3 md:grid-cols-12">
@@ -675,9 +692,49 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Right: Stats */}
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4">
+          <div className="mb-2 text-lg font-medium">Stats</div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-zinc-700 bg-zinc-900/60 p-3">
+              <div className="text-[11px] text-zinc-400">Total items</div>
+              <div className="mt-1 text-xl tabular-nums">{totals.totalItems}</div>
+            </div>
+
+            <div className="rounded-xl border border-zinc-700 bg-zinc-900/60 p-3">
+              <div className="text-[11px] text-zinc-400">Steam − Skinport</div>
+              <div className={`mt-1 text-xl tabular-nums ${deltaSteamMinusSkinport >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                A${deltaSteamMinusSkinport.toFixed(2)}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-zinc-700 bg-zinc-900/60 p-3 col-span-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="text-[11px] text-zinc-400">Skinport total</div>
+                  <div className="mt-0.5 text-lg tabular-nums">A${totals.totalSkinport.toFixed(2)}</div>
+                  <div className="text-[11px] text-zinc-500 mt-0.5">
+                    {pricedSkinportCount}/{rows.length} priced • {formatTime(skinportUpdatedAt)}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[11px] text-zinc-400">Steam total</div>
+                  <div className="mt-0.5 text-lg tabular-nums">A${totals.totalSteam.toFixed(2)}</div>
+                  <div className="text-[11px] text-zinc-500 mt-0.5">
+                    {pricedSteamCount}/{rows.length} priced • {formatTime(steamUpdatedAt)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Room for future mini-widgets: wear distribution, top items, etc. */}
+        </div>
       </div>
 
-      {/* Sort toolbar (top chips) */}
+      {/* Sort toolbar */}
       <div className="mt-6 mb-3 flex flex-wrap items-center gap-2 text-sm">
         <span className="mr-1 text-zinc-400">Sort:</span>
         <SortChip k="item" label="Item" />
