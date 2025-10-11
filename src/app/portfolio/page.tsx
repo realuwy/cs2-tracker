@@ -123,11 +123,12 @@ const [mPattern, setMPattern] = useState("");
     setRows((r) => r.filter((_, i) => i !== idx));
   }
 
-  const totalItems = useMemo(
-    () => rows.reduce((acc, r) => acc + (r.quantity ?? 1), 0),
-    [rows]
+ const totalItems = useMemo(
+  () => rows.reduce((acc, r) => acc + (r.quantity ?? 1), 0),
+  [rows]
+);
+return (
 
-  return (
     <div className="mx-auto max-w-6xl p-6">
       {/* Header Row */}
       <div className="mb-2 flex items-center justify-between">
