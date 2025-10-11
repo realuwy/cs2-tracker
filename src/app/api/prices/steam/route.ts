@@ -59,4 +59,3 @@ export async function GET(req: Request) {
     return NextResponse.json({ aud: null }, { status: 200 });
   }
 }
-
