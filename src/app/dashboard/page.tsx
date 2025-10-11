@@ -331,12 +331,13 @@ export default function DashboardPage() {
   }, []);
 
   /* ---- back to top visibility ---- */
-  useEffect(() => {
-    const onScroll = () => setShowBackToTop(window.scrollY > 600);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll");
-  }, []);
+useEffect(() => {
+  const onScroll = () => setShowBackToTop(window.scrollY > 600);
+  onScroll();
+  window.addEventListener("scroll", onScroll, { passive: true });
+  return () => window.removeEventListener("scroll", onScroll, { passive: true });
+}, []);
+
   const scrollToTop = () => {
     const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
