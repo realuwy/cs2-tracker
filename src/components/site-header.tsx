@@ -4,8 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const links = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/import", label: "Import" },
+  { href: "/dashboard", label: "Dashboard" }, 
 ];
 
 export function SiteHeader() {
