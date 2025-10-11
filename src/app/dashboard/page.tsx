@@ -172,7 +172,7 @@ export default function DashboardPage() {
     })();
   }, [rows]);
 
-  /* sorting */
+  /* sorting + totals */
   const [sorted, totals] = useMemo(() => {
     const copy = [...rows];
     const cmp = (a: any, b: any) => (a < b ? -1 : a > b ? 1 : 0);
@@ -197,6 +197,7 @@ export default function DashboardPage() {
     return [copy, { totalItems, totalSkinport, totalSteam }] as const;
   }, [rows, sortKey, sortDir]);
 
+  /* sortable header cell (uses parent state via closure) */
   function Th({ label, keyId }: { label: string; keyId: SortKey }) {
     const active = sortKey === keyId;
     return (
@@ -231,7 +232,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Cards — IMPORT + MANUAL (restored) */}
+      {/* Cards — IMPORT + MANUAL */}
       <div className="grid items-stretch grid-cols-1 gap-6 md:grid-cols-2">
         {/* Import from Steam */}
         <div className="flex h-full flex-col rounded-2xl border border-zinc-800 p-4">
@@ -309,6 +310,7 @@ export default function DashboardPage() {
               />
             </div>
 
+            {/* Quantity counter (no number input) */}
             <div className="md:col-span-12">
               <div className="flex items-center gap-3">
                 <div className="w-40">
@@ -318,18 +320,18 @@ export default function DashboardPage() {
                       type="button"
                       className="h-12 w-12 rounded-xl border border-zinc-700 bg-zinc-900"
                       onClick={() => setMQty(q => Math.max(1, q - 1))}
+                      aria-label="Decrease quantity"
                     >−</button>
-                    <input
-                      type="number"
-                      min={1}
-                      className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-center"
-                      value={mQty}
-                      onChange={(e) => setMQty(Math.max(1, Number(e.target.value) || 1))}
-                    />
+
+                    <div className="flex h-12 min-w-[3rem] items-center justify-center rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm">
+                      {mQty}
+                    </div>
+
                     <button
                       type="button"
                       className="h-12 w-12 rounded-xl border border-zinc-700 bg-zinc-900"
                       onClick={() => setMQty(q => q + 1)}
+                      aria-label="Increase quantity"
                     >+</button>
                   </div>
                 </div>
@@ -392,25 +394,28 @@ export default function DashboardPage() {
                   <td className="px-4 py-2">{wearLabel(r.wear as WearCode) || "—"}</td>
                   <td className="px-4 py-2">{r.pattern || "—"}</td>
                   <td className="px-4 py-2">{r.float || "—"}</td>
+
+                  {/* Qty counter cell (no number input) */}
                   <td className="px-4 py-2">
                     <div className="flex items-center justify-end gap-2">
                       <button
                         className="h-8 w-8 rounded border border-zinc-700"
                         onClick={() => updateQty(idx, (r.quantity ?? 1) - 1)}
+                        aria-label={`Decrease quantity for ${r.nameNoWear}`}
                       >−</button>
-                      <input
-                        type="number"
-                        min={1}
-                        className="h-8 w-16 rounded border border-zinc-700 bg-zinc-900 text-center"
-                        value={r.quantity ?? 1}
-                        onChange={(e) => updateQty(idx, Math.max(1, Number(e.target.value) || 1))}
-                      />
+
+                      <div className="flex h-8 min-w-[2.5rem] items-center justify-center rounded border border-zinc-700 bg-zinc-900 text-sm">
+                        {r.quantity ?? 1}
+                      </div>
+
                       <button
                         className="h-8 w-8 rounded border border-zinc-700"
                         onClick={() => updateQty(idx, (r.quantity ?? 1) + 1)}
+                        aria-label={`Increase quantity for ${r.nameNoWear}`}
                       >+</button>
                     </div>
                   </td>
+
                   <td className="px-4 py-2 text-right">
                     {typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}
                   </td>
@@ -432,17 +437,5 @@ export default function DashboardPage() {
         </table>
       </div>
     </div>
-  );
-}
-
-/* ----- small sortable header cell ----- */
-function Th({ label, keyId }: { label: string; keyId: SortKey }) {
-  const [sortKey, setSortKey] = useState<SortKey>("item");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
-  // This component is only used within <thead>, but it needs to talk to parent state.
-  // To keep the file simple, we hoist handlers via custom events:
-  // Parent uses onClick handlers directly above. This stub exists for TS typing.
-  return (
-    <th className="px-4 py-2 text-left">{label}</th>
   );
 }
