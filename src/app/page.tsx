@@ -1,4 +1,11 @@
+"use client";
+
+import { useState } from "react";
+import AuthModal from "@/components/auth-modal";
+
 export default function HomePage() {
+  const [showModal, setShowModal] = useState(false);
+
   return (
     <main className="min-h-[calc(100vh-64px)] bg-[radial-gradient(60%_80%_at_50%_-10%,#1f2937_0%,transparent_60%),linear-gradient(#0b0b0b,#0b0b0b)] text-white">
       {/* Top hero */}
@@ -21,12 +28,12 @@ export default function HomePage() {
         </p>
 
         <div className="mt-8 flex items-center justify-center gap-3">
-          <a
-            href="/dashboard"
+          <button
+            onClick={() => setShowModal(true)}
             className="rounded-full bg-amber-500 px-5 py-2.5 font-semibold text-black transition hover:bg-amber-400"
           >
             Get started
-          </a>
+          </button>
         </div>
 
         {/* Mock preview frame (replace with real screenshot later) */}
@@ -59,6 +66,8 @@ export default function HomePage() {
           </p>
         </div>
       </section>
+
+      {showModal && <AuthModal onClose={() => setShowModal(false)} />}
     </main>
   );
 }
