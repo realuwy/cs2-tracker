@@ -35,14 +35,21 @@ const toMarketHash = (nameNoWear: string, wear?: WearCode) => {
 };
 function sanitizeSteam(aud: number | undefined, skinport?: number): number | undefined {
   if (aud === undefined || !isFinite(aud) || aud <= 0) return undefined;
-  if (aud > 100000) return undefined; // hard sanity cap
-  // If we have a Skinport unit price, filter out extreme outliers
+
+  // hard caps for obvious nonsense
+  if (aud > 20000) return undefined;
+
   if (typeof skinport === "number" && skinport > 0) {
-    // allow some premium on Steam, but not ridiculous spikes
-    if (aud > skinport * 5 && aud > 50) return undefined;
+    // Tight guard: Steam shouldn't be > 3× Skinport (and over $25)
+    if (aud > skinport * 3 && aud > 25) return undefined;
+
+    // For cheap items, also block if Steam > $100 while Skinport < $50
+    if (skinport < 50 && aud > 100) return undefined;
   }
+
   return aud;
 };
+
 
 /** Parse pasted names like "AK-47 | Redline (Factory New)" to extract wear */
 const LABEL_TO_CODE: Record<string, WearCode> = {
@@ -253,6 +260,32 @@ export default function DashboardPage() {
       const images = data.images || {};
       setSkinportUpdatedAt(data.updatedAt ?? Date.now());
       setSpMap(map);
+
+      // Skinport map + images
+async function refreshSkinport() { /* ... */ }
+
+useEffect(() => {
+  refreshSkinport(); // initial
+}, []);
+
+useEffect(() => {
+  const id = window.setInterval(() => {
+    refreshSkinport();
+  }, 5 * 60 * 1000);
+  return () => window.clearInterval(id);
+}, []);
+
+      // B) After Skinport prices arrive/refresh, scrub any saved Steam outliers in-place
+useEffect(() => {
+  setRows(prev =>
+    prev.map(r => {
+      const sane = sanitizeSteam(r.steamAUD, r.skinportAUD);
+      return sane === r.steamAUD ? r : { ...r, steamAUD: sane };
+    })
+  );
+}, [spMap]);
+
+
 
       // apply fresh prices AND hydrate missing thumbnails
       setRows((prev) =>
