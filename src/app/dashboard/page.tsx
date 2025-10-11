@@ -251,58 +251,98 @@ export default function DashboardPage() {
   }, [rows]);
 
   /* load/refresh Skinport map via server route (also hydrate images) */
-  async function refreshSkinport() {
-    try {
-      const r = await fetch("/api/prices/skinport-map", { cache: "no-store" });
-      const data: {
-        map: Record<string, number>;
-        images?: Record<string, string>;
-        updatedAt?: number;
-      } = await r.json();
+ async function refreshSkinport() {
+  try {
+    // Fetch prices + images in parallel
+    const [priceRes, imgRes] = await Promise.all([
+      fetch("/api/prices/skinport-map", { cache: "no-store" }),
+      fetch("/api/skinport/images", { cache: "force-cache" }), // images OK to cache longer
+    ]);
 
-      const map = data.map || {};
-      const images = data.images || {};
-      setSkinportUpdatedAt(data.updatedAt ?? Date.now());
-      setSpMap(map);
+    const priceData: {
+      map: Record<string, number>;
+      images?: Record<string, string>; // keep supporting old route shape if it exists
+      updatedAt?: number;
+    } = await priceRes.json();
 
-      // apply fresh prices AND hydrate missing thumbnails
-      setRows((prev) =>
-        prev.map((row) => {
-          const sp =
-            map[row.market_hash_name] ??
-            map[row.market_hash_name.replace(NONE_SUFFIX_RE, "")] ??
-            map[row.nameNoWear];
+    const extraImgData: { images?: Record<string, string> } = await imgRes.json();
 
-          const priceAUD = typeof sp === "number" ? sp : undefined;
-          const qty = row.quantity ?? 1;
+    const map = priceData.map || {};
+    // merge any images the price route might already provide with the dedicated feed
+    const images: Record<string, string> = {
+      ...(priceData.images || {}),
+      ...(extraImgData.images || {}),
+    };
 
-          // Only update the image if we actually found one
-          const img =
-            row.image && row.image.trim() !== ""
-              ? row.image
-              : findImage(images, {
-                  market_hash_name: row.market_hash_name,
-                  nameNoWear: row.nameNoWear,
-                  wear: row.wear as string | undefined,
-                });
+    setSkinportUpdatedAt(priceData.updatedAt ?? Date.now());
+    setSpMap(map);
 
-          // also re-sanitize any steam value against newly-known Skinport
-          const saneSteam = sanitizeSteam(row.steamAUD, sp);
+    // Helper: try multiple keys to locate an image
+    const NONE_SUFFIX_RE = /\s+\(none\)$/i;
+    const findImage = (
+      mhn: string,
+      nameNoWear: string,
+      wear?: string
+    ): string | undefined => {
+      // 1) exact market_hash_name
+      if (images[mhn]) return images[mhn];
 
-          return {
-            ...row,
-            skinportAUD: sp,
-            priceAUD,
-            totalAUD: priceAUD ? priceAUD * qty : undefined,
-            image: img ?? row.image,
-            steamAUD: saneSteam,
-          };
-        })
-      );
-    } catch {
-      // keep last-good values
-    }
+      // 2) without trailing (none)
+      const noNone = mhn.replace(NONE_SUFFIX_RE, "");
+      if (images[noNone]) return images[noNone];
+
+      // 3) plain nameNoWear
+      if (images[nameNoWear]) return images[nameNoWear];
+
+      // 4) nameNoWear + wear label (for weapons)
+      const WEAR_LABELS: Record<string, string> = {
+        FN: "Factory New",
+        MW: "Minimal Wear",
+        FT: "Field-Tested",
+        WW: "Well-Worn",
+        BS: "Battle-Scarred",
+      };
+      if (wear && WEAR_LABELS[wear]) {
+        const withWear = `${nameNoWear} (${WEAR_LABELS[wear]})`;
+        if (images[withWear]) return images[withWear];
+      }
+      return undefined;
+    };
+
+    // Apply prices and hydrate missing thumbnails. Also re-sanitize Steam with the fresh Skinport.
+    setRows(prev =>
+      prev.map(row => {
+        const sp =
+          map[row.market_hash_name] ??
+          map[row.market_hash_name.replace(NONE_SUFFIX_RE, "")] ??
+          map[row.nameNoWear];
+
+        const priceAUD = typeof sp === "number" ? sp : undefined;
+        const qty = row.quantity ?? 1;
+
+        // Only set image if it's currently missing/blank
+        const img =
+          row.image && row.image.trim() !== ""
+            ? row.image
+            : findImage(row.market_hash_name, row.nameNoWear, row.wear as string | undefined);
+
+        const saneSteam = sanitizeSteam(row.steamAUD, sp);
+
+        return {
+          ...row,
+          skinportAUD: sp,
+          priceAUD,
+          totalAUD: priceAUD ? priceAUD * qty : undefined,
+          image: img ?? row.image, // keep prior if still not found
+          steamAUD: saneSteam,
+        };
+      })
+    );
+  } catch {
+    // keep last-good values
   }
+}
+
 
   useEffect(() => {
     refreshSkinport(); // initial load
