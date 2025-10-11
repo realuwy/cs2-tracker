@@ -197,7 +197,7 @@ export default function DashboardPage() {
     return [copy, { totalItems, totalSkinport, totalSteam }] as const;
   }, [rows, sortKey, sortDir]);
 
-  /* sortable header cell (uses parent state via closure) */
+  /* sortable header */
   function Th({ label, keyId }: { label: string; keyId: SortKey }) {
     const active = sortKey === keyId;
     return (
@@ -310,7 +310,7 @@ export default function DashboardPage() {
               />
             </div>
 
-            {/* Quantity counter (no number input) */}
+            {/* Quantity counter */}
             <div className="md:col-span-12">
               <div className="flex items-center gap-3">
                 <div className="w-40">
@@ -376,62 +376,66 @@ export default function DashboardPage() {
                 </td>
               </tr>
             ) : (
-              sorted.map((r, idx) => (
-                <tr key={r.market_hash_name + idx} className="border-t border-zinc-800">
-                  <td className="px-4 py-2">
-                    <div className="flex items-center gap-3">
-                      {r.image ? (
-                        <img src={r.image} alt={r.name} className="h-10 w-10 rounded object-contain" />
-                      ) : (
-                        <div className="h-10 w-10 rounded bg-zinc-800" />
-                      )}
-                      <div className="leading-tight">
-                        <div className="font-medium">{r.nameNoWear}</div>
-                        <div className="text-xs text-zinc-500">{r.market_hash_name}</div>
+              sorted.map((r) => {
+                // Important: compute original index so actions update the correct row after sorting
+                const orig = rows.indexOf(r);
+                return (
+                  <tr key={r.market_hash_name + "|" + orig} className="border-t border-zinc-800">
+                    <td className="px-4 py-2">
+                      <div className="flex items-center gap-3">
+                        {r.image ? (
+                          <img src={r.image} alt={r.name} className="h-10 w-10 rounded object-contain" />
+                        ) : (
+                          <div className="h-10 w-10 rounded bg-zinc-800" />
+                        )}
+                        <div className="leading-tight">
+                          <div className="font-medium">{r.nameNoWear}</div>
+                          <div className="text-xs text-zinc-500">{r.market_hash_name}</div>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-2">{wearLabel(r.wear as WearCode) || "—"}</td>
-                  <td className="px-4 py-2">{r.pattern || "—"}</td>
-                  <td className="px-4 py-2">{r.float || "—"}</td>
+                    </td>
+                    <td className="px-4 py-2">{wearLabel(r.wear as WearCode) || "—"}</td>
+                    <td className="px-4 py-2">{r.pattern || "—"}</td>
+                    <td className="px-4 py-2">{r.float || "—"}</td>
 
-                  {/* Qty counter cell (no number input) */}
-                  <td className="px-4 py-2">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        className="h-8 w-8 rounded border border-zinc-700"
-                        onClick={() => updateQty(idx, (r.quantity ?? 1) - 1)}
-                        aria-label={`Decrease quantity for ${r.nameNoWear}`}
-                      >−</button>
+                    {/* Qty counter cell */}
+                    <td className="px-4 py-2">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          className="h-8 w-8 rounded border border-zinc-700"
+                          onClick={() => updateQty(orig, (r.quantity ?? 1) - 1)}
+                          aria-label={`Decrease quantity for ${r.nameNoWear}`}
+                        >−</button>
 
-                      <div className="flex h-8 min-w-[2.5rem] items-center justify-center rounded border border-zinc-700 bg-zinc-900 text-sm">
-                        {r.quantity ?? 1}
+                        <div className="flex h-8 min-w-[2.5rem] items-center justify-center rounded border border-zinc-700 bg-zinc-900 text-sm">
+                          {r.quantity ?? 1}
+                        </div>
+
+                        <button
+                          className="h-8 w-8 rounded border border-zinc-700"
+                          onClick={() => updateQty(orig, (r.quantity ?? 1) + 1)}
+                          aria-label={`Increase quantity for ${r.nameNoWear}`}
+                        >+</button>
                       </div>
+                    </td>
 
+                    <td className="px-4 py-2 text-right">
+                      {typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      {typeof r.steamAUD === "number" ? `A$${r.steamAUD.toFixed(2)}` : "—"}
+                    </td>
+                    <td className="px-4 py-2 text-right">
                       <button
-                        className="h-8 w-8 rounded border border-zinc-700"
-                        onClick={() => updateQty(idx, (r.quantity ?? 1) + 1)}
-                        aria-label={`Increase quantity for ${r.nameNoWear}`}
-                      >+</button>
-                    </div>
-                  </td>
-
-                  <td className="px-4 py-2 text-right">
-                    {typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}
-                  </td>
-                  <td className="px-4 py-2 text-right">
-                    {typeof r.steamAUD === "number" ? `A$${r.steamAUD.toFixed(2)}` : "—"}
-                  </td>
-                  <td className="px-4 py-2 text-right">
-                    <button
-                      onClick={() => removeRow(rows.indexOf(r))}
-                      className="rounded-lg border border-zinc-700 px-3 py-1 text-zinc-300 hover:bg-zinc-800"
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              ))
+                        onClick={() => removeRow(orig)}
+                        className="rounded-lg border border-zinc-700 px-3 py-1 text-zinc-300 hover:bg-zinc-800"
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -439,3 +443,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
