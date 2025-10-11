@@ -334,9 +334,10 @@ export default function DashboardPage() {
 useEffect(() => {
   const onScroll = () => setShowBackToTop(window.scrollY > 600);
   onScroll();
-  window.addEventListener("scroll", onScroll, { passive: true });
-  return () => window.removeEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("scroll", onScroll);
+  return () => window.removeEventListener("scroll", onScroll);
 }, []);
+
 
   const scrollToTop = () => {
     const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
