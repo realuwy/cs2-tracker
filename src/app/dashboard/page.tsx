@@ -405,62 +405,66 @@ export default function DashboardPage() {
   /* -------- Steam price backfill and auto-refresh (rate-limited) -------- */
   const pricesFetchingRef = useRef(false);
 
-  async function backfillSomeSteamPrices(max = 8) {
-    if (pricesFetchingRef.current) return;
-    pricesFetchingRef.current = true;
-    const now = Date.now();
-    const STALE_MS = 45 * 60 * 1000;
+async function backfillSomeSteamPrices(max = 8) {
+  if (pricesFetchingRef.current) return;
+  pricesFetchingRef.current = true;
 
-    try {
-      const candidates = rows
-        .map((r, i) => ({ r, i }))
-        .filter(
-          ({ r }) =>
-            r.steamAUD === undefined ||
-            !r.steamFetchedAt ||
-            now - r.steamFetchedAt > STALE_MS
-        )
-        .slice(0, max);
+  const now = Date.now();
+  const STALE_MS = 45 * 60 * 1000; // 45m
 
-      if (candidates.length === 0) return;
+  try {
+    const candidates = rows
+      .map((r, i) => ({ r, i }))
+      .filter(
+        ({ r }) =>
+          r.steamAUD === undefined ||
+          !r.steamFetchedAt ||
+          now - r.steamFetchedAt > STALE_MS
+      )
+      .slice(0, max);
 
-      const results = await Promise.all(
-        candidates.map(async ({ r, i }) => {
-          const names = [r.market_hash_name, stripNone(r.market_hash_name)].filter(
-            (v, idx, arr) => v && arr.indexOf(v) === idx
-          ) as string[];
+    if (candidates.length === 0) return;
 
-          for (const name of names) {
-            try {
-              const resp = await fetch(`/api/prices/steam?name=${encodeURIComponent(name)}`);
-              const data: { aud?: number | null } = await resp.json();
-              const val = typeof data?.aud === "number" ? data.aud : undefined;
-              if (val !== undefined) {
-                return { idx: i, val, ts: now };
-              }
-            } catch {
-              // try next candidate name
+    const results = await Promise.all(
+      candidates.map(async ({ r, i }) => {
+        const names = [r.market_hash_name, stripNone(r.market_hash_name)].filter(
+          (v, idx, arr) => v && arr.indexOf(v) === idx
+        ) as string[];
+
+        for (const name of names) {
+          try {
+            const resp = await fetch(`/api/prices/steam?name=${encodeURIComponent(name)}`);
+            const data: { aud?: number | null } = await resp.json();
+            const parsed = typeof data?.aud === "number" ? data.aud : undefined;
+
+            const sane = sanitizeSteam(parsed, r.skinportAUD);
+            if (sane !== undefined) {
+              return { idx: i, val: sane, ts: now };
             }
+          } catch {
+            // try next alias
           }
-          return { idx: i, val: undefined as number | undefined, ts: now };
-        })
-      );
+        }
+        return { idx: i, val: undefined as number | undefined, ts: now };
+      })
+    );
 
-      const map = new Map<number, { val: number | undefined; ts: number }>();
-      results.forEach(({ idx, val, ts }) => map.set(idx, { val, ts }));
+    const map = new Map<number, { val: number | undefined; ts: number }>();
+    results.forEach(({ idx, val, ts }) => map.set(idx, { val, ts }));
 
-      setRows((prev) =>
-        prev.map((row, idx) =>
-          map.has(idx)
-            ? { ...row, steamAUD: map.get(idx)!.val, steamFetchedAt: map.get(idx)!.ts }
-            : row
-        )
-      );
-      setSteamUpdatedAt(now);
-    } finally {
-      pricesFetchingRef.current = false;
-    }
+    setRows(prev =>
+      prev.map((row, idx) =>
+        map.has(idx)
+          ? { ...row, steamAUD: map.get(idx)!.val, steamFetchedAt: map.get(idx)!.ts }
+          : row
+      )
+    );
+    setSteamUpdatedAt(now);
+  } finally {
+    pricesFetchingRef.current = false;
   }
+}
+
 
   useEffect(() => {
     backfillSomeSteamPrices(12); // initial
