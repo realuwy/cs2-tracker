@@ -35,25 +35,23 @@ const cmpStr = (a?: string, b?: string, dir: 1 | -1) => {
   const am = isMissingStr(a);
   const bm = isMissingStr(b);
   if (am && bm) return 0;
-  if (am) return 1; // missing goes to bottom
+  if (am) return 1;
   if (bm) return -1;
   return a!.toLocaleLowerCase().localeCompare(b!.toLocaleLowerCase()) * dir;
 };
 
 const isMissingNum = (v: unknown) => !Number.isFinite(Number(v));
-const cmpNum = (a: unknown, b: unknown, dir: 1 | -1) => {
-  const am = isMissingNum(a);
-  const bm = isMissingNum(b);
+const cmpStr = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
+  const am = isMissingStr(a);
+  const bm = isMissingStr(b);
   if (am && bm) return 0;
-  if (am) return 1;
+  if (am) return 1; // missing -> bottom
   if (bm) return -1;
-  const na = Number(a);
-  const nb = Number(b);
-  return na === nb ? 0 : (na < nb ? -1 : 1) * dir;
+  return (a ?? "").toLocaleLowerCase().localeCompare((b ?? "").toLocaleLowerCase()) * dir;
 };
 
 // Wear rank comparator; non-wear always bottom
-const cmpWear = (a?: string, b?: string, dir: 1 | -1) => {
+const cmpWear = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
   const ra = wearRank(a);
   const rb = wearRank(b);
   const am = ra === 99, bm = rb === 99;
