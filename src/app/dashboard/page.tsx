@@ -176,9 +176,10 @@ function TinyIconBtn({
 
 /* ----------------------------- component ----------------------------- */
 
+/** EditorState change: qty is a string so the input can be cleared and retyped cleanly */
 type EditorState = {
   idx: number;
-  qty: number;
+  qty: string;
   float: string;
   pattern: string;
   wear: WearCode;
@@ -326,7 +327,6 @@ export default function DashboardPage() {
   /* ---- lazy image hydration via by-name API (Skinport→Steam) ---- */
   useEffect(() => {
     let cancelled = false;
-
     (async () => {
       const batch: Array<{ name: string; idx: number }> = [];
       for (let i = 0; i < rows.length && batch.length < 6; i++) {
@@ -342,7 +342,6 @@ export default function DashboardPage() {
           const resp = await fetch(`/api/images/by-name?name=${encodeURIComponent(name)}`);
           const data: { url: string | null } = await resp.json();
           if (cancelled) return;
-
           if (typeof data.url === "string" && data.url.length > 0) {
             const url = data.url;
             setRows((prev) =>
@@ -353,12 +352,9 @@ export default function DashboardPage() {
               })
             );
           }
-        } catch {
-          // ignore
-        }
+        } catch {}
       }
     })();
-
     return () => {
       cancelled = true;
     };
@@ -592,7 +588,7 @@ export default function DashboardPage() {
   const openEditor = (idx: number, r: Row) => {
     setEditor({
       idx,
-      qty: r.quantity ?? 1,
+      qty: String(r.quantity ?? 1),       // ← keep as string while editing
       float: r.float ?? "",
       pattern: r.pattern ?? "",
       wear: (r.wear as WearCode) ?? "",
@@ -602,20 +598,18 @@ export default function DashboardPage() {
   const applyEditor = () => {
     if (!editor) return;
     const { idx, qty, float, pattern, wear } = editor;
+    const q = Math.max(1, parseInt(qty === "" ? "1" : qty, 10)); // final parse/clamp
     setRows((prev) =>
       prev.map((row, i) =>
         i === idx
           ? {
               ...row,
-              quantity: Math.max(1, Math.floor(qty || 1)),
+              quantity: q,
               float: float.trim() || undefined,
               pattern: pattern.trim() || undefined,
               wear,
-              // recompute totals if qty changed
               totalAUD:
-                typeof row.skinportAUD === "number"
-                  ? row.skinportAUD * Math.max(1, Math.floor(qty || 1))
-                  : row.totalAUD,
+                typeof row.skinportAUD === "number" ? row.skinportAUD * q : row.totalAUD,
               market_hash_name: stripNone(toMarketHash(row.nameNoWear, wear)),
             }
           : row
@@ -761,177 +755,179 @@ export default function DashboardPage() {
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-zinc-800">
-            {sorted.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-zinc-400">
-                  No items yet. Use <span className="underline">Add manual item</span> or import from Steam.
-                </td>
-              </tr>
-            ) : (
-              sorted.map((r) => {
-                const orig = origIndexMap.get(r)!;
-                const isOpen = editor?.idx === orig;
-                return (
-                  <tr key={r.market_hash_name + "|" + orig} className="bg-zinc-950/40 hover:bg-zinc-900/40 transition-colors">
-                    {/* ITEM */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-start gap-3">
-                        {r.image ? (
-                          <img
-                            src={r.image}
-                            alt={r.name}
-                            loading="lazy"
-                            decoding="async"
-                            onError={(e) => {
-                              const el = e.currentTarget as HTMLImageElement;
-                              if (el.src !== FALLBACK_DATA_URL) el.src = FALLBACK_DATA_URL;
-                            }}
-                            className="h-10 w-10 rounded-lg object-contain bg-zinc-800"
-                          />
-                        ) : (
-                          <img src={FALLBACK_DATA_URL} alt="" className="h-10 w-10 rounded-lg object-contain" />
-                        )}
+        <tbody className="divide-y divide-zinc-800">
+          {sorted.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="px-4 py-8 text-center text-zinc-400">
+                No items yet. Use <span className="underline">Add manual item</span> or import from Steam.
+              </td>
+            </tr>
+          ) : (
+            sorted.map((r) => {
+              const orig = origIndexMap.get(r)!;
+              const isOpen = editor?.idx === orig;
+              return (
+                <tr key={r.market_hash_name + "|" + orig} className="bg-zinc-950/40 hover:bg-zinc-900/40 transition-colors">
+                  {/* ITEM */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-start gap-3">
+                      {r.image ? (
+                        <img
+                          src={r.image}
+                          alt={r.name}
+                          loading="lazy"
+                          decoding="async"
+                          onError={(e) => {
+                            const el = e.currentTarget as HTMLImageElement;
+                            if (el.src !== FALLBACK_DATA_URL) el.src = FALLBACK_DATA_URL;
+                          }}
+                          className="h-10 w-10 rounded-lg object-contain bg-zinc-800"
+                        />
+                      ) : (
+                        <img src={FALLBACK_DATA_URL} alt="" className="h-10 w-10 rounded-lg object-contain" />
+                      )}
 
-                        <div className="min-w-0">
-                          <div className="truncate font-medium" title={r.market_hash_name}>
-                            {r.nameNoWear}
-                          </div>
-                          <div className="mt-1 flex flex-wrap gap-1.5">
-                            {/* NOTE: wear hidden if code==="" */}
-                            {wearLabelForRow(r.wear as WearCode) && (
-                              <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>
-                            )}
-                            {r.pattern && <Pill>Pattern: {r.pattern}</Pill>}
-                            {r.float && <Pill>Float: {r.float}</Pill>}
-                          </div>
+                      <div className="min-w-0">
+                        <div className="truncate font-medium" title={r.market_hash_name}>
+                          {r.nameNoWear}
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          {wearLabelForRow(r.wear as WearCode) && (
+                            <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>
+                          )}
+                          {r.pattern && <Pill>Pattern: {r.pattern}</Pill>}
+                          {r.float && <Pill>Float: {r.float}</Pill>}
                         </div>
                       </div>
-                    </td>
+                    </div>
+                  </td>
 
-                    {/* QTY (number only) */}
-                    <td className="px-4 py-3 text-right tabular-nums">{r.quantity ?? 1}</td>
+                  {/* QTY (number only) */}
+                  <td className="px-4 py-3 text-right tabular-nums">{r.quantity ?? 1}</td>
 
-                    {/* SKINPORT */}
-                    <td className="px-4 py-3">
-                      <div className="text-right leading-tight">
-                        <div className="tabular-nums">{typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}</div>
-                        {typeof r.skinportAUD === "number" && (r.quantity ?? 1) > 1 && (
-                          <div className="mt-0.5 text-[11px] text-zinc-400 tabular-nums">
-                            ×{r.quantity ?? 1} = A${(r.skinportAUD * (r.quantity ?? 1)).toFixed(2)}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* STEAM */}
-                    <td className="px-4 py-3">
-                      <div className="text-right leading-tight">
-                        <div className="tabular-nums">{typeof r.steamAUD === "number" ? `A$${r.steamAUD.toFixed(2)}` : "—"}</div>
-                        {typeof r.steamAUD === "number" && (r.quantity ?? 1) > 1 && (
-                          <div className="mt-0.5 text-[11px] text-zinc-400 tabular-nums">
-                            ×{r.quantity ?? 1} = A${(r.steamAUD * (r.quantity ?? 1)).toFixed(2)}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* ACTIONS: edit + delete */}
-                    <td className="relative px-4 py-3 text-right">
-                      <div className="inline-flex items-center gap-2">
-                        <TinyIconBtn title="Edit" onClick={() => openEditor(orig, r)}>
-                          {/* pencil */}
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 20h9" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                            <path d="M16.5 3.5l4 4L8 20H4v-4L16.5 3.5z" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </TinyIconBtn>
-                        <TinyIconBtn title="Delete" onClick={() => removeRow(orig)}>
-                          {/* trash */}
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <path d="M3 6h18M8 6V4h8v2m-1 0v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V6h10z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </TinyIconBtn>
-                      </div>
-
-                      {/* Editor popover */}
-                      {isOpen && (
-                        <div className="absolute right-3 top-12 z-20 w-72 rounded-xl border border-zinc-700 bg-zinc-950 p-3 shadow-xl shadow-black/40">
-                          <div className="grid grid-cols-12 gap-3">
-                            <div className="col-span-4">
-                              <label className="mb-1 block text-[11px] text-zinc-400">Qty</label>
-                              <input
-                                inputMode="numeric"
-                                className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 text-sm tabular-nums"
-                                value={editor?.qty ?? 1}
-                                onChange={(e) =>
-                                  setEditor((s) => (s ? { ...s, qty: Math.max(1, Number(e.target.value) || 1) } : s))
-                                }
-                              />
-                            </div>
-                            <div className="col-span-8">
-                              <label className="mb-1 block text-[11px] text-zinc-400">Wear</label>
-                              <select
-                                className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 text-sm"
-                                value={editor?.wear ?? ""}
-                                onChange={(e) =>
-                                  setEditor((s) => (s ? { ...s, wear: e.target.value as WearCode } : s))
-                                }
-                              >
-                                {WEAR_OPTIONS.map((w) => (
-                                  <option key={w.code} value={w.code}>
-                                    {w.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-
-                            <div className="col-span-6">
-                              <label className="mb-1 block text-[11px] text-zinc-400">Float</label>
-                              <input
-                                className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 text-sm"
-                                placeholder="0.1234"
-                                value={editor?.float ?? ""}
-                                onChange={(e) =>
-                                  setEditor((s) => (s ? { ...s, float: e.target.value } : s))
-                                }
-                              />
-                            </div>
-                            <div className="col-span-6">
-                              <label className="mb-1 block text-[11px] text-zinc-400">Pattern</label>
-                              <input
-                                className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 text-sm"
-                                placeholder="123"
-                                value={editor?.pattern ?? ""}
-                                onChange={(e) =>
-                                  setEditor((s) => (s ? { ...s, pattern: e.target.value } : s))
-                                }
-                              />
-                            </div>
-                          </div>
-
-                          <div className="mt-3 flex justify-end gap-2">
-                            <button
-                              className="rounded-lg border border-zinc-700 px-3 py-1.5 text-zinc-300 hover:bg-zinc-800"
-                              onClick={() => setEditor(null)}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              className="rounded-lg bg-amber-600 px-3 py-1.5 text-black hover:bg-amber-500"
-                              onClick={applyEditor}
-                            >
-                              Save
-                            </button>
-                          </div>
+                  {/* SKINPORT */}
+                  <td className="px-4 py-3">
+                    <div className="text-right leading-tight">
+                      <div className="tabular-nums">{typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}</div>
+                      {typeof r.skinportAUD === "number" && (r.quantity ?? 1) > 1 && (
+                        <div className="mt-0.5 text-[11px] text-zinc-400 tabular-nums">
+                          ×{r.quantity ?? 1} = A${(r.skinportAUD * (r.quantity ?? 1)).toFixed(2)}
                         </div>
                       )}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
+                    </div>
+                  </td>
+
+                  {/* STEAM */}
+                  <td className="px-4 py-3">
+                    <div className="text-right leading-tight">
+                      <div className="tabular-nums">{typeof r.steamAUD === "number" ? `A$${r.steamAUD.toFixed(2)}` : "—"}</div>
+                      {typeof r.steamAUD === "number" && (r.quantity ?? 1) > 1 && (
+                        <div className="mt-0.5 text-[11px] text-zinc-400 tabular-nums">
+                          ×{r.quantity ?? 1} = A${(r.steamAUD * (r.quantity ?? 1)).toFixed(2)}
+                        </div>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* ACTIONS: edit + delete */}
+                  <td className="relative px-4 py-3 text-right">
+                    <div className="inline-flex items-center gap-2">
+                      <TinyIconBtn title="Edit" onClick={() => openEditor(orig, r)}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <path d="M12 20h9" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                          <path d="M16.5 3.5l4 4L8 20H4v-4L16.5 3.5z" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </TinyIconBtn>
+                      <TinyIconBtn title="Delete" onClick={() => removeRow(orig)}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <path d="M3 6h18M8 6V4h8v2m-1 0v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V6h10z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </TinyIconBtn>
+                    </div>
+
+                    {/* Editor popover */}
+                    {isOpen && (
+                      <div className="absolute right-3 top-12 z-20 w-80 rounded-xl border border-zinc-700 bg-zinc-950 p-3 shadow-xl shadow-black/40">
+                        <div className="grid grid-cols-12 gap-3">
+                          <div className="col-span-5">
+                            <label className="mb-1 block text-[11px] text-zinc-400">Qty</label>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              className="h-10 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 text-sm text-center tabular-nums focus:outline-none focus:ring-2 focus:ring-amber-600/40"
+                              value={editor?.qty ?? ""}
+                              onChange={(e) =>
+                                setEditor((s) =>
+                                  s ? { ...s, qty: e.target.value.replace(/\D/g, "") } : s
+                                )
+                              }
+                              placeholder="1"
+                            />
+                          </div>
+                          <div className="col-span-7">
+                            <label className="mb-1 block text-[11px] text-zinc-400">Wear</label>
+                            <select
+                              className="h-10 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600/40"
+                              value={editor?.wear ?? ""}
+                              onChange={(e) =>
+                                setEditor((s) => (s ? { ...s, wear: e.target.value as WearCode } : s))
+                              }
+                            >
+                              {WEAR_OPTIONS.map((w) => (
+                                <option key={w.code} value={w.code}>
+                                  {w.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="col-span-6">
+                            <label className="mb-1 block text-[11px] text-zinc-400">Float</label>
+                            <input
+                              className="h-10 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600/40"
+                              placeholder="0.1234"
+                              value={editor?.float ?? ""}
+                              onChange={(e) =>
+                                setEditor((s) => (s ? { ...s, float: e.target.value } : s))
+                              }
+                            />
+                          </div>
+                          <div className="col-span-6">
+                            <label className="mb-1 block text-[11px] text-zinc-400">Pattern</label>
+                            <input
+                              className="h-10 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600/40"
+                              placeholder="123"
+                              value={editor?.pattern ?? ""}
+                              onChange={(e) =>
+                                setEditor((s) => (s ? { ...s, pattern: e.target.value } : s))
+                              }
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mt-3 flex justify-end gap-2">
+                          <button
+                            className="rounded-lg border border-zinc-700 px-3 py-1.5 text-zinc-300 hover:bg-zinc-800"
+                            onClick={() => setEditor(null)}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            className="rounded-lg bg-amber-600 px-3 py-1.5 text-black hover:bg-amber-500"
+                            onClick={applyEditor}
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
         </table>
       </div>
 
