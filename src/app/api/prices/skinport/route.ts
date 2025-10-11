@@ -1,69 +1,54 @@
 import { NextResponse } from "next/server";
 
-/**
- * GET /api/prices/skinport
- * Fetches Skinport marketplace prices for CS2 (app_id=730) in AUD.
- * We revalidate every 5 minutes to respect Skinport's caching guidance.
- * Docs: https://docs.skinport.com/items
- */
-export const revalidate = 300; // seconds
+const APP_ID = 730;
+const CURRENCY = process.env.SKINPORT_CURRENCY || "AUD";
+const URL = `https://api.skinport.com/v1/items?app_id=${APP_ID}&currency=${encodeURIComponent(CURRENCY)}`;
 
 type SkinportItem = {
-  market_hash_name: string;
-  currency: string;
-  min_price: number | null;
-  median_price: number | null;
-  quantity: number | null;
-  // other fields exist but we don't need them yet
+  market_hash_name?: string;
+  market_name?: string;
+  lowest_price?: number | string;
+  min_price?: number | string;
+  suggested_price?: number | string;
 };
 
-function exteriorFromName(name: string): string {
-  // Pulls (Factory New), (Minimal Wear), etc. and compresses to FN/MW/FT/WW/BS
-  const m = name.match(/\((Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)\)/i);
-  const map: Record<string, string> = {
-    "factory new": "FN",
-    "minimal wear": "MW",
-    "field-tested": "FT",
-    "well-worn": "WW",
-    "battle-scarred": "BS",
-  };
-  return m ? (map[m[1].toLowerCase()] ?? m[1]) : "";
-}
+let cache: { at: number; data: Record<string, number> } | null = null;
+const TTL_MS = 10 * 60 * 1000;
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const params = new URLSearchParams({
-    app_id: "730",
-    currency: "AUD",
-    tradable: "0",
-  });
-
-  const res = await fetch(`https://api.skinport.com/v1/items?${params.toString()}`, {
-    // Accept-Encoding is optional; Skinport shows it in examples
-    headers: { "Accept-Encoding": "br" },
-    // Let Next.js cache/revalidate on the server
-    next: { revalidate },
-  });
-
-  if (!res.ok) {
-    return NextResponse.json({ error: "Failed to fetch Skinport prices" }, { status: 502 });
+  if (cache && Date.now() - cache.at < TTL_MS) {
+    return NextResponse.json({ currency: CURRENCY, map: cache.data });
   }
 
-  const raw: SkinportItem[] = await res.json();
+  const r = await fetch(URL, { next: { revalidate: 600 } });
+  if (!r.ok) {
+    return NextResponse.json({ error: "Skinport fetch failed" }, { status: 502 });
+  }
+  const arr = (await r.json()) as SkinportItem[];
 
-  // Map to your Item shape (src/lib/types.ts) with safe fallbacks
-  const items = raw.map((it) => ({
-    name: it.market_hash_name,
-    exterior: exteriorFromName(it.market_hash_name),
-    icon: "https://placehold.co/40x40", // placeholder; we’ll swap to real icons later
-    qty: it.quantity ?? undefined,
-    priceMedian: it.median_price ?? undefined,
-    priceMin: it.min_price ?? undefined,
-    lastSale: undefined,
-    delta1h: undefined,
-    delta24h: undefined,
-    delta30d: undefined,
-  }));
-
-  // Limit to a sensible amount for now (you can remove slice later)
-  return NextResponse.json(items.slice(0, 400));
+  const map: Record<string, number> = {};
+  for (const it of arr) {
+    const key = it.market_hash_name || it.market_name;
+    if (!key) continue;
+    const v =
+      toNum(it.lowest_price) ??
+      toNum(it.min_price) ??
+      toNum(it.suggested_price);
+    if (typeof v === "number") map[key] = round2(v);
+  }
+  cache = { at: Date.now(), data: map };
+  return NextResponse.json({ currency: CURRENCY, map });
 }
+
+function toNum(v: unknown): number | null {
+  if (v === null || v === undefined) return null;
+  const s = String(v).replace(/[^\d.,-]/g, "").replace(",", ".");
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : null;
+}
+function round2(n: number) {
+  return Math.round(n * 100) / 100;
+}
+
