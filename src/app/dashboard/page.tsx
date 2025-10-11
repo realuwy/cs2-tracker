@@ -22,7 +22,6 @@ const wearLabel = (code?: string) =>
 
 const toMarketHash = (nameNoWear: string, wear?: WearCode) => {
   const full = wearLabel(wear);
-  // If no wear (stickers, agents, cases…), key is just the name
   return full ? `${nameNoWear} (${full})` : nameNoWear;
 };
 
@@ -35,7 +34,7 @@ const cmpStr = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
   const am = isMissingStr(a);
   const bm = isMissingStr(b);
   if (am && bm) return 0;
-  if (am) return 1; // missing -> bottom
+  if (am) return 1;
   if (bm) return -1;
   return (a ?? "").toLocaleLowerCase().localeCompare((b ?? "").toLocaleLowerCase()) * dir;
 };
@@ -45,7 +44,7 @@ const cmpNum = (a: unknown, b: unknown, dir: 1 | -1) => {
   const am = isMissingNum(a);
   const bm = isMissingNum(b);
   if (am && bm) return 0;
-  if (am) return 1; // missing -> bottom
+  if (am) return 1;
   if (bm) return -1;
   const na = Number(a);
   const nb = Number(b);
@@ -58,7 +57,7 @@ const cmpWear = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
   const rb = wearRank(b);
   const am = ra === 99, bm = rb === 99;
   if (am && bm) return 0;
-  if (am) return 1; // missing wear -> bottom
+  if (am) return 1;
   if (bm) return -1;
   return (ra === rb ? 0 : (ra < rb ? -1 : 1)) * dir;
 };
@@ -67,16 +66,59 @@ const cmpWear = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
 type Row = InvItem & {
   skinportAUD?: number;
   steamAUD?: number;
-  priceAUD?: number; // alias of skinportAUD for legacy display
-  totalAUD?: number; // alias of skinport total (qty * skinport)
-  float?: string;    // display only
-  pattern?: string;  // display only
+  priceAUD?: number; // alias of skinportAUD
+  totalAUD?: number;
+  float?: string;
+  pattern?: string;
   source: "steam" | "manual";
+  // NEW: optional % change fields (if undefined, chips are hidden)
+  skinportH1?: number; skinportD1?: number; skinportM1?: number;
+  steamH1?: number;    steamD1?: number;    steamM1?: number;
 };
 
 /* ---------- sorting state ---------- */
 type SortKey = "item" | "wear" | "pattern" | "float" | "qty" | "skinport" | "steam";
 type SortDir = "asc" | "desc";
+
+/* ---------- tiny UI helpers ---------- */
+function ChangeBadge({ label, value }: { label: string; value: number | undefined }) {
+  if (value === undefined || Number.isNaN(value)) return null;
+  const neg = value < 0;
+  const zero = value === 0;
+  const color = zero ? "text-zinc-400 border-zinc-700" : neg ? "text-red-400 border-red-700" : "text-emerald-400 border-emerald-700";
+  const arrow = zero ? "" : (neg ? "↓" : "↑");
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] ${color}`}
+      title={`${label} change`}
+    >
+      <span className="opacity-75">{label}</span>
+      <span className="tabular-nums">{arrow}{Math.abs(value).toFixed(1)}%</span>
+    </span>
+  );
+}
+
+function PriceCell({
+  price,
+  h1, d1, m1,
+}: {
+  price?: number;
+  h1?: number; d1?: number; m1?: number;
+}) {
+  const hasAny = [h1, d1, m1].some(v => v !== undefined && !Number.isNaN(Number(v)));
+  return (
+    <div className="text-right leading-tight">
+      <div>{typeof price === "number" ? `A$${price.toFixed(2)}` : "—"}</div>
+      {hasAny && (
+        <div className="mt-1 flex flex-wrap justify-end gap-1">
+          <ChangeBadge label="1h" value={h1} />
+          <ChangeBadge label="24h" value={d1} />
+          <span className="hidden sm:inline"><ChangeBadge label="30d" value={m1} /></span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const [rows, setRows] = useState<Row[]>([]);
@@ -104,8 +146,7 @@ export default function DashboardPage() {
       if (raw) setRows(JSON.parse(raw));
     } catch {}
   }, []);
-
-  /* save rows (local) */
+  /* save rows */
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(rows)); } catch {}
   }, [rows]);
@@ -138,9 +179,17 @@ export default function DashboardPage() {
           priceAUD,
           totalAUD: priceAUD ? priceAUD * qty : undefined,
           source: "steam",
+
+          // (optional) demo values—you can delete these once you have real history
+          // skinportH1: Math.random()*6-3,
+          // skinportD1: Math.random()*10-5,
+          // skinportM1: Math.random()*20-10,
+          // steamH1: Math.random()*6-3,
+          // steamD1: Math.random()*10-5,
+          // steamM1: Math.random()*20-10,
         };
       });
-      // Replace steam rows but keep manual rows
+      // keep manual rows
       setRows(prev => [...prev.filter(r => r.source === "manual"), ...mapped]);
     } finally {
       setLoading(false);
@@ -156,7 +205,7 @@ export default function DashboardPage() {
 
     const newRow: Row = {
       market_hash_name,
-      name: market_hash_name, // show full with wear
+      name: market_hash_name,
       nameNoWear,
       wear: mWear,
       pattern: mPattern.trim(),
@@ -168,6 +217,14 @@ export default function DashboardPage() {
       priceAUD,
       totalAUD: priceAUD ? priceAUD * mQty : undefined,
       source: "manual",
+
+      // (optional) demo values—remove when you have real data
+      // skinportH1: Math.random()*6-3,
+      // skinportD1: Math.random()*10-5,
+      // skinportM1: Math.random()*20-10,
+      // steamH1: Math.random()*6-3,
+      // steamD1: Math.random()*10-5,
+      // steamM1: Math.random()*20-10,
     };
     setRows(r => [newRow, ...r]);
     setMName(""); setMWear(""); setMFloat(""); setMPattern(""); setMQty(1);
@@ -181,22 +238,15 @@ export default function DashboardPage() {
     const q = Math.max(1, Math.floor(qty || 1));
     setRows(r => r.map((row, i) =>
       i === idx
-        ? {
-            ...row,
-            quantity: q,
-            totalAUD: typeof row.skinportAUD === "number" ? row.skinportAUD * q : row.totalAUD,
-          }
+        ? { ...row, quantity: q, totalAUD: typeof row.skinportAUD === "number" ? row.skinportAUD * q : row.totalAUD }
         : row
     ));
   }
 
-  /* backfill Steam prices lazily (and cache 10 min via API) */
+  /* backfill Steam prices lazily */
   useEffect(() => {
-    const missing = rows
-      .map((r, i) => ({ r, i }))
-      .filter(({ r }) => r.steamAUD === undefined);
+    const missing = rows.map((r, i) => ({ r, i })).filter(({ r }) => r.steamAUD === undefined);
     if (missing.length === 0) return;
-
     (async () => {
       for (const { r, i } of missing) {
         try {
@@ -211,44 +261,39 @@ export default function DashboardPage() {
     })();
   }, [rows]);
 
-  /* sorting + totals (stable, missing at bottom, big hit-area) */
+  /* sorting + totals (stable) */
   const [sorted, totals] = useMemo(() => {
     const copy = [...rows];
     const dir: 1 | -1 = sortDir === "asc" ? 1 : -1;
-
     copy.sort((a, b) => {
       let c = 0;
       switch (sortKey) {
-        case "item":      c = cmpStr(a.nameNoWear, b.nameNoWear, dir); break;
-        case "wear":      c = cmpWear(a.wear as string, b.wear as string, dir); break;
-        case "pattern":   c = cmpNum(a.pattern, b.pattern, dir); break;
-        case "float":     c = cmpNum(a.float, b.float, dir); break;
-        case "qty":       c = cmpNum(a.quantity, b.quantity, dir); break;
-        case "skinport":  c = cmpNum(a.skinportAUD, b.skinportAUD, dir); break;
-        case "steam":     c = cmpNum(a.steamAUD, b.steamAUD, dir); break;
+        case "item":     c = cmpStr(a.nameNoWear, b.nameNoWear, dir); break;
+        case "wear":     c = cmpWear(a.wear as string, b.wear as string, dir); break;
+        case "pattern":  c = cmpNum(a.pattern, b.pattern, dir); break;
+        case "float":    c = cmpNum(a.float, b.float, dir); break;
+        case "qty":      c = cmpNum(a.quantity, b.quantity, dir); break;
+        case "skinport": c = cmpNum(a.skinportAUD, b.skinportAUD, dir); break;
+        case "steam":    c = cmpNum(a.steamAUD, b.steamAUD, dir); break;
       }
-      // stable tiebreaker by name so list doesn't "jump"
       if (c === 0) c = cmpStr(a.nameNoWear, b.nameNoWear, 1);
       return c;
     });
-
     const totalItems = copy.reduce((acc, r) => acc + (r.quantity ?? 1), 0);
     const totalSkinport = copy.reduce((s, r) => s + ((r.skinportAUD ?? 0) * (r.quantity ?? 1)), 0);
     const totalSteam = copy.reduce((s, r) => s + ((r.steamAUD ?? 0) * (r.quantity ?? 1)), 0);
     return [copy, { totalItems, totalSkinport, totalSteam }] as const;
   }, [rows, sortKey, sortDir]);
 
-  /* sortable header cell: full-width button (big hit-area) */
+  /* sortable header button (full-width click target) */
   function Th({ label, keyId }: { label: string; keyId: SortKey }) {
     const active = sortKey === keyId;
     const ariaSort: React.AriaAttributes["aria-sort"] =
       active ? (sortDir === "asc" ? "ascending" : "descending") : "none";
-
     const handleClick = () => {
       if (active) setSortDir(d => (d === "asc" ? "desc" : "asc"));
       else { setSortKey(keyId); setSortDir("asc"); }
     };
-
     return (
       <th className="p-0" aria-sort={ariaSort}>
         <button
@@ -428,7 +473,7 @@ export default function DashboardPage() {
               </tr>
             ) : (
               sorted.map((r) => {
-                // Important: compute original index so actions update the correct row after sorting
+                // ensure actions hit the correct underlying row after sort
                 const orig = rows.indexOf(r);
                 return (
                   <tr key={r.market_hash_name + "|" + orig} className="border-t border-zinc-800">
@@ -449,7 +494,7 @@ export default function DashboardPage() {
                     <td className="px-4 py-2">{r.pattern || "—"}</td>
                     <td className="px-4 py-2">{r.float || "—"}</td>
 
-                    {/* Qty counter cell */}
+                    {/* Qty */}
                     <td className="px-4 py-2">
                       <div className="flex items-center justify-end gap-2">
                         <button
@@ -457,11 +502,9 @@ export default function DashboardPage() {
                           onClick={() => updateQty(orig, (r.quantity ?? 1) - 1)}
                           aria-label={`Decrease quantity for ${r.nameNoWear}`}
                         >−</button>
-
                         <div className="flex h-8 min-w-[2.5rem] items-center justify-center rounded border border-zinc-700 bg-zinc-900 text-sm">
                           {r.quantity ?? 1}
                         </div>
-
                         <button
                           className="h-8 w-8 rounded border border-zinc-700"
                           onClick={() => updateQty(orig, (r.quantity ?? 1) + 1)}
@@ -470,12 +513,24 @@ export default function DashboardPage() {
                       </div>
                     </td>
 
-                    <td className="px-4 py-2 text-right">
-                      {typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}
+                    {/* Prices with change chips */}
+                    <td className="px-4 py-2">
+                      <PriceCell
+                        price={r.skinportAUD}
+                        h1={r.skinportH1}
+                        d1={r.skinportD1}
+                        m1={r.skinportM1}
+                      />
                     </td>
-                    <td className="px-4 py-2 text-right">
-                      {typeof r.steamAUD === "number" ? `A$${r.steamAUD.toFixed(2)}` : "—"}
+                    <td className="px-4 py-2">
+                      <PriceCell
+                        price={r.steamAUD}
+                        h1={r.steamH1}
+                        d1={r.steamD1}
+                        m1={r.steamM1}
+                      />
                     </td>
+
                     <td className="px-4 py-2 text-right">
                       <button
                         onClick={() => removeRow(orig)}
