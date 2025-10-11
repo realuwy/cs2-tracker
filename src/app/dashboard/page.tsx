@@ -34,17 +34,23 @@ const cmpStr = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
   const am = isMissingStr(a);
   const bm = isMissingStr(b);
   if (am && bm) return 0;
-  if (am) return 1;
+  if (am) return 1; // missing -> bottom
   if (bm) return -1;
   return (a ?? "").toLocaleLowerCase().localeCompare((b ?? "").toLocaleLowerCase()) * dir;
 };
 
-const isMissingNum = (v: unknown) => !Number.isFinite(Number(v));
+// STRICT: treat undefined, null, "" as missing; only real numbers count
+const isMissingNum = (v: unknown) =>
+  v === undefined ||
+  v === null ||
+  (typeof v === "string" && v.trim() === "") ||
+  !Number.isFinite(Number(v));
+
 const cmpNum = (a: unknown, b: unknown, dir: 1 | -1) => {
   const am = isMissingNum(a);
   const bm = isMissingNum(b);
   if (am && bm) return 0;
-  if (am) return 1;
+  if (am) return 1; // missing -> bottom
   if (bm) return -1;
   const na = Number(a);
   const nb = Number(b);
@@ -57,7 +63,7 @@ const cmpWear = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
   const rb = wearRank(b);
   const am = ra === 99, bm = rb === 99;
   if (am && bm) return 0;
-  if (am) return 1;
+  if (am) return 1; // missing wear -> bottom
   if (bm) return -1;
   return (ra === rb ? 0 : (ra < rb ? -1 : 1)) * dir;
 };
@@ -66,12 +72,12 @@ const cmpWear = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
 type Row = InvItem & {
   skinportAUD?: number;
   steamAUD?: number;
-  priceAUD?: number; // alias of skinportAUD
+  priceAUD?: number;
   totalAUD?: number;
   float?: string;
   pattern?: string;
   source: "steam" | "manual";
-  // NEW: optional % change fields (if undefined, chips are hidden)
+  // optional % chips (rendered only if present)
   skinportH1?: number; skinportD1?: number; skinportM1?: number;
   steamH1?: number;    steamD1?: number;    steamM1?: number;
 };
@@ -88,23 +94,14 @@ function ChangeBadge({ label, value }: { label: string; value: number | undefine
   const color = zero ? "text-zinc-400 border-zinc-700" : neg ? "text-red-400 border-red-700" : "text-emerald-400 border-emerald-700";
   const arrow = zero ? "" : (neg ? "↓" : "↑");
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] ${color}`}
-      title={`${label} change`}
-    >
+    <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] ${color}`} title={`${label} change`}>
       <span className="opacity-75">{label}</span>
       <span className="tabular-nums">{arrow}{Math.abs(value).toFixed(1)}%</span>
     </span>
   );
 }
 
-function PriceCell({
-  price,
-  h1, d1, m1,
-}: {
-  price?: number;
-  h1?: number; d1?: number; m1?: number;
-}) {
+function PriceCell({ price, h1, d1, m1 }: { price?: number; h1?: number; d1?: number; m1?: number; }) {
   const hasAny = [h1, d1, m1].some(v => v !== undefined && !Number.isNaN(Number(v)));
   return (
     <div className="text-right leading-tight">
@@ -139,14 +136,27 @@ export default function DashboardPage() {
   const [mPattern, setMPattern] = useState("");
   const [mQty, setMQty] = useState(1);
 
-  /* load saved rows (local) */
+  /* load saved rows (local) + normalize legacy blanks */
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setRows(JSON.parse(raw));
+      if (raw) {
+        const parsed = JSON.parse(raw) as Row[];
+        const normalized = parsed.map(r => ({
+          ...r,
+          pattern: r.pattern && String(r.pattern).trim() !== "" ? r.pattern : undefined,
+          float: r.float && String(r.float).trim() !== "" ? r.float : undefined,
+          skinportAUD: isMissingNum(r.skinportAUD) ? undefined : Number(r.skinportAUD),
+          steamAUD: isMissingNum(r.steamAUD) ? undefined : Number(r.steamAUD),
+          quantity: Math.max(1, Number(r.quantity ?? 1)),
+        }));
+        setRows(normalized);
+        return;
+      }
     } catch {}
   }, []);
-  /* save rows */
+
+  /* save rows (local) */
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(rows)); } catch {}
   }, [rows]);
@@ -179,14 +189,6 @@ export default function DashboardPage() {
           priceAUD,
           totalAUD: priceAUD ? priceAUD * qty : undefined,
           source: "steam",
-
-          // (optional) demo values—you can delete these once you have real history
-          // skinportH1: Math.random()*6-3,
-          // skinportD1: Math.random()*10-5,
-          // skinportM1: Math.random()*20-10,
-          // steamH1: Math.random()*6-3,
-          // steamD1: Math.random()*10-5,
-          // steamM1: Math.random()*20-10,
         };
       });
       // keep manual rows
@@ -208,8 +210,9 @@ export default function DashboardPage() {
       name: market_hash_name,
       nameNoWear,
       wear: mWear,
-      pattern: mPattern.trim(),
-      float: mFloat.trim(),
+      // store undefined, not ""
+      pattern: mPattern.trim() || undefined,
+      float: mFloat.trim() || undefined,
       image: "",
       inspectLink: "",
       quantity: mQty,
@@ -217,14 +220,6 @@ export default function DashboardPage() {
       priceAUD,
       totalAUD: priceAUD ? priceAUD * mQty : undefined,
       source: "manual",
-
-      // (optional) demo values—remove when you have real data
-      // skinportH1: Math.random()*6-3,
-      // skinportD1: Math.random()*10-5,
-      // skinportM1: Math.random()*20-10,
-      // steamH1: Math.random()*6-3,
-      // steamD1: Math.random()*10-5,
-      // steamM1: Math.random()*20-10,
     };
     setRows(r => [newRow, ...r]);
     setMName(""); setMWear(""); setMFloat(""); setMPattern(""); setMQty(1);
@@ -261,10 +256,11 @@ export default function DashboardPage() {
     })();
   }, [rows]);
 
-  /* sorting + totals (stable) */
+  /* sorting + totals (stable, missing pinned to bottom) */
   const [sorted, totals] = useMemo(() => {
     const copy = [...rows];
     const dir: 1 | -1 = sortDir === "asc" ? 1 : -1;
+
     copy.sort((a, b) => {
       let c = 0;
       switch (sortKey) {
@@ -276,9 +272,10 @@ export default function DashboardPage() {
         case "skinport": c = cmpNum(a.skinportAUD, b.skinportAUD, dir); break;
         case "steam":    c = cmpNum(a.steamAUD, b.steamAUD, dir); break;
       }
-      if (c === 0) c = cmpStr(a.nameNoWear, b.nameNoWear, 1);
+      if (c === 0) c = cmpStr(a.nameNoWear, b.nameNoWear, 1); // stable tiebreak
       return c;
     });
+
     const totalItems = copy.reduce((acc, r) => acc + (r.quantity ?? 1), 0);
     const totalSkinport = copy.reduce((s, r) => s + ((r.skinportAUD ?? 0) * (r.quantity ?? 1)), 0);
     const totalSteam = copy.reduce((s, r) => s + ((r.steamAUD ?? 0) * (r.quantity ?? 1)), 0);
@@ -473,7 +470,6 @@ export default function DashboardPage() {
               </tr>
             ) : (
               sorted.map((r) => {
-                // ensure actions hit the correct underlying row after sort
                 const orig = rows.indexOf(r);
                 return (
                   <tr key={r.market_hash_name + "|" + orig} className="border-t border-zinc-800">
@@ -513,22 +509,12 @@ export default function DashboardPage() {
                       </div>
                     </td>
 
-                    {/* Prices with change chips */}
+                    {/* Prices (with change chips if present) */}
                     <td className="px-4 py-2">
-                      <PriceCell
-                        price={r.skinportAUD}
-                        h1={r.skinportH1}
-                        d1={r.skinportD1}
-                        m1={r.skinportM1}
-                      />
+                      <PriceCell price={r.skinportAUD} h1={r.skinportH1} d1={r.skinportD1} m1={r.skinportM1} />
                     </td>
                     <td className="px-4 py-2">
-                      <PriceCell
-                        price={r.steamAUD}
-                        h1={r.steamH1}
-                        d1={r.steamD1}
-                        m1={r.steamM1}
-                      />
+                      <PriceCell price={r.steamAUD} h1={r.steamH1} d1={r.steamD1} m1={r.steamM1} />
                     </td>
 
                     <td className="px-4 py-2 text-right">
