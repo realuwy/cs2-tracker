@@ -31,16 +31,6 @@ const WEAR_TO_RANK: Record<string, number> = { FN: 0, MW: 1, FT: 2, WW: 3, BS: 4
 const wearRank = (code?: string) => (code ? WEAR_TO_RANK[code] ?? 99 : 99);
 
 const isMissingStr = (s?: string | null) => !s || s.trim() === "";
-const cmpStr = (a?: string, b?: string, dir: 1 | -1) => {
-  const am = isMissingStr(a);
-  const bm = isMissingStr(b);
-  if (am && bm) return 0;
-  if (am) return 1;
-  if (bm) return -1;
-  return a!.toLocaleLowerCase().localeCompare(b!.toLocaleLowerCase()) * dir;
-};
-
-const isMissingNum = (v: unknown) => !Number.isFinite(Number(v));
 const cmpStr = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
   const am = isMissingStr(a);
   const bm = isMissingStr(b);
@@ -50,13 +40,25 @@ const cmpStr = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
   return (a ?? "").toLocaleLowerCase().localeCompare((b ?? "").toLocaleLowerCase()) * dir;
 };
 
+const isMissingNum = (v: unknown) => !Number.isFinite(Number(v));
+const cmpNum = (a: unknown, b: unknown, dir: 1 | -1) => {
+  const am = isMissingNum(a);
+  const bm = isMissingNum(b);
+  if (am && bm) return 0;
+  if (am) return 1; // missing -> bottom
+  if (bm) return -1;
+  const na = Number(a);
+  const nb = Number(b);
+  return na === nb ? 0 : (na < nb ? -1 : 1) * dir;
+};
+
 // Wear rank comparator; non-wear always bottom
 const cmpWear = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
   const ra = wearRank(a);
   const rb = wearRank(b);
   const am = ra === 99, bm = rb === 99;
   if (am && bm) return 0;
-  if (am) return 1;
+  if (am) return 1; // missing wear -> bottom
   if (bm) return -1;
   return (ra === rb ? 0 : (ra < rb ? -1 : 1)) * dir;
 };
@@ -288,7 +290,7 @@ export default function DashboardPage() {
           <div className="mt-auto flex gap-2">
             <input
               className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4"
-              placeholder="76561198XXXXXXXXXX or /profiles/<id>"
+              placeholder="76561198XXXXXXXXXX or /profiles/&lt;id&gt;"
               value={steamId}
               onChange={(e) => setSteamId(e.target.value)}
             />
@@ -487,4 +489,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
