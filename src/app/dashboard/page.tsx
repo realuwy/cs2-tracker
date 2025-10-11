@@ -144,74 +144,85 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Manual card */}
-        <div className="flex h-full flex-col rounded-2xl border border-zinc-800 p-4">
-          <div className="text-lg font-medium">Add manual item</div>
+       {/* Add manual item */}
+<div className="flex h-full flex-col rounded-2xl border border-zinc-800 p-4">
+  <div className="text-lg font-medium">Add manual item</div>
 
-          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-12">
-            {/* Name */}
-            <div className="md:col-span-5">
-              <label className="mb-1 block text-xs text-zinc-400">Item name (paste WITHOUT wear)</label>
-              <input
-                className="h-11 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3"
-                placeholder="AK-47 | Redline"
-                value={mName}
-                onChange={(e) => setMName(e.target.value)}
-              />
-            </div>
+  {/* key: items-end + fixed h-12 on all controls + compact labels */}
+  <div className="mt-3 grid items-end grid-cols-1 gap-3 md:grid-cols-12">
+    {/* Name */}
+    <div className="md:col-span-5">
+      <label className="mb-1 block text-[11px] leading-none text-zinc-400">
+        Item name (paste WITHOUT wear)
+      </label>
+      <input
+        className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
+        placeholder="AK-47 | Redline"
+        value={mName}
+        onChange={(e) => setMName(e.target.value)}
+      />
+    </div>
 
-            {/* Wear */}
-            <div className="md:col-span-3">
-              <label className="mb-1 block text-xs text-zinc-400">Wear (used for pricing)</label>
-              <select
-                className="h-11 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3"
-                value={mWear}
-                onChange={(e) => setMWear(e.target.value as WearCode)}
-              >
-                {WEAR_OPTIONS.map(w => (
-                  <option key={w.code} value={w.code}>{w.label}</option>
-                ))}
-              </select>
-            </div>
+    {/* Wear */}
+    <div className="md:col-span-3">
+      <label className="mb-1 block text-[11px] leading-none text-zinc-400">
+        Wear (used for pricing)
+      </label>
+      <select
+        className="h-12 w-full appearance-none rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm"
+        value={mWear}
+        onChange={(e) => setMWear(e.target.value as WearCode)}
+      >
+        {WEAR_OPTIONS.map((w) => (
+          <option key={w.code} value={w.code}>
+            {w.label}
+          </option>
+        ))}
+      </select>
+    </div>
 
-            {/* Float */}
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-xs text-zinc-400">Float (note only)</label>
-              <input
-                className="h-11 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3"
-                placeholder="0.1234"
-                value={mFloat}
-                onChange={(e) => setMFloat(e.target.value)}
-              />
-            </div>
+    {/* Float */}
+    <div className="md:col-span-2">
+      <label className="mb-1 block text-[11px] leading-none text-zinc-400">
+        Float (note only)
+      </label>
+      <input
+        className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
+        placeholder="0.1234"
+        value={mFloat}
+        onChange={(e) => setMFloat(e.target.value)}
+      />
+    </div>
 
-            {/* Pattern */}
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-xs text-zinc-400">Pattern (note only)</label>
-              <input
-                className="h-11 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3"
-                placeholder="123"
-                value={mPattern}
-                onChange={(e) => setMPattern(e.target.value)}
-              />
-            </div>
+    {/* Pattern */}
+    <div className="md:col-span-2">
+      <label className="mb-1 block text-[11px] leading-none text-zinc-400">
+        Pattern (note only)
+      </label>
+      <input
+        className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
+        placeholder="123"
+        value={mPattern}
+        onChange={(e) => setMPattern(e.target.value)}
+      />
+    </div>
 
-            {/* Add */}
-            <div className="md:col-span-12">
-              <button
-                onClick={addManual}
-                className="h-11 w-full rounded-xl bg-amber-600 px-4 text-black hover:bg-amber-500 disabled:opacity-60"
-                disabled={!mName.trim()}
-              >
-                Add
-              </button>
-              <p className="mt-2 text-xs text-zinc-400">
-                Pricing uses only <span className="font-medium">Item name + Wear</span>. Float/Pattern are for display.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+    {/* Add */}
+    <div className="md:col-span-12">
+      <button
+        onClick={addManual}
+        className="h-12 w-full rounded-xl bg-amber-600 px-4 text-black hover:bg-amber-500 disabled:opacity-60"
+        disabled={!mName.trim()}
+      >
+        Add
+      </button>
+      <p className="mt-2 text-xs text-zinc-400">
+        Pricing uses only <span className="font-medium">Item name + Wear</span>. Float/Pattern are for display.
+      </p>
+    </div>
+  </div>
+</div>
+
 
       {/* Table */}
       <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-800">
