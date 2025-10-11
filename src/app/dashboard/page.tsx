@@ -670,22 +670,23 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-semibold">Dashboard</h1>
       </div>
 
-      {/* Top: Left Add manual / Right Stats */}
+      {/* Top: Left Search & Add / Right Stats */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* Left: Manual add with typeahead */}
+        {/* Left: Search & add item (with typeahead) */}
         <div className="flex h-full flex-col rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4">
-          <div className="text-lg font-medium">Add manual item</div>
+          <div className="mb-1 text-lg font-semibold">Search & add item</div>
+          <p className="text-xs text-zinc-500">
+            Start typing to search. Choose wear, optionally set float/pattern, then add.
+          </p>
+
           <div className="mt-3 grid items-end grid-cols-1 gap-3 md:grid-cols-12">
             {/* Typeahead name */}
             <div className="md:col-span-5" ref={nameWrapRef}>
-              <label className="mb-1 block text-[11px] leading-none text-zinc-400">
-                Item name (paste WITHOUT wear)
-              </label>
-
+              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Item</label>
               <div className="relative">
                 <input
                   className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
-                  placeholder="AK-47 | Redline"
+                  placeholder="Search item (no wear)"
                   value={mName}
                   onChange={(e) => {
                     setMName(e.target.value);
@@ -747,13 +748,13 @@ export default function DashboardPage() {
             {/* Wear */}
             <div className="md:col-span-3">
               <label className="mb-1 block text-[11px] leading-none text-zinc-400">
-                Wear {isNonWearCategory(stripNone(mName || "")) && <span className="text-zinc-500">(not applicable)</span>}
+                Wear {nonWearForCurrentInput && <span className="text-zinc-500">(not applicable)</span>}
               </label>
               <select
-                className={`h-12 w-full appearance-none rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm ${isNonWearCategory(stripNone(mName || "")) ? "opacity-50" : ""}`}
+                className={`h-12 w-full appearance-none rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm ${nonWearForCurrentInput ? "opacity-50" : ""}`}
                 value={mWear}
                 onChange={(e) => setMWear(e.target.value as WearCode)}
-                disabled={isNonWearCategory(stripNone(mName || ""))}
+                disabled={nonWearForCurrentInput}
               >
                 {WEAR_OPTIONS.map((w) => (
                   <option key={w.code} value={w.code}>{w.label}</option>
@@ -763,7 +764,7 @@ export default function DashboardPage() {
 
             {/* Float */}
             <div className="md:col-span-2">
-              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Float (note only)</label>
+              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Float (optional)</label>
               <input
                 className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
                 placeholder="0.1234"
@@ -773,7 +774,7 @@ export default function DashboardPage() {
             </div>
             {/* Pattern */}
             <div className="md:col-span-2">
-              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Pattern (note only)</label>
+              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Pattern (optional)</label>
               <input
                 className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
                 placeholder="123"
@@ -785,7 +786,7 @@ export default function DashboardPage() {
             {/* Qty + Add */}
             <div className="md:col-span-12">
               <div className="flex items-center gap-3">
-                <div className="w-40">
+                <div className="w-44">
                   <label className="mb-1 block text-[11px] leading-none text-zinc-400">Quantity</label>
                   <div className="flex h-12 items-center gap-2">
                     <button type="button" className="h-12 w-12 rounded-xl border border-zinc-700 bg-zinc-900" onClick={() => setMQty((q) => Math.max(1, q - 1))}>−</button>
@@ -797,7 +798,9 @@ export default function DashboardPage() {
                   Add
                 </button>
               </div>
-              <p className="mt-2 text-xs text-zinc-400">Pricing uses only <span className="font-medium">Item name + Wear</span>. Float/Pattern are for display.</p>
+              <p className="mt-2 text-xs text-zinc-500">
+                Pricing uses <span className="font-medium">Item + Wear</span>. Float/Pattern are display-only.
+              </p>
             </div>
           </div>
         </div>
@@ -867,7 +870,7 @@ export default function DashboardPage() {
             {sorted.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-zinc-400">
-                  No items yet. Use <span className="underline">Add manual item</span>.
+                  No items yet. Use <span className="underline">Search & add item</span>.
                 </td>
               </tr>
             ) : (
