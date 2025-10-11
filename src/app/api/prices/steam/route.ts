@@ -14,7 +14,7 @@ function parseSteamMoney(raw?: string | null): number | null {
   // Remove spaces
   s = s.replace(/\s+/g, "");
 
-  // If both comma and dot exist, treat comma as thousands separator (AUD usually uses dot decimals)
+  // If both comma and dot exist, treat comma as thousands separator
   if (s.includes(",") && s.includes(".")) {
     s = s.replace(/,/g, "");
   } else if (s.includes(",") && !s.includes(".")) {
@@ -24,8 +24,7 @@ function parseSteamMoney(raw?: string | null): number | null {
 
   const val = parseFloat(s);
   if (!isFinite(val) || val <= 0) return null;
-  // Sanity cap to avoid obviously broken values
-  if (val > 100000) return null;
+  if (val > 100000) return null; // sanity cap
   return val;
 }
 
@@ -39,11 +38,7 @@ export async function GET(req: Request) {
       name
     )}`;
 
-    const res = await fetch(url, {
-      headers: { "User-Agent": "cs2-tracker/1.0" },
-      // Let Next cache per revalidate above
-    });
-
+    const res = await fetch(url, { headers: { "User-Agent": "cs2-tracker/1.0" } });
     if (!res.ok) return NextResponse.json({ aud: null }, { status: 200 });
 
     const data = (await res.json()) as {
@@ -54,7 +49,6 @@ export async function GET(req: Request) {
 
     if (!data?.success) return NextResponse.json({ aud: null }, { status: 200 });
 
-    // Prefer lowest_price; fall back to median_price
     const price =
       parseSteamMoney(data.lowest_price) ??
       parseSteamMoney(data.median_price) ??
@@ -65,3 +59,4 @@ export async function GET(req: Request) {
     return NextResponse.json({ aud: null }, { status: 200 });
   }
 }
+
