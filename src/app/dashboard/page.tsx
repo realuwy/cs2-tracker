@@ -61,8 +61,7 @@ const cmpNum = (a: unknown, b: unknown, dir: 1 | -1) => {
 const cmpWear = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
   const ra = wearRank(a);
   const rb = wearRank(b);
-  const am = ra === 99,
-    bm = rb === 99;
+  const am = ra === 99, bm = rb === 99;
   if (am && bm) return 0;
   if (am) return 1; // missing wear -> bottom
   if (bm) return -1;
@@ -81,7 +80,7 @@ type Row = Omit<InvItem, "pattern" | "float"> & {
   totalAUD?: number;
   source: "steam" | "manual";
 
-  // optional % chips
+  // optional % chips (rendered only if present)
   skinportH1?: number; skinportD1?: number; skinportM1?: number;
   steamH1?: number;    steamD1?: number;    steamM1?: number;
 };
@@ -93,49 +92,29 @@ type SortState = { key: SortKey; dir: SortDir };
 type SortAction = { type: "toggle"; key: SortKey };
 
 function sortReducer(state: SortState, action: SortAction): SortState {
-  if (action.type !== "toggle") return state;
   if (state.key === action.key) {
     return { key: state.key, dir: state.dir === "asc" ? "desc" : "asc" };
   }
   return { key: action.key, dir: "asc" };
 }
+
 /* ---------- tiny UI helpers ---------- */
 function ChangeBadge({ label, value }: { label: string; value: number | undefined }) {
   if (value === undefined || Number.isNaN(value)) return null;
   const neg = value < 0;
   const zero = value === 0;
-  const color = zero
-    ? "text-zinc-400 border-zinc-700"
-    : neg
-    ? "text-red-400 border-red-700"
-    : "text-emerald-400 border-emerald-700";
+  const color = zero ? "text-zinc-400 border-zinc-700" : neg ? "text-red-400 border-red-700" : "text-emerald-400 border-emerald-700";
   const arrow = zero ? "" : neg ? "↓" : "↑";
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] ${color}`}
-      title={`${label} change`}
-    >
+    <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] ${color}`} title={`${label} change`}>
       <span className="opacity-75">{label}</span>
-      <span className="tabular-nums">
-        {arrow}
-        {Math.abs(value).toFixed(1)}%
-      </span>
+      <span className="tabular-nums">{arrow}{Math.abs(value).toFixed(1)}%</span>
     </span>
   );
 }
 
-function PriceCell({
-  price,
-  h1,
-  d1,
-  m1,
-}: {
-  price?: number;
-  h1?: number;
-  d1?: number;
-  m1?: number;
-}) {
-  const hasAny = [h1, d1, m1].some((v) => v !== undefined && !Number.isNaN(Number(v)));
+function PriceCell({ price, h1, d1, m1 }: { price?: number; h1?: number; d1?: number; m1?: number; }) {
+  const hasAny = [h1, d1, m1].some(v => v !== undefined && !Number.isNaN(Number(v)));
   return (
     <div className="text-right leading-tight">
       <div>{typeof price === "number" ? `A$${price.toFixed(2)}` : "—"}</div>
@@ -143,21 +122,17 @@ function PriceCell({
         <div className="mt-1 flex flex-wrap justify-end gap-1">
           <ChangeBadge label="1h" value={h1} />
           <ChangeBadge label="24h" value={d1} />
-          <span className="hidden sm:inline">
-            <ChangeBadge label="30d" value={m1} />
-          </span>
+          <span className="hidden sm:inline"><ChangeBadge label="30d" value={m1} /></span>
         </div>
       )}
     </div>
   );
 }
 
-
 export default function DashboardPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [spMap, setSpMap] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
-
   const [sort, dispatchSort] = useReducer(sortReducer, { key: "item", dir: "asc" });
 
   // import controls
@@ -192,9 +167,7 @@ export default function DashboardPage() {
 
   /* save rows (local) */
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
-    } catch {}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(rows)); } catch {}
   }, [rows]);
 
   /* load Skinport map once */
@@ -258,11 +231,7 @@ export default function DashboardPage() {
       source: "manual",
     };
     setRows((r) => [newRow, ...r]);
-    setMName("");
-    setMWear("");
-    setMFloat("");
-    setMPattern("");
-    setMQty(1);
+    setMName(""); setMWear(""); setMFloat(""); setMPattern(""); setMQty(1);
   }
 
   function removeRow(idx: number) {
@@ -274,12 +243,7 @@ export default function DashboardPage() {
     setRows((r) =>
       r.map((row, i) =>
         i === idx
-          ? {
-              ...row,
-              quantity: q,
-              totalAUD:
-                typeof row.skinportAUD === "number" ? row.skinportAUD * q : row.totalAUD,
-            }
+          ? { ...row, quantity: q, totalAUD: typeof row.skinportAUD === "number" ? row.skinportAUD * q : row.totalAUD }
           : row
       )
     );
@@ -292,16 +256,12 @@ export default function DashboardPage() {
     (async () => {
       for (const { r, i } of missing) {
         try {
-          const resp = await fetch(
-            `/api/prices/steam?name=${encodeURIComponent(r.market_hash_name)}`
-          );
+          const resp = await fetch(`/api/prices/steam?name=${encodeURIComponent(r.market_hash_name)}`);
           const data: { aud?: number | null } = await resp.json();
           const val = typeof data?.aud === "number" ? data.aud : undefined;
           setRows((prev) => prev.map((row, idx) => (idx === i ? { ...row, steamAUD: val } : row)));
         } catch {
-          setRows((prev) =>
-            prev.map((row, idx) => (idx === i ? { ...row, steamAUD: undefined } : row))
-          );
+          setRows((prev) => prev.map((row, idx) => (idx === i ? { ...row, steamAUD: undefined } : row)));
         }
       }
     })();
@@ -315,38 +275,21 @@ export default function DashboardPage() {
     copy.sort((a, b) => {
       let c = 0;
       switch (sort.key) {
-        case "item":
-          c = cmpStr(a.nameNoWear, b.nameNoWear, dir);
-          break;
-        case "wear":
-          c = cmpWear(a.wear as string, b.wear as string, dir);
-          break;
-        case "pattern":
-          c = cmpNum(a.pattern, b.pattern, dir);
-          break;
-        case "float":
-          c = cmpNum(a.float, b.float, dir);
-          break;
-        case "qty":
-          c = cmpNum(a.quantity, b.quantity, dir);
-          break;
-        case "skinport":
-          c = cmpNum(a.skinportAUD, b.skinportAUD, dir);
-          break;
-        case "steam":
-          c = cmpNum(a.steamAUD, b.steamAUD, dir);
-          break;
+        case "item":     c = cmpStr(a.nameNoWear, b.nameNoWear, dir); break;
+        case "wear":     c = cmpWear(a.wear as string, b.wear as string, dir); break;
+        case "pattern":  c = cmpNum(a.pattern, b.pattern, dir); break;
+        case "float":    c = cmpNum(a.float, b.float, dir); break;
+        case "qty":      c = cmpNum(a.quantity, b.quantity, dir); break;
+        case "skinport": c = cmpNum(a.skinportAUD, b.skinportAUD, dir); break;
+        case "steam":    c = cmpNum(a.steamAUD, b.steamAUD, dir); break;
       }
       if (c === 0) c = cmpStr(a.nameNoWear, b.nameNoWear, 1); // stable tiebreak
       return c;
     });
 
     const totalItems = copy.reduce((acc, r) => acc + (r.quantity ?? 1), 0);
-    const totalSkinport = copy.reduce(
-      (s, r) => s + (r.skinportAUD ?? 0) * (r.quantity ?? 1),
-      0
-    );
-    const totalSteam = copy.reduce((s, r) => s + (r.steamAUD ?? 0) * (r.quantity ?? 1), 0);
+    const totalSkinport = copy.reduce((s, r) => s + ((r.skinportAUD ?? 0) * (r.quantity ?? 1)), 0);
+    const totalSteam = copy.reduce((s, r) => s + ((r.steamAUD ?? 0) * (r.quantity ?? 1)), 0);
     return [copy, { totalItems, totalSkinport, totalSteam }] as const;
   }, [rows, sort]);
 
@@ -357,26 +300,27 @@ export default function DashboardPage() {
     return m;
   }, [rows]);
 
-  /* sortable header button (full-width click target) */
+  /* sortable header cell: click on the <th> itself (no nested button) */
   function Th({ label, keyId }: { label: string; keyId: SortKey }) {
     const active = sort.key === keyId;
     const ariaSort: React.AriaAttributes["aria-sort"] =
       active ? (sort.dir === "asc" ? "ascending" : "descending") : "none";
-    const handleClick = () => {
-      dispatchSort({ type: "toggle", key: keyId });
-    };
+    const onClick = () => { dispatchSort({ type: "toggle", key: keyId }); };
     return (
-      <th className="p-0" aria-sort={ariaSort}>
-        <button
-          type="button"
-          onClick={handleClick}
-          className={`flex w-full items-center gap-2 px-4 py-2 text-left select-none cursor-pointer bg-transparent ${
-            active ? "text-white" : "text-zinc-300"
-          }`}
-        >
-          <span>{label}</span>
+      <th
+        aria-sort={ariaSort}
+        onClick={onClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
+        className={`px-4 py-2 text-left select-none cursor-pointer ${
+          active ? "text-white" : "text-zinc-300"
+        } hover:bg-zinc-900/40`}
+      >
+        <span className="inline-flex items-center gap-2">
+          {label}
           {active && <span className="opacity-70">{sort.dir === "asc" ? "▲" : "▼"}</span>}
-        </button>
+        </span>
       </th>
     );
   }
@@ -452,17 +396,13 @@ export default function DashboardPage() {
                 onChange={(e) => setMWear(e.target.value as WearCode)}
               >
                 {WEAR_OPTIONS.map((w) => (
-                  <option key={w.code} value={w.code}>
-                    {w.label}
-                  </option>
+                  <option key={w.code} value={w.code}>{w.label}</option>
                 ))}
               </select>
             </div>
 
             <div className="md:col-span-2">
-              <label className="mb-1 block text-[11px] leading-none text-zinc-400">
-                Float (note only)
-              </label>
+              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Float (note only)</label>
               <input
                 className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
                 placeholder="0.1234"
@@ -472,9 +412,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="mb-1 block text-[11px] leading-none text-zinc-400">
-                Pattern (note only)
-              </label>
+              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Pattern (note only)</label>
               <input
                 className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
                 placeholder="123"
@@ -487,18 +425,14 @@ export default function DashboardPage() {
             <div className="md:col-span-12">
               <div className="flex items-center gap-3">
                 <div className="w-40">
-                  <label className="mb-1 block text-[11px] leading-none text-zinc-400">
-                    Quantity
-                  </label>
+                  <label className="mb-1 block text-[11px] leading-none text-zinc-400">Quantity</label>
                   <div className="flex h-12 items-center gap-2">
                     <button
                       type="button"
                       className="h-12 w-12 rounded-xl border border-zinc-700 bg-zinc-900"
                       onClick={() => setMQty((q) => Math.max(1, q - 1))}
                       aria-label="Decrease quantity"
-                    >
-                      −
-                    </button>
+                    >−</button>
 
                     <div className="flex h-12 min-w-[3rem] items-center justify-center rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm">
                       {mQty}
@@ -509,9 +443,7 @@ export default function DashboardPage() {
                       className="h-12 w-12 rounded-xl border border-zinc-700 bg-zinc-900"
                       onClick={() => setMQty((q) => q + 1)}
                       aria-label="Increase quantity"
-                    >
-                      +
-                    </button>
+                    >+</button>
                   </div>
                 </div>
 
@@ -583,9 +515,7 @@ export default function DashboardPage() {
                           className="h-8 w-8 rounded border border-zinc-700"
                           onClick={() => updateQty(orig, (r.quantity ?? 1) - 1)}
                           aria-label={`Decrease quantity for ${r.nameNoWear}`}
-                        >
-                          −
-                        </button>
+                        >−</button>
                         <div className="flex h-8 min-w-[2.5rem] items-center justify-center rounded border border-zinc-700 bg-zinc-900 text-sm">
                           {r.quantity ?? 1}
                         </div>
@@ -593,9 +523,7 @@ export default function DashboardPage() {
                           className="h-8 w-8 rounded border border-zinc-700"
                           onClick={() => updateQty(orig, (r.quantity ?? 1) + 1)}
                           aria-label={`Increase quantity for ${r.nameNoWear}`}
-                        >
-                          +
-                        </button>
+                        >+</button>
                       </div>
                     </td>
 
