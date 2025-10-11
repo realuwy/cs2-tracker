@@ -1,47 +1,42 @@
+// src/app/api/prices/steam/route.ts
 import { NextResponse } from "next/server";
 
-const FX_AUD_PER_USD = Number(process.env.FX_AUD_PER_USD || "1.55");
-const buildMarketUrl = (mhn: string) =>
-  `https://steamcommunity.com/market/priceoverview/?appid=730&currency=1&market_hash_name=${encodeURIComponent(mhn)}`;
-
-type SteamResp = { success: boolean; lowest_price?: string; median_price?: string };
-
-let cache = new Map<string, { at: number; aud: number | null }>();
-const TTL = 10 * 60 * 1000; // 10 min
-
-export const dynamic = "force-dynamic";
-
 export async function GET(req: Request) {
-  const { searchParams } = new globalThis.URL(req.url);
-  const name = searchParams.get("name");
-  if (!name) return NextResponse.json({ error: "Missing ?name" }, { status: 400 });
-
-  const hit = cache.get(name);
-  if (hit && Date.now() - hit.at < TTL) {
-    return NextResponse.json({ name, aud: hit.aud, fx: FX_AUD_PER_USD });
-  }
-
   try {
-    const r = await fetch(buildMarketUrl(name), { cache: "no-store", next: { revalidate: 0 } });
-    if (!r.ok) throw new Error(String(r.status));
-    const data = (await r.json()) as SteamResp;
-    if (!data?.success) {
-      cache.set(name, { at: Date.now(), aud: null });
-      return NextResponse.json({ name, aud: null, fx: FX_AUD_PER_USD });
+    const { searchParams } = new URL(req.url);
+    const name = searchParams.get("name");
+    if (!name) {
+      return NextResponse.json({ error: "Missing ?name" }, { status: 400 });
     }
-    const usd = parseUSD(data.lowest_price || data.median_price || "");
-    const aud = typeof usd === "number" ? round2(usd * FX_AUD_PER_USD) : null;
-    cache.set(name, { at: Date.now(), aud });
-    return NextResponse.json({ name, aud, fx: FX_AUD_PER_USD });
+
+    // 18 = AUD, Steam Market priceoverview
+    const u = new URL("https://steamcommunity.com/market/priceoverview/");
+    u.searchParams.set("appid", "730");
+    u.searchParams.set("currency", "18");
+    u.searchParams.set("market_hash_name", name);
+
+    const r = await fetch(u.toString(), {
+      // avoid being cached too long by edge
+      cache: "no-store",
+      headers: { "User-Agent": "Mozilla/5.0" },
+    });
+
+    const j = (await r.json()) as
+      | { success: boolean; lowest_price?: string; median_price?: string }
+      | any;
+
+    if (!j?.success) return NextResponse.json({ aud: null });
+
+    const parseAUD = (s?: string) => {
+      if (!s) return undefined;
+      // Steam formats vary by locale, handle both "A$1.23" and "$1.23 AUD"
+      const num = Number(s.replace(/[^\d.,]/g, "").replace(",", "."));
+      return isFinite(num) ? num : undefined;
+    };
+
+    const aud = parseAUD(j.lowest_price) ?? parseAUD(j.median_price);
+    return NextResponse.json({ aud: aud ?? null });
   } catch {
-    cache.set(name, { at: Date.now(), aud: null });
-    return NextResponse.json({ name, aud: null, fx: FX_AUD_PER_USD }, { status: 502 });
+    return NextResponse.json({ aud: null });
   }
 }
-
-function parseUSD(s: string): number | null {
-  if (!s) return null;
-  const n = parseFloat(s.replace(/[^\d.,-]/g, "").replace(",", "."));
-  return Number.isFinite(n) ? n : null;
-}
-function round2(n: number) { return Math.round(n * 100) / 100; }
