@@ -262,31 +262,44 @@ export default function DashboardPage() {
 
   /* load/refresh Skinport map via server route */
   async function refreshSkinport() {
-    try {
-      const r = await fetch("/api/prices/skinport-map", { cache: "no-store" });
-      const data: { map: Record<string, number>; updatedAt?: number } = await r.json();
-      const map = data.map || {};
-      setSkinportUpdatedAt(data.updatedAt ?? Date.now());
-      setSpMap(map);
+  try {
+    const r = await fetch("/api/prices/skinport-map", { cache: "no-store" });
+    const data: { map: Record<string, number>; images?: Record<string, string>; updatedAt?: number } =
+      await r.json();
 
-      // apply fresh prices to rows (unit + total)
-      setRows((prev) =>
-        prev.map((r) => {
-          const sp = map[r.market_hash_name] ?? map[stripNone(r.market_hash_name)];
-          const priceAUD = typeof sp === "number" ? sp : undefined;
-          const qty = r.quantity ?? 1;
-          return {
-            ...r,
-            skinportAUD: sp,
-            priceAUD,
-            totalAUD: priceAUD ? priceAUD * qty : undefined,
-          };
-        })
-      );
-    } catch {
-      // ignore; keep last good spMap/prices
-    }
+    const map = data.map || {};
+    const images = data.images || {};
+    setSkinportUpdatedAt(data.updatedAt ?? Date.now());
+    setSpMap(map);
+
+    // apply fresh prices AND hydrate missing thumbnails
+    setRows(prev =>
+      prev.map(row => {
+        const sp = map[row.market_hash_name] ?? map[row.market_hash_name.replace(/\s+\(none\)$/i, "")];
+        const priceAUD = typeof sp === "number" ? sp : undefined;
+        const qty = row.quantity ?? 1;
+
+        // choose image if row.image is missing/empty
+        const img =
+          row.image && row.image.trim() !== ""
+            ? row.image
+            : images[row.market_hash_name] ??
+              images[row.market_hash_name.replace(/\s+\(none\)$/i, "")];
+
+        return {
+          ...row,
+          skinportAUD: sp,
+          priceAUD,
+          totalAUD: priceAUD ? priceAUD * qty : undefined,
+          image: img ?? row.image, // only overwrite if we found one
+        };
+      })
+    );
+  } catch {
+    // ignore; keep last-good data
   }
+}
+
 
   useEffect(() => {
     refreshSkinport(); // initial
