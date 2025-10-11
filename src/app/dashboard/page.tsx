@@ -110,8 +110,8 @@ type Row = Omit<InvItem, "pattern" | "float"> & {
   float?: string;
   skinportAUD?: number;
   steamAUD?: number;
-  priceAUD?: number;
-  totalAUD?: number;
+  priceAUD?: number; // unit (skinport)
+  totalAUD?: number; // unit * qty (skinport)
   source: "steam" | "manual";
   // optional % chips (render only if present)
   skinportH1?: number;
@@ -120,6 +120,8 @@ type Row = Omit<InvItem, "pattern" | "float"> & {
   steamH1?: number;
   steamD1?: number;
   steamM1?: number;
+  // timestamps to rate-limit refresh
+  steamFetchedAt?: number; // ms
 };
 
 /* ---------- sorting state ---------- */
@@ -222,6 +224,10 @@ export default function DashboardPage() {
   // back-to-top visibility
   const [showBackToTop, setShowBackToTop] = useState(false);
 
+  // refresh timestamps
+  const [skinportUpdatedAt, setSkinportUpdatedAt] = useState<number | null>(null);
+  const [steamUpdatedAt, setSteamUpdatedAt] = useState<number | null>(null);
+
   /* load saved rows (local) + normalize legacy blanks */
   useEffect(() => {
     try {
@@ -261,10 +267,40 @@ export default function DashboardPage() {
   }, [rows]);
 
   /* load Skinport map once */
+  async function refreshSkinport() {
+    try {
+      const res = await fetchSkinportMap();
+      setSpMap(res.map);
+      setSkinportUpdatedAt(Date.now());
+
+      // apply fresh prices to rows (unit + total)
+      setRows((prev) =>
+        prev.map((r) => {
+          const sp = res.map[r.market_hash_name] ?? res.map[stripNone(r.market_hash_name)];
+          const priceAUD = typeof sp === "number" ? sp : undefined;
+          const qty = r.quantity ?? 1;
+          return {
+            ...r,
+            skinportAUD: sp,
+            priceAUD,
+            totalAUD: priceAUD ? priceAUD * qty : undefined,
+          };
+        })
+      );
+    } catch {
+      // ignore
+    }
+  }
+
   useEffect(() => {
-    fetchSkinportMap()
-      .then((res) => setSpMap(res.map))
-      .catch(() => {});
+    refreshSkinport(); // initial
+  }, []);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      refreshSkinport();
+    }, 5 * 60 * 1000); // every 5 min
+    return () => window.clearInterval(id);
   }, []);
 
   /* optional: auto-load default steam id */
@@ -370,57 +406,80 @@ export default function DashboardPage() {
     );
   }
 
-  /* -------- batched Steam price backfill (single setRows) -------- */
+  /* -------- Steam price backfill and auto-refresh (rate-limited) -------- */
   const pricesFetchingRef = useRef(false);
-  useEffect(() => {
+
+  async function backfillSomeSteamPrices(max = 8) {
     if (pricesFetchingRef.current) return;
-    const missing = rows
-      .map((r, i) => ({ r, i }))
-      .filter(({ r }) => r.steamAUD === undefined);
-    if (missing.length === 0) return;
-
     pricesFetchingRef.current = true;
-    let cancelled = false;
+    const now = Date.now();
+    const STALE_MS = 45 * 60 * 1000;
 
-    (async () => {
-      try {
-        const results = await Promise.all(
-          missing.map(async ({ r, i }) => {
-            const candidates = [r.market_hash_name, stripNone(r.market_hash_name)].filter(
-              (v, idx, arr) => v && arr.indexOf(v) === idx
-            ) as string[];
+    try {
+      // pick items that are missing steam price or stale
+      const candidates = rows
+        .map((r, i) => ({ r, i }))
+        .filter(
+          ({ r }) =>
+            r.steamAUD === undefined ||
+            !r.steamFetchedAt ||
+            now - r.steamFetchedAt > STALE_MS
+        )
+        .slice(0, max);
 
-            for (const name of candidates) {
-              try {
-                const resp = await fetch(`/api/prices/steam?name=${encodeURIComponent(name)}`);
-                const data: { aud?: number | null } = await resp.json();
-                const val = typeof data?.aud === "number" ? data.aud : undefined;
-                if (val !== undefined) return { idx: i, val };
-              } catch {
-                // try next candidate
+      if (candidates.length === 0) return;
+
+      const results = await Promise.all(
+        candidates.map(async ({ r, i }) => {
+          const names = [r.market_hash_name, stripNone(r.market_hash_name)].filter(
+            (v, idx, arr) => v && arr.indexOf(v) === idx
+          ) as string[];
+
+          for (const name of names) {
+            try {
+              const resp = await fetch(`/api/prices/steam?name=${encodeURIComponent(name)}`);
+              const data: { aud?: number | null } = await resp.json();
+              const val = typeof data?.aud === "number" ? data.aud : undefined;
+              if (val !== undefined) {
+                return { idx: i, val, ts: now };
               }
+            } catch {
+              // try next candidate name
             }
-            return { idx: i, val: undefined as number | undefined };
-          })
-        );
+          }
+          return { idx: i, val: undefined as number | undefined, ts: now };
+        })
+      );
 
-        if (cancelled) return;
+      const map = new Map<number, { val: number | undefined; ts: number }>();
+      results.forEach(({ idx, val, ts }) => map.set(idx, { val, ts }));
 
-        const map = new Map<number, number | undefined>();
-        results.forEach(({ idx, val }) => map.set(idx, val));
+      setRows((prev) =>
+        prev.map((row, idx) =>
+          map.has(idx)
+            ? { ...row, steamAUD: map.get(idx)!.val, steamFetchedAt: map.get(idx)!.ts }
+            : row
+        )
+      );
+      setSteamUpdatedAt(now);
+    } finally {
+      pricesFetchingRef.current = false;
+    }
+  }
 
-        setRows((prev) =>
-          prev.map((row, idx) => (map.has(idx) ? { ...row, steamAUD: map.get(idx) } : row))
-        );
-      } finally {
-        pricesFetchingRef.current = false;
-      }
-    })();
+  // initial backfill
+  useEffect(() => {
+    backfillSomeSteamPrices(12);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [rows]);
+  // auto-refresh every 5 minutes
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      backfillSomeSteamPrices(8);
+    }, 5 * 60 * 1000);
+    return () => window.clearInterval(id);
+  }, [rows]); // rows in deps so new rows also considered
 
   /* sorting + totals (stable, missing pinned to bottom) */
   const [sorted, totals] = useMemo(() => {
@@ -475,7 +534,7 @@ export default function DashboardPage() {
     return m;
   }, [rows]);
 
-  /* sortable header cell: click on the <th> itself (no nested button) */
+  /* sortable header cell */
   function Th({ label, keyId }: { label: string; keyId: SortKey }) {
     const active = sort.key === keyId;
     const ariaSort: React.AriaAttributes["aria-sort"] =
@@ -509,20 +568,31 @@ export default function DashboardPage() {
 
   const nonWearForCurrentInput = isNonWearCategory(stripNone(mName || ""));
 
+  const formatTime = (ts: number | null) =>
+    ts ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—";
+
   return (
     <div className="mx-auto max-w-6xl p-6">
       {/* Header */}
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Dashboard</h1>
         <div className="flex items-center gap-2">
           <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">
             Total items: {totals.totalItems}
           </div>
-          <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">
-            Skinport: A${totals.totalSkinport.toFixed(2)}
+          <div
+            className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200"
+            title={`Skinport last updated: ${formatTime(skinportUpdatedAt)}`}
+          >
+            Skinport: A${totals.totalSkinport.toFixed(2)}{" "}
+            <span className="text-zinc-400">({formatTime(skinportUpdatedAt)})</span>
           </div>
-          <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">
-            Steam: A${totals.totalSteam.toFixed(2)}
+          <div
+            className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200"
+            title={`Steam last updated: ${formatTime(steamUpdatedAt)}`}
+          >
+            Steam: A${totals.totalSteam.toFixed(2)}{" "}
+            <span className="text-zinc-400">({formatTime(steamUpdatedAt)})</span>
           </div>
         </div>
       </div>
