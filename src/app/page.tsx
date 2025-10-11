@@ -27,12 +27,6 @@ export default function HomePage() {
           >
             Get started
           </a>
-          <a
-            href="/import"
-            className="rounded-full px-5 py-2.5 font-semibold text-white/80 ring-1 ring-white/15 transition hover:bg-white/5"
-          >
-            Import inventory
-          </a>
         </div>
 
         {/* Mock preview frame (replace with real screenshot later) */}
