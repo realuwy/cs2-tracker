@@ -143,25 +143,35 @@ export default function DashboardPage() {
     } : row));
   }
 
-  /* backfill Steam prices lazily */
-  useEffect(() => {
-    const missing = rows
-      .map((r, i) => ({ r, i }))
-      .filter(({ r }) => r.steamAUD === undefined);
-    if (missing.length === 0) return;
+/* backfill Steam prices lazily */
+useEffect(() => {
+  const missing = rows
+    .map((r, i) => ({ r, i }))
+    .filter(({ r }) => r.steamAUD === undefined);
+  if (missing.length === 0) return;
 
-    (async () => {
-      for (const { r, i } of missing) {
-        try {
-          const resp = await fetch(`/api/prices/steam?name=${encodeURIComponent(r.market_hash_name)}`);
-          const data = await resp.json();
-          setRows(prev => prev.map((row, idx) => idx === i ? { ...row, steamAUD: data.aud ?? null } : row));
-        } catch {
-          setRows(prev => prev.map((row, idx) => idx === i ? { ...row, steamAUD: null } : row));
-        }
+  (async () => {
+    for (const { r, i } of missing) {
+      try {
+        const resp = await fetch(
+          `/api/prices/steam?name=${encodeURIComponent(r.market_hash_name)}`
+        );
+        const data: { aud?: number | null } = await resp.json();
+        const val = typeof data?.aud === "number" ? data.aud : undefined;
+        setRows(prev =>
+          prev.map((row, idx) => (idx === i ? { ...row, steamAUD: val } : row))
+        );
+      } catch {
+        setRows(prev =>
+          prev.map((row, idx) =>
+            idx === i ? { ...row, steamAUD: undefined } : row
+          )
+        );
       }
-    })();
-  }, [rows]);
+    }
+  })();
+}, [rows]);
+
 
   /* sorting logic */
   const sorted = useMemo(() => {
