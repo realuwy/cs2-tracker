@@ -39,7 +39,7 @@ const cmpStr = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
   return (a ?? "").toLocaleLowerCase().localeCompare((b ?? "").toLocaleLowerCase()) * dir;
 };
 
-// STRICT: treat undefined, null, "" as missing; only real numbers count
+// treat undefined/null/"" as missing; only real numbers count
 const isMissingNum = (v: unknown) =>
   v === undefined ||
   v === null ||
@@ -63,24 +63,21 @@ const cmpWear = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
   const rb = wearRank(b);
   const am = ra === 99, bm = rb === 99;
   if (am && bm) return 0;
-  if (am) return 1; // missing wear -> bottom
+  if (am) return 1;
   if (bm) return -1;
   return (ra === rb ? 0 : (ra < rb ? -1 : 1)) * dir;
 };
 
 /* ---------- row type ---------- */
-// Make pattern/float optional on top of InvItem
 type Row = Omit<InvItem, "pattern" | "float"> & {
   pattern?: string;
   float?: string;
-
   skinportAUD?: number;
   steamAUD?: number;
   priceAUD?: number;
   totalAUD?: number;
   source: "steam" | "manual";
-
-  // optional % chips (rendered only if present)
+  // optional % chips (render only if present)
   skinportH1?: number; skinportD1?: number; skinportM1?: number;
   steamH1?: number;    steamD1?: number;    steamM1?: number;
 };
@@ -90,7 +87,6 @@ type SortKey = "item" | "wear" | "pattern" | "float" | "qty" | "skinport" | "ste
 type SortDir = "asc" | "desc";
 type SortState = { key: SortKey; dir: SortDir };
 type SortAction = { type: "toggle"; key: SortKey };
-
 function sortReducer(state: SortState, action: SortAction): SortState {
   if (state.key === action.key) {
     return { key: state.key, dir: state.dir === "asc" ? "desc" : "asc" };
@@ -145,6 +141,9 @@ export default function DashboardPage() {
   const [mPattern, setMPattern] = useState("");
   const [mQty, setMQty] = useState(1);
 
+  // back-to-top visibility
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
   /* load saved rows (local) + normalize legacy blanks */
   useEffect(() => {
     try {
@@ -191,6 +190,19 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* show back-to-top after scrolling */
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > 600);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
+  };
+
   async function load(id?: string) {
     setLoading(true);
     try {
@@ -228,7 +240,6 @@ export default function DashboardPage() {
       name: market_hash_name,
       nameNoWear,
       wear: mWear,
-      // store undefined, not ""
       pattern: mPattern.trim() || undefined,
       float: mFloat.trim() || undefined,
       image: "",
@@ -272,7 +283,6 @@ export default function DashboardPage() {
 
     (async () => {
       try {
-        // fetch all in parallel
         const results = await Promise.all(
           missing.map(async ({ r, i }) => {
             try {
@@ -288,24 +298,18 @@ export default function DashboardPage() {
 
         if (cancelled) return;
 
-        // build index -> value map
         const map = new Map<number, number | undefined>();
         results.forEach(({ idx, val }) => map.set(idx, val));
 
-        // single setRows update
         setRows(prev =>
-          prev.map((row, idx) =>
-            map.has(idx) ? { ...row, steamAUD: map.get(idx) } : row
-          )
+          prev.map((row, idx) => (map.has(idx) ? { ...row, steamAUD: map.get(idx) } : row))
         );
       } finally {
         pricesFetchingRef.current = false;
       }
     })();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [rows]);
 
   /* sorting + totals (stable, missing pinned to bottom) */
@@ -354,9 +358,7 @@ export default function DashboardPage() {
         role="button"
         tabIndex={0}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
-        className={`px-4 py-2 text-left select-none cursor-pointer ${
-          active ? "text-white" : "text-zinc-300"
-        } hover:bg-zinc-900/40`}
+        className={`px-4 py-2 text-left select-none cursor-pointer ${active ? "text-white" : "text-zinc-300"} hover:bg-zinc-900/40`}
       >
         <span className="inline-flex items-center gap-2">
           {label}
@@ -372,15 +374,9 @@ export default function DashboardPage() {
       <div className="mb-5 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Dashboard</h1>
         <div className="flex items-center gap-2">
-          <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">
-            Total items: {totals.totalItems}
-          </div>
-          <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">
-            Skinport: A${totals.totalSkinport.toFixed(2)}
-          </div>
-          <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">
-            Steam: A${totals.totalSteam.toFixed(2)}
-          </div>
+          <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">Total items: {totals.totalItems}</div>
+          <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">Skinport: A${totals.totalSkinport.toFixed(2)}</div>
+          <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">Steam: A${totals.totalSteam.toFixed(2)}</div>
         </div>
       </div>
 
@@ -416,9 +412,7 @@ export default function DashboardPage() {
 
           <div className="mt-3 grid items-end grid-cols-1 gap-3 md:grid-cols-12">
             <div className="md:col-span-5">
-              <label className="mb-1 block text-[11px] leading-none text-zinc-400">
-                Item name (paste WITHOUT wear)
-              </label>
+              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Item name (paste WITHOUT wear)</label>
               <input
                 className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
                 placeholder="AK-47 | Redline"
@@ -428,17 +422,13 @@ export default function DashboardPage() {
             </div>
 
             <div className="md:col-span-3">
-              <label className="mb-1 block text-[11px] leading-none text-zinc-400">
-                Wear (used for pricing)
-              </label>
+              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Wear (used for pricing)</label>
               <select
                 className="h-12 w-full appearance-none rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm"
                 value={mWear}
                 onChange={(e) => setMWear(e.target.value as WearCode)}
               >
-                {WEAR_OPTIONS.map((w) => (
-                  <option key={w.code} value={w.code}>{w.label}</option>
-                ))}
+                {WEAR_OPTIONS.map((w) => (<option key={w.code} value={w.code}>{w.label}</option>))}
               </select>
             </div>
 
@@ -468,31 +458,13 @@ export default function DashboardPage() {
                 <div className="w-40">
                   <label className="mb-1 block text-[11px] leading-none text-zinc-400">Quantity</label>
                   <div className="flex h-12 items-center gap-2">
-                    <button
-                      type="button"
-                      className="h-12 w-12 rounded-xl border border-zinc-700 bg-zinc-900"
-                      onClick={() => setMQty((q) => Math.max(1, q - 1))}
-                      aria-label="Decrease quantity"
-                    >−</button>
-
-                    <div className="flex h-12 min-w-[3rem] items-center justify-center rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm">
-                      {mQty}
-                    </div>
-
-                    <button
-                      type="button"
-                      className="h-12 w-12 rounded-xl border border-zinc-700 bg-zinc-900"
-                      onClick={() => setMQty((q) => q + 1)}
-                      aria-label="Increase quantity"
-                    >+</button>
+                    <button type="button" className="h-12 w-12 rounded-xl border border-zinc-700 bg-zinc-900" onClick={() => setMQty((q) => Math.max(1, q - 1))} aria-label="Decrease quantity">−</button>
+                    <div className="flex h-12 min-w-[3rem] items-center justify-center rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm">{mQty}</div>
+                    <button type="button" className="h-12 w-12 rounded-xl border border-zinc-700 bg-zinc-900" onClick={() => setMQty((q) => q + 1)} aria-label="Increase quantity">+</button>
                   </div>
                 </div>
 
-                <button
-                  onClick={addManual}
-                  className="h-12 grow rounded-xl bg-amber-600 px-4 text-black hover:bg-amber-500 disabled:opacity-60"
-                  disabled={!mName.trim()}
-                >
+                <button onClick={addManual} className="h-12 grow rounded-xl bg-amber-600 px-4 text-black hover:bg-amber-500 disabled:opacity-60" disabled={!mName.trim()}>
                   Add
                 </button>
               </div>
@@ -529,9 +501,7 @@ export default function DashboardPage() {
               </tr>
             ) : (
               sorted.map((r) => {
-                const origIndexMap = new Map<Row, number>();
-                rows.forEach((row, i) => origIndexMap.set(row, i));
-                const orig = origIndexMap.get(r)!;
+                const orig = origIndexMap.get(r)!; // O(1) lookup
                 return (
                   <tr key={r.market_hash_name + "|" + orig} className="border-t border-zinc-800">
                     <td className="px-4 py-2">
@@ -554,23 +524,15 @@ export default function DashboardPage() {
                     {/* Qty */}
                     <td className="px-4 py-2">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          className="h-8 w-8 rounded border border-zinc-700"
-                          onClick={() => updateQty(orig, (r.quantity ?? 1) - 1)}
-                          aria-label={`Decrease quantity for ${r.nameNoWear}`}
-                        >−</button>
+                        <button className="h-8 w-8 rounded border border-zinc-700" onClick={() => updateQty(orig, (r.quantity ?? 1) - 1)} aria-label={`Decrease quantity for ${r.nameNoWear}`}>−</button>
                         <div className="flex h-8 min-w-[2.5rem] items-center justify-center rounded border border-zinc-700 bg-zinc-900 text-sm">
                           {r.quantity ?? 1}
                         </div>
-                        <button
-                          className="h-8 w-8 rounded border border-zinc-700"
-                          onClick={() => updateQty(orig, (r.quantity ?? 1) + 1)}
-                          aria-label={`Increase quantity for ${r.nameNoWear}`}
-                        >+</button>
+                        <button className="h-8 w-8 rounded border border-zinc-700" onClick={() => updateQty(orig, (r.quantity ?? 1) + 1)} aria-label={`Increase quantity for ${r.nameNoWear}`}>+</button>
                       </div>
                     </td>
 
-                    {/* Prices (with change chips if present) */}
+                    {/* Prices */}
                     <td className="px-4 py-2">
                       <PriceCell price={r.skinportAUD} h1={r.skinportH1} d1={r.skinportD1} m1={r.skinportM1} />
                     </td>
@@ -579,10 +541,7 @@ export default function DashboardPage() {
                     </td>
 
                     <td className="px-4 py-2 text-right">
-                      <button
-                        onClick={() => removeRow(orig)}
-                        className="rounded-lg border border-zinc-700 px-3 py-1 text-zinc-300 hover:bg-zinc-800"
-                      >
+                      <button onClick={() => removeRow(orig)} className="rounded-lg border border-zinc-700 px-3 py-1 text-zinc-300 hover:bg-zinc-800">
                         Remove
                       </button>
                     </td>
@@ -593,6 +552,26 @@ export default function DashboardPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Back to top */}
+      <button
+        type="button"
+        aria-label="Back to top"
+        onClick={scrollToTop}
+        className={[
+          "fixed bottom-6 right-6 z-50",
+          "rounded-full bg-zinc-800/90 text-zinc-100 shadow-lg shadow-black/40",
+          "backdrop-blur px-4 h-12 inline-flex items-center gap-2",
+          "border border-zinc-700 hover:bg-zinc-700/80",
+          "transition-all duration-200",
+          showBackToTop ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-3 pointer-events-none",
+        ].join(" ")}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="-mt-[1px]">
+          <path d="M6 14l6-6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        <span className="text-sm">Top</span>
+      </button>
     </div>
   );
 }
