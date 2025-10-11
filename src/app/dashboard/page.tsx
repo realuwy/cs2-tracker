@@ -236,6 +236,44 @@ export default function DashboardPage() {
     } catch {}
   }, []);
 
+  // Lazily resolve images for rows that still have no thumbnail (Skinport → Steam fallback)
+useEffect(() => {
+  let cancelled = false;
+
+  (async () => {
+    // pick a small batch without images
+    const batch: Array<{ name: string; idx: number }> = [];
+    for (let i = 0; i < rows.length && batch.length < 6; i++) {
+      const r = rows[i];
+      if (!r.image || r.image.trim() === "") {
+        batch.push({ name: r.market_hash_name, idx: i });
+      }
+    }
+    if (batch.length === 0) return;
+
+    for (const { name, idx } of batch) {
+      try {
+        const resp = await fetch(`/api/images/by-name?name=${encodeURIComponent(name)}`);
+        const data: { url: string | null } = await resp.json();
+        if (cancelled) return;
+        if (data?.url) {
+          setRows(prev =>
+            prev.map((row, i) => (i === idx ? { ...row, image: data.url } : row))
+          );
+        }
+      } catch {
+        // ignore and move on
+      }
+    }
+  })();
+
+  return () => {
+    cancelled = true;
+  };
+  // re-run when rows set changes so we keep hydrating remaining blanks
+}, [rows]);
+
+
   /* debounced save rows (local) */
   const saveTimer = useRef<number | null>(null);
   useEffect(() => {
