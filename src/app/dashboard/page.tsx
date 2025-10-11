@@ -118,6 +118,43 @@ function sanitizeSteam(aud: number | undefined, skinport?: number): number | und
   }
   return aud;
 }
+// Build a unique list of base item names from Skinport map keys
+const baseNameFrom = (mhn: string) => stripNone(mhn).replace(
+  /\s+\((Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)\)\s*$/i,
+  ""
+);
+
+const allBaseNames = useMemo(() => {
+  const s = new Set<string>();
+  Object.keys(spMap || {}).forEach((k) => s.add(baseNameFrom(k)));
+  return Array.from(s).sort((a, b) => a.localeCompare(b));
+}, [spMap]);
+
+// Filtered suggestions for the current input (match all tokens, up to 8)
+const nameSuggestions = useMemo(() => {
+  const q = (mName || "").trim().toLowerCase();
+  if (!q) return [];
+  const tokens = q.split(/\s+/).filter(Boolean);
+  const res: string[] = [];
+  for (const name of allBaseNames) {
+    const lc = name.toLowerCase();
+    let ok = true;
+    for (const t of tokens) if (!lc.includes(t)) { ok = false; break; }
+    if (ok) res.push(name);
+    if (res.length >= 8) break;
+  }
+  return res;
+}, [mName, allBaseNames]);
+
+// Close the menu on outside click
+useEffect(() => {
+  const onDoc = (e: MouseEvent) => {
+    if (!nameWrapRef.current) return;
+    if (!nameWrapRef.current.contains(e.target as Node)) setNameOpen(false);
+  };
+  document.addEventListener("mousedown", onDoc);
+  return () => document.removeEventListener("mousedown", onDoc);
+}, []);
 
 /* ----------------------------- types ----------------------------- */
 
@@ -196,6 +233,10 @@ export default function DashboardPage() {
   const [mFloat, setMFloat] = useState("");
   const [mPattern, setMPattern] = useState("");
   const [mQty, setMQty] = useState(1);
+// --- typeahead state ---
+const [nameOpen, setNameOpen] = useState(false);
+const [nameHot, setNameHot] = useState(0);
+const nameWrapRef = useRef<HTMLDivElement | null>(null);
 
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [skinportUpdatedAt, setSkinportUpdatedAt] = useState<number | null>(null);
@@ -632,15 +673,74 @@ export default function DashboardPage() {
         <div className="flex h-full flex-col rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4">
           <div className="text-lg font-medium">Add manual item</div>
           <div className="mt-3 grid items-end grid-cols-1 gap-3 md:grid-cols-12">
-            <div className="md:col-span-5">
-              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Item name (paste WITHOUT wear)</label>
-              <input
-                className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
-                placeholder="AK-47 | Redline"
-                value={mName}
-                onChange={(e) => setMName(e.target.value)}
-              />
-            </div>
+            <div className="md:col-span-5" ref={nameWrapRef}>
+  <label className="mb-1 block text-[11px] leading-none text-zinc-400">
+    Item name (paste WITHOUT wear)
+  </label>
+
+  <div className="relative">
+    <input
+      className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
+      placeholder="AK-47 | Redline"
+      value={mName}
+      onChange={(e) => {
+        setMName(e.target.value);
+        setNameOpen(true);
+        setNameHot(0);
+      }}
+      onFocus={() => {
+        if ((mName || "").trim()) setNameOpen(true);
+      }}
+      onKeyDown={(e) => {
+        if (!nameOpen || nameSuggestions.length === 0) return;
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setNameHot((i) => Math.min(nameSuggestions.length - 1, i + 1));
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setNameHot((i) => Math.max(0, i - 1));
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          const pick = nameSuggestions[nameHot];
+          if (pick) {
+            setMName(pick);
+            setNameOpen(false);
+          }
+        } else if (e.key === "Escape") {
+          setNameOpen(false);
+        }
+      }}
+    />
+
+    {/* Suggestions dropdown */}
+    {nameOpen && nameSuggestions.length > 0 && (
+      <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-zinc-700 bg-zinc-950 shadow-xl shadow-black/40">
+        <ul className="max-h-72 overflow-auto py-1">
+          {nameSuggestions.map((s, i) => (
+            <li key={s}>
+              <button
+                type="button"
+                className={[
+                  "w-full px-3 py-2 text-left text-sm",
+                  i === nameHot ? "bg-zinc-800 text-zinc-100" : "text-zinc-200 hover:bg-zinc-900"
+                ].join(" ")}
+                onMouseEnter={() => setNameHot(i)}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setMName(s);
+                  setNameOpen(false);
+                }}
+              >
+                {s}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+  </div>
+</div>
+
             <div className="md:col-span-3">
               <label className="mb-1 block text-[11px] leading-none text-zinc-400">
                 Wear {nonWearForCurrentInput && <span className="text-zinc-500">(not applicable)</span>}
