@@ -21,8 +21,8 @@ const wearLabel = (code?: string) =>
   WEAR_OPTIONS.find((w) => w.code === code)?.label ?? "";
 
 /** Only for display under item name — hides "(none)". */
-const wearLabelForRow = (code?: WearCode) =>
-  code && code !== "" ? wearLabel(code) : "";
+const wearLabelForRow = (code?: WearCode) => (code ? wearLabel(code) : "");
+
 
 const LABEL_TO_CODE: Record<string, WearCode> = {
   "factory new": "FN",
