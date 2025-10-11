@@ -126,7 +126,6 @@ const [mPattern, setMPattern] = useState("");
   const totalItems = useMemo(
     () => rows.reduce((acc, r) => acc + (r.quantity ?? 1), 0),
     [rows]
-  );
 
   return (
     <div className="mx-auto max-w-6xl p-6">
