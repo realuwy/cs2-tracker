@@ -45,9 +45,10 @@ const LABEL_TO_CODE: Record<string, WearCode> = {
 };
 function parseNameForWear(raw: string): { nameNoWear: string; wear?: WearCode } {
   const trimmed = raw.trim();
-  // strip explicit "(none)" if user pasted it
   const noNone = stripNone(trimmed);
-  const m = noNone.match(/\s+\((Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)\)\s*$/i);
+  const m = noNone.match(
+    /\s+\((Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)\)\s*$/i
+  );
   if (!m) return { nameNoWear: noNone };
   const code = LABEL_TO_CODE[m[1].toLowerCase()] as WearCode | undefined;
   return { nameNoWear: noNone.replace(m[0], ""), wear: code };
@@ -158,21 +159,37 @@ function ChangeBadge({ label, value }: { label: string; value: number | undefine
   );
 }
 
+/** Price cell: shows unit price, and if qty>1, shows a small subtotal line */
 function PriceCell({
   price,
+  qty,
   h1,
   d1,
   m1,
 }: {
   price?: number;
+  qty: number;
   h1?: number;
   d1?: number;
   m1?: number;
 }) {
   const hasAny = [h1, d1, m1].some((v) => v !== undefined && !Number.isNaN(Number(v)));
+  const hasUnit = typeof price === "number";
+  const subtotal = hasUnit ? price! * Math.max(1, qty || 1) : undefined;
+
   return (
     <div className="text-right leading-tight">
-      <div>{typeof price === "number" ? `A$${price.toFixed(2)}` : "—"}</div>
+      {/* unit price */}
+      <div>{hasUnit ? `A$${price!.toFixed(2)}` : "—"}</div>
+
+      {/* subtotal when qty > 1 */}
+      {hasUnit && qty > 1 && (
+        <div className="mt-0.5 text-[11px] text-zinc-400">
+          ×{qty} = <span className="tabular-nums">A${subtotal!.toFixed(2)}</span>
+        </div>
+      )}
+
+      {/* change chips if present */}
       {hasAny && (
         <div className="mt-1 flex flex-wrap justify-end gap-1">
           <ChangeBadge label="1h" value={h1} />
@@ -276,7 +293,6 @@ export default function DashboardPage() {
     try {
       const inv = await fetchInventory(id);
       const mapped: Row[] = inv.items.map((it) => {
-        // use server-provided market_hash_name, else build WITHOUT "(none)"
         const mhnRaw = it.market_hash_name || toMarketHash(it.nameNoWear, it.wear as WearCode);
         const mhn = stripNone(mhnRaw);
         const spAUD = spMap[mhn] ?? spMap[stripNone(mhn)];
@@ -370,7 +386,6 @@ export default function DashboardPage() {
       try {
         const results = await Promise.all(
           missing.map(async ({ r, i }) => {
-            // Try with exact name, then with stripped "(none)" as a fallback
             const candidates = [r.market_hash_name, stripNone(r.market_hash_name)].filter(
               (v, idx, arr) => v && arr.indexOf(v) === idx
             ) as string[];
@@ -394,7 +409,9 @@ export default function DashboardPage() {
         const map = new Map<number, number | undefined>();
         results.forEach(({ idx, val }) => map.set(idx, val));
 
-        setRows((prev) => prev.map((row, idx) => (map.has(idx) ? { ...row, steamAUD: map.get(idx) } : row)));
+        setRows((prev) =>
+          prev.map((row, idx) => (map.has(idx) ? { ...row, steamAUD: map.get(idx) } : row))
+        );
       } finally {
         pricesFetchingRef.current = false;
       }
@@ -440,8 +457,14 @@ export default function DashboardPage() {
     });
 
     const totalItems = copy.reduce((acc, r) => acc + (r.quantity ?? 1), 0);
-    const totalSkinport = copy.reduce((s, r) => s + (r.skinportAUD ?? 0) * (r.quantity ?? 1), 0);
-    const totalSteam = copy.reduce((s, r) => s + (r.steamAUD ?? 0) * (r.quantity ?? 1), 0);
+    const totalSkinport = copy.reduce(
+      (s, r) => s + (r.skinportAUD ?? 0) * (r.quantity ?? 1),
+      0
+    );
+    const totalSteam = copy.reduce(
+      (s, r) => s + (r.steamAUD ?? 0) * (r.quantity ?? 1),
+      0
+    );
     return [copy, { totalItems, totalSkinport, totalSteam }] as const;
   }, [rows, sort]);
 
@@ -702,12 +725,24 @@ export default function DashboardPage() {
                       </div>
                     </td>
 
-                    {/* Prices */}
+                    {/* Prices (unit + subtotal) */}
                     <td className="px-4 py-2">
-                      <PriceCell price={r.skinportAUD} h1={r.skinportH1} d1={r.skinportD1} m1={r.skinportM1} />
+                      <PriceCell
+                        price={r.skinportAUD}
+                        qty={r.quantity ?? 1}
+                        h1={r.skinportH1}
+                        d1={r.skinportD1}
+                        m1={r.skinportM1}
+                      />
                     </td>
                     <td className="px-4 py-2">
-                      <PriceCell price={r.steamAUD} h1={r.steamH1} d1={r.steamD1} m1={r.steamM1} />
+                      <PriceCell
+                        price={r.steamAUD}
+                        qty={r.quantity ?? 1}
+                        h1={r.steamH1}
+                        d1={r.steamD1}
+                        m1={r.steamM1}
+                      />
                     </td>
 
                     <td className="px-4 py-2 text-right">
@@ -748,5 +783,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-
