@@ -143,7 +143,46 @@ function sortReducer(state: SortState, action: SortAction): SortState {
   return { key: action.key, dir: "asc" };
 }
 
+/* ----------------------------- UI atoms ----------------------------- */
+
+function Pill({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-zinc-700/60 bg-zinc-900/70 px-2 py-0.5 text-[11px] text-zinc-300 shadow-sm shadow-black/20">
+      {children}
+    </span>
+  );
+}
+
+function TinyIconBtn({
+  title,
+  onClick,
+  children,
+}: {
+  title: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-700 bg-zinc-900 text-zinc-200 hover:bg-zinc-800 transition"
+    >
+      {children}
+    </button>
+  );
+}
+
 /* ----------------------------- component ----------------------------- */
+
+type EditorState = {
+  idx: number;
+  qty: number;
+  float: string;
+  pattern: string;
+  wear: WearCode;
+} | null;
 
 export default function DashboardPage() {
   const [rows, setRows] = useState<Row[]>([]);
@@ -163,6 +202,8 @@ export default function DashboardPage() {
   const [skinportUpdatedAt, setSkinportUpdatedAt] = useState<number | null>(null);
   const [steamUpdatedAt, setSteamUpdatedAt] = useState<number | null>(null);
 
+  const [editor, setEditor] = useState<EditorState>(null);
+
   /* ---- restore rows ---- */
   useEffect(() => {
     try {
@@ -176,7 +217,7 @@ export default function DashboardPage() {
           nameNoWear: r.nameNoWear ? stripNone(r.nameNoWear) : r.nameNoWear,
           pattern: r.pattern && String(r.pattern).trim() !== "" ? r.pattern : undefined,
           float: r.float && String(r.float).trim() !== "" ? r.float : undefined,
-          image: (r as any).image == null ? "" : (r as any).image, // coerce legacy nulls
+          image: (r as any).image == null ? "" : (r as any).image,
           skinportAUD: isMissingNum(r.skinportAUD) ? undefined : Number(r.skinportAUD),
           steamAUD: isMissingNum(r.steamAUD) ? undefined : Number(r.steamAUD),
           quantity: Math.max(1, Number(r.quantity ?? 1)),
@@ -331,14 +372,12 @@ export default function DashboardPage() {
   }, []);
 
   /* ---- back to top visibility ---- */
-useEffect(() => {
-  const onScroll = () => setShowBackToTop(window.scrollY > 600);
-  onScroll();
-  window.addEventListener("scroll", onScroll);
-  return () => window.removeEventListener("scroll", onScroll);
-}, []);
-
-
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > 600);
+    onScroll();
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   const scrollToTop = () => {
     const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
@@ -490,7 +529,7 @@ useEffect(() => {
 
   useEffect(() => {
     backfillSomeSteamPrices(12);
-  }, []); // eslint-disable-line
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const id = window.setInterval(() => backfillSomeSteamPrices(8), 5 * 60 * 1000);
     return () => window.clearInterval(id);
@@ -549,9 +588,41 @@ useEffect(() => {
   const formatTime = (ts: number | null) =>
     ts ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—";
 
-  /* ---------- UI helpers ---------- */
-  const joinMeta = (parts: Array<string | null | undefined>) =>
-    parts.filter(Boolean).join(" · ");
+  /* -------- editor helpers -------- */
+  const openEditor = (idx: number, r: Row) => {
+    setEditor({
+      idx,
+      qty: r.quantity ?? 1,
+      float: r.float ?? "",
+      pattern: r.pattern ?? "",
+      wear: (r.wear as WearCode) ?? "",
+    });
+  };
+
+  const applyEditor = () => {
+    if (!editor) return;
+    const { idx, qty, float, pattern, wear } = editor;
+    setRows((prev) =>
+      prev.map((row, i) =>
+        i === idx
+          ? {
+              ...row,
+              quantity: Math.max(1, Math.floor(qty || 1)),
+              float: float.trim() || undefined,
+              pattern: pattern.trim() || undefined,
+              wear,
+              // recompute totals if qty changed
+              totalAUD:
+                typeof row.skinportAUD === "number"
+                  ? row.skinportAUD * Math.max(1, Math.floor(qty || 1))
+                  : row.totalAUD,
+              market_hash_name: stripNone(toMarketHash(row.nameNoWear, wear)),
+            }
+          : row
+      )
+    );
+    setEditor(null);
+  };
 
   return (
     <div className="mx-auto max-w-6xl p-6">
@@ -559,14 +630,14 @@ useEffect(() => {
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Dashboard</h1>
         <div className="flex items-center gap-2">
-          <div className="rounded-full bg-zinc-800/70 px-3 py-1 text-sm text-zinc-200">
+          <div className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-sm text-zinc-200">
             Total items: <span className="tabular-nums">{totals.totalItems}</span>
           </div>
-          <div className="rounded-full bg-zinc-800/70 px-3 py-1 text-sm text-zinc-200" title={`Skinport last updated: ${formatTime(skinportUpdatedAt)}`}>
+          <div className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-sm text-zinc-200" title={`Skinport last updated: ${formatTime(skinportUpdatedAt)}`}>
             Skinport: <span className="tabular-nums">A${totals.totalSkinport.toFixed(2)}</span>{" "}
             <span className="text-zinc-400">({formatTime(skinportUpdatedAt)})</span>
           </div>
-          <div className="rounded-full bg-zinc-800/70 px-3 py-1 text-sm text-zinc-200" title={`Steam last updated: ${formatTime(steamUpdatedAt)}`}>
+          <div className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-sm text-zinc-200" title={`Steam last updated: ${formatTime(steamUpdatedAt)}`}>
             Steam: <span className="tabular-nums">A${totals.totalSteam.toFixed(2)}</span>{" "}
             <span className="text-zinc-400">({formatTime(steamUpdatedAt)})</span>
           </div>
@@ -576,7 +647,7 @@ useEffect(() => {
       {/* Cards — IMPORT + MANUAL */}
       <div className="grid items-stretch grid-cols-1 gap-6 md:grid-cols-2">
         {/* Import */}
-        <div className="flex h-full flex-col rounded-2xl border border-zinc-800/80 bg-zinc-950/40 p-4">
+        <div className="flex h-full flex-col rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4">
           <div className="text-lg font-medium">Import from Steam</div>
           <p className="mb-3 mt-1 text-sm text-zinc-400">
             Paste your <span className="font-medium">SteamID64</span> or a{" "}
@@ -584,14 +655,14 @@ useEffect(() => {
           </p>
           <div className="mt-auto flex gap-2">
             <input
-              className="h-11 w-full rounded-xl border border-zinc-700/70 bg-zinc-900 px-4 placeholder:text-zinc-500"
+              className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4"
               placeholder="76561198XXXXXXXXXX or /profiles/&lt;id&gt;"
               value={steamId}
               onChange={(e) => setSteamId(e.target.value)}
             />
             <button
               onClick={() => load(steamId || undefined)}
-              className="h-11 shrink-0 rounded-xl bg-amber-600 px-5 text-black hover:bg-amber-500 disabled:opacity-60"
+              className="h-12 shrink-0 rounded-xl bg-amber-600 px-5 text-black hover:bg-amber-500 disabled:opacity-60"
               disabled={loading}
             >
               {loading ? "Importing…" : "Import"}
@@ -600,13 +671,13 @@ useEffect(() => {
         </div>
 
         {/* Manual add */}
-        <div className="flex h-full flex-col rounded-2xl border border-zinc-800/80 bg-zinc-950/40 p-4">
+        <div className="flex h-full flex-col rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4">
           <div className="text-lg font-medium">Add manual item</div>
           <div className="mt-3 grid items-end grid-cols-1 gap-3 md:grid-cols-12">
             <div className="md:col-span-5">
               <label className="mb-1 block text-[11px] leading-none text-zinc-400">Item name (paste WITHOUT wear)</label>
               <input
-                className="h-11 w-full rounded-xl border border-zinc-700/70 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
+                className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
                 placeholder="AK-47 | Redline"
                 value={mName}
                 onChange={(e) => setMName(e.target.value)}
@@ -617,7 +688,7 @@ useEffect(() => {
                 Wear {nonWearForCurrentInput && <span className="text-zinc-500">(not applicable)</span>}
               </label>
               <select
-                className={`h-11 w-full appearance-none rounded-xl border border-zinc-700/70 bg-zinc-900 px-3 text-sm ${nonWearForCurrentInput ? "opacity-50" : ""}`}
+                className={`h-12 w-full appearance-none rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm ${nonWearForCurrentInput ? "opacity-50" : ""}`}
                 value={mWear}
                 onChange={(e) => setMWear(e.target.value as WearCode)}
                 disabled={nonWearForCurrentInput}
@@ -630,7 +701,7 @@ useEffect(() => {
             <div className="md:col-span-2">
               <label className="mb-1 block text-[11px] leading-none text-zinc-400">Float (note only)</label>
               <input
-                className="h-11 w-full rounded-xl border border-zinc-700/70 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
+                className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
                 placeholder="0.1234"
                 value={mFloat}
                 onChange={(e) => setMFloat(e.target.value)}
@@ -639,7 +710,7 @@ useEffect(() => {
             <div className="md:col-span-2">
               <label className="mb-1 block text-[11px] leading-none text-zinc-400">Pattern (note only)</label>
               <input
-                className="h-11 w-full rounded-xl border border-zinc-700/70 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
+                className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
                 placeholder="123"
                 value={mPattern}
                 onChange={(e) => setMPattern(e.target.value)}
@@ -649,13 +720,13 @@ useEffect(() => {
               <div className="flex items-center gap-3">
                 <div className="w-40">
                   <label className="mb-1 block text-[11px] leading-none text-zinc-400">Quantity</label>
-                  <div className="flex h-11 items-center gap-2">
-                    <button type="button" className="h-9 w-9 rounded-lg border border-zinc-700/70 hover:bg-zinc-800" onClick={() => setMQty((q) => Math.max(1, q - 1))}>−</button>
-                    <div className="flex h-9 min-w-[3rem] items-center justify-center rounded-lg border border-zinc-700/70 bg-zinc-900 px-3 text-sm tabular-nums">{mQty}</div>
-                    <button type="button" className="h-9 w-9 rounded-lg border border-zinc-700/70 hover:bg-zinc-800" onClick={() => setMQty((q) => q + 1)}>+</button>
+                  <div className="flex h-12 items-center gap-2">
+                    <button type="button" className="h-12 w-12 rounded-xl border border-zinc-700 bg-zinc-900" onClick={() => setMQty((q) => Math.max(1, q - 1))}>−</button>
+                    <div className="flex h-12 min-w-[3rem] items-center justify-center rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm tabular-nums">{mQty}</div>
+                    <button type="button" className="h-12 w-12 rounded-xl border border-zinc-700 bg-zinc-900" onClick={() => setMQty((q) => q + 1)}>+</button>
                   </div>
                 </div>
-                <button onClick={addManual} className="h-11 grow rounded-xl bg-amber-600 px-4 text-black hover:bg-amber-500 disabled:opacity-60" disabled={!mName.trim()}>
+                <button onClick={addManual} className="h-12 grow rounded-xl bg-amber-600 px-4 text-black hover:bg-amber-500 disabled:opacity-60" disabled={!mName.trim()}>
                   Add
                 </button>
               </div>
@@ -666,7 +737,7 @@ useEffect(() => {
       </div>
 
       {/* Sort toolbar */}
-      <div className="mt-4 mb-2 flex flex-wrap items-center gap-2 text-sm">
+      <div className="mt-6 mb-3 flex flex-wrap items-center gap-2 text-sm">
         <span className="mr-1 text-zinc-400">Sort:</span>
         <SortChip k="item" label="Item" />
         <SortChip k="wear" label="Exterior" />
@@ -678,19 +749,19 @@ useEffect(() => {
       </div>
 
       {/* TABLE */}
-      <div className="overflow-hidden rounded-2xl border border-zinc-800/80">
+      <div className="overflow-hidden rounded-2xl border border-zinc-800">
         <table className="min-w-full text-sm">
-          <thead className="bg-zinc-950/60 text-zinc-300">
+          <thead className="sticky top-0 z-10 bg-zinc-950/80 backdrop-blur text-zinc-300">
             <tr>
-              <th className="px-4 py-2 text-left">Item</th>
-              <th className="px-4 py-2 text-right">Qty</th>
-              <th className="px-4 py-2 text-right">Skinport (AUD)</th>
-              <th className="px-4 py-2 text-right">Steam (AUD)</th>
-              <th className="px-3 py-2" />
+              <th className="px-4 py-3 text-left font-medium">Item</th>
+              <th className="px-4 py-3 text-right font-medium">Qty</th>
+              <th className="px-4 py-3 text-right font-medium">Skinport (AUD)</th>
+              <th className="px-4 py-3 text-right font-medium">Steam (AUD)</th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
 
-          <tbody>
+          <tbody className="divide-y divide-zinc-800">
             {sorted.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-zinc-400">
@@ -700,15 +771,13 @@ useEffect(() => {
             ) : (
               sorted.map((r) => {
                 const orig = origIndexMap.get(r)!;
+                const isOpen = editor?.idx === orig;
                 return (
-                  <tr
-                    key={r.market_hash_name + "|" + orig}
-                    className="border-t border-zinc-800/70 bg-zinc-950/30 hover:bg-zinc-900/30 transition-colors"
-                  >
+                  <tr key={r.market_hash_name + "|" + orig} className="bg-zinc-950/40 hover:bg-zinc-900/40 transition-colors">
                     {/* ITEM */}
                     <td className="px-4 py-3">
                       <div className="flex items-start gap-3">
-                        {(r.image ? (
+                        {r.image ? (
                           <img
                             src={r.image}
                             alt={r.name}
@@ -718,44 +787,37 @@ useEffect(() => {
                               const el = e.currentTarget as HTMLImageElement;
                               if (el.src !== FALLBACK_DATA_URL) el.src = FALLBACK_DATA_URL;
                             }}
-                            className="h-10 w-10 rounded-md object-contain bg-zinc-800"
+                            className="h-10 w-10 rounded-lg object-contain bg-zinc-800"
                           />
                         ) : (
-                          <img src={FALLBACK_DATA_URL} alt="" className="h-10 w-10 rounded-md object-contain" />
-                        ))}
+                          <img src={FALLBACK_DATA_URL} alt="" className="h-10 w-10 rounded-lg object-contain" />
+                        )}
+
                         <div className="min-w-0">
-                          <div className="truncate font-medium text-zinc-100" title={r.market_hash_name}>
+                          <div className="truncate font-medium" title={r.market_hash_name}>
                             {r.nameNoWear}
                           </div>
-                          {/* single muted meta line */}
-                          <div className="mt-0.5 truncate text-xs text-zinc-400">
-                            {joinMeta([
-                              wearLabelForRow(r.wear as WearCode) || null,
-                              r.pattern ? `Pattern ${r.pattern}` : null,
-                              r.float ? `Float ${r.float}` : null,
-                            ])}
+                          <div className="mt-1 flex flex-wrap gap-1.5">
+                            {/* NOTE: wear hidden if code==="" */}
+                            {wearLabelForRow(r.wear as WearCode) && (
+                              <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>
+                            )}
+                            {r.pattern && <Pill>Pattern: {r.pattern}</Pill>}
+                            {r.float && <Pill>Float: {r.float}</Pill>}
                           </div>
                         </div>
                       </div>
                     </td>
 
-                    {/* QTY */}
-                    <td className="px-4 py-3 text-right">
-                      <div className="ml-auto flex w-full justify-end gap-1">
-                        <button className="h-8 w-8 rounded-md border border-zinc-700/70 hover:bg-zinc-800" onClick={() => updateQty(orig, (r.quantity ?? 1) - 1)}>−</button>
-                        <div className="flex h-8 min-w-[2.5rem] items-center justify-center rounded-md border border-zinc-700/70 bg-zinc-900 px-2 text-sm tabular-nums">
-                          {r.quantity ?? 1}
-                        </div>
-                        <button className="h-8 w-8 rounded-md border border-zinc-700/70 hover:bg-zinc-800" onClick={() => updateQty(orig, (r.quantity ?? 1) + 1)}>+</button>
-                      </div>
-                    </td>
+                    {/* QTY (number only) */}
+                    <td className="px-4 py-3 text-right tabular-nums">{r.quantity ?? 1}</td>
 
                     {/* SKINPORT */}
-                    <td className="px-4 py-3 text-right">
-                      <div className="leading-tight">
+                    <td className="px-4 py-3">
+                      <div className="text-right leading-tight">
                         <div className="tabular-nums">{typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}</div>
                         {typeof r.skinportAUD === "number" && (r.quantity ?? 1) > 1 && (
-                          <div className="mt-0.5 text-[11px] text-zinc-500 tabular-nums">
+                          <div className="mt-0.5 text-[11px] text-zinc-400 tabular-nums">
                             ×{r.quantity ?? 1} = A${(r.skinportAUD * (r.quantity ?? 1)).toFixed(2)}
                           </div>
                         )}
@@ -763,25 +825,107 @@ useEffect(() => {
                     </td>
 
                     {/* STEAM */}
-                    <td className="px-4 py-3 text-right">
-                      <div className="leading-tight">
+                    <td className="px-4 py-3">
+                      <div className="text-right leading-tight">
                         <div className="tabular-nums">{typeof r.steamAUD === "number" ? `A$${r.steamAUD.toFixed(2)}` : "—"}</div>
                         {typeof r.steamAUD === "number" && (r.quantity ?? 1) > 1 && (
-                          <div className="mt-0.5 text-[11px] text-zinc-500 tabular-nums">
+                          <div className="mt-0.5 text-[11px] text-zinc-400 tabular-nums">
                             ×{r.quantity ?? 1} = A${(r.steamAUD * (r.quantity ?? 1)).toFixed(2)}
                           </div>
                         )}
                       </div>
                     </td>
 
-                    {/* ACTIONS */}
-                    <td className="px-3 py-3 text-right">
-                      <button
-                        onClick={() => removeRow(orig)}
-                        className="rounded-lg border border-zinc-700/70 px-3 py-1 text-zinc-300 hover:bg-zinc-800"
-                      >
-                        Remove
-                      </button>
+                    {/* ACTIONS: edit + delete */}
+                    <td className="relative px-4 py-3 text-right">
+                      <div className="inline-flex items-center gap-2">
+                        <TinyIconBtn title="Edit" onClick={() => openEditor(orig, r)}>
+                          {/* pencil */}
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 20h9" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                            <path d="M16.5 3.5l4 4L8 20H4v-4L16.5 3.5z" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </TinyIconBtn>
+                        <TinyIconBtn title="Delete" onClick={() => removeRow(orig)}>
+                          {/* trash */}
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M3 6h18M8 6V4h8v2m-1 0v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V6h10z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </TinyIconBtn>
+                      </div>
+
+                      {/* Editor popover */}
+                      {isOpen && (
+                        <div className="absolute right-3 top-12 z-20 w-72 rounded-xl border border-zinc-700 bg-zinc-950 p-3 shadow-xl shadow-black/40">
+                          <div className="grid grid-cols-12 gap-3">
+                            <div className="col-span-4">
+                              <label className="mb-1 block text-[11px] text-zinc-400">Qty</label>
+                              <input
+                                inputMode="numeric"
+                                className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 text-sm tabular-nums"
+                                value={editor?.qty ?? 1}
+                                onChange={(e) =>
+                                  setEditor((s) => (s ? { ...s, qty: Math.max(1, Number(e.target.value) || 1) } : s))
+                                }
+                              />
+                            </div>
+                            <div className="col-span-8">
+                              <label className="mb-1 block text-[11px] text-zinc-400">Wear</label>
+                              <select
+                                className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 text-sm"
+                                value={editor?.wear ?? ""}
+                                onChange={(e) =>
+                                  setEditor((s) => (s ? { ...s, wear: e.target.value as WearCode } : s))
+                                }
+                              >
+                                {WEAR_OPTIONS.map((w) => (
+                                  <option key={w.code} value={w.code}>
+                                    {w.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div className="col-span-6">
+                              <label className="mb-1 block text-[11px] text-zinc-400">Float</label>
+                              <input
+                                className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 text-sm"
+                                placeholder="0.1234"
+                                value={editor?.float ?? ""}
+                                onChange={(e) =>
+                                  setEditor((s) => (s ? { ...s, float: e.target.value } : s))
+                                }
+                              />
+                            </div>
+                            <div className="col-span-6">
+                              <label className="mb-1 block text-[11px] text-zinc-400">Pattern</label>
+                              <input
+                                className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2 text-sm"
+                                placeholder="123"
+                                value={editor?.pattern ?? ""}
+                                onChange={(e) =>
+                                  setEditor((s) => (s ? { ...s, pattern: e.target.value } : s))
+                                }
+                              />
+                            </div>
+                          </div>
+
+                          <div className="mt-3 flex justify-end gap-2">
+                            <button
+                              className="rounded-lg border border-zinc-700 px-3 py-1.5 text-zinc-300 hover:bg-zinc-800"
+                              onClick={() => setEditor(null)}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              className="rounded-lg bg-amber-600 px-3 py-1.5 text-black hover:bg-amber-500"
+                              onClick={applyEditor}
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
