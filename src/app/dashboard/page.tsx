@@ -1,278 +1,307 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { fetchInventory, fetchSkinportMap, InvItem } from "@/lib/api";
 
-type Item = {
-  id: string;
-  name: string;
-  exterior?: string;
-  icon?: string;
-  qty?: number;
-  source?: "steam" | "manual";
+// Wear options & helpers
+const WEAR_OPTIONS = [
+  { code: "", label: "(none)" },
+  { code: "FN", label: "Factory New" },
+  { code: "MW", label: "Minimal Wear" },
+  { code: "FT", label: "Field-Tested" },
+  { code: "WW", label: "Well-Worn" },
+  { code: "BS", label: "Battle-Scarred" },
+] as const;
+type WearCode = typeof WEAR_OPTIONS[number]["code"];
+
+function wearLabel(code?: string) {
+  return WEAR_OPTIONS.find((w) => w.code === code)?.label ?? "";
+}
+function toMarketHash(nameNoWear: string, wear?: WearCode) {
+  const full = wearLabel(wear);
+  return full ? `${nameNoWear} (${full})` : nameNoWear;
+}
+
+type Row = InvItem & {
+  skinportAUD?: number;
+  priceAUD?: number;
+  totalAUD?: number;
+  float?: string;    // display only
+  pattern?: string;  // display only
+  source: "steam" | "manual";
 };
 
-// pick storage by auth mode (guest -> sessionStorage, user -> localStorage)
-function getStorage(): Storage {
-  if (typeof window === "undefined") return localStorage as unknown as Storage;
-  const isGuest = sessionStorage.getItem("auth_mode") === "guest";
-  return isGuest ? sessionStorage : localStorage;
-}
-
-function readList(): Item[] {
-  try {
-    return JSON.parse(getStorage().getItem("portfolio_items") || "[]");
-  } catch {
-    return [];
-  }
-}
-function writeList(items: Item[]) {
-  getStorage().setItem("portfolio_items", JSON.stringify(items));
-}
-function uid() {
-  return "manual-" + Math.random().toString(36).slice(2, 9);
-}
-
 export default function DashboardPage() {
-  const [items, setItems] = useState<Item[]>([]);
-  const [mode, setMode] = useState<"guest" | "user">("user");
+  // rows & prices
+  const [rows, setRows] = useState<Row[]>([]);
+  const [spMap, setSpMap] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(false);
 
-  // import state
-  const [loadingImport, setLoadingImport] = useState(false);
-  const [importId, setImportId] = useState("");
-  const [importMsg, setImportMsg] = useState<string | null>(null);
-  const [importErr, setImportErr] = useState<string | null>(null);
+  // import controls
+  const [steamId, setSteamId] = useState("");
 
-  // manual add fields
-  const [name, setName] = useState("");
-  const [exterior, setExterior] = useState("");
-  const [icon, setIcon] = useState("");
-  const [qty, setQty] = useState(1);
+  // manual form state
+  const [mName, setMName] = useState("");
+  const [mWear, setMWear] = useState<WearCode>("");
+  const [mFloat, setMFloat] = useState("");
+  const [mPattern, setMPattern] = useState("");
 
+  // load prices once
   useEffect(() => {
-    const isGuest = typeof window !== "undefined" && sessionStorage.getItem("auth_mode") === "guest";
-    setMode(isGuest ? "guest" : "user");
-    setItems(readList());
+    fetchSkinportMap()
+      .then((res) => setSpMap(res.map))
+      .catch(() => {});
   }, []);
 
-  const totalQty = useMemo(() => items.reduce((n, i) => n + (i.qty || 1), 0), [items]);
+  // auto-load default SteamID if present
+  useEffect(() => {
+    const def = process.env.NEXT_PUBLIC_DEFAULT_STEAM_ID64;
+    if (def) void load(def);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  async function handleImport(e: React.FormEvent) {
-    e.preventDefault();
-    setImportMsg(null);
-    setImportErr(null);
-    setLoadingImport(true);
+  async function load(id?: string) {
+    setLoading(true);
     try {
-      const res = await fetch(`/api/inventory?id=${encodeURIComponent(importId)}`, { cache: "no-store" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Failed to import");
-
-      const imported: Item[] = (data.items || []).map((it: any) => ({
-        id: it.id,
-        name: it.name,
-        exterior: it.exterior,
-        icon: it.icon,
-        qty: 1,
-        source: "steam" as const,
-      }));
-
-      const byId = new Map<string, Item>();
-      [...items, ...imported].forEach((i) => byId.set(i.id, i));
-      const next = Array.from(byId.values());
-      setItems(next);
-      writeList(next);
-      setImportMsg(`Imported ${data.count} items.`);
-    } catch (err: any) {
-      setImportErr(err?.message || "Something went wrong");
+      const inv = await fetchInventory(id);
+      const mapped: Row[] = inv.items.map((it) => {
+        const mhn = it.market_hash_name || toMarketHash(it.nameNoWear, it.wear as WearCode);
+        const spAUD = spMap[mhn];
+        const qty = it.quantity ?? 1;
+        const priceAUD = typeof spAUD === "number" ? spAUD : undefined;
+        return {
+          ...it,
+          market_hash_name: mhn,
+          skinportAUD: spAUD,
+          priceAUD,
+          totalAUD: priceAUD ? priceAUD * qty : undefined,
+          source: "steam",
+        };
+      });
+      setRows((prev) => {
+        const manual = prev.filter((r) => r.source === "manual");
+        return [...manual, ...mapped];
+      });
     } finally {
-      setLoadingImport(false);
+      setLoading(false);
     }
   }
 
-  function addManual(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) return;
-    const next: Item[] = [
-      ...items,
-      {
-        id: uid(),
-        name: name.trim(),
-        exterior: exterior.trim(),
-        icon: icon.trim(),
-        qty: Math.max(1, Number(qty) || 1),
-        source: "manual" as const,
-      },
-    ];
-    setItems(next);
-    writeList(next);
-    setName("");
-    setExterior("");
-    setIcon("");
-    setQty(1);
+  function addManual() {
+    if (!mName.trim()) return;
+
+    const nameNoWear = mName.trim();
+    const market_hash_name = toMarketHash(nameNoWear, mWear);
+    const spAUD = spMap[market_hash_name];
+    const priceAUD = typeof spAUD === "number" ? spAUD : undefined;
+
+    const newRow: Row = {
+      market_hash_name,
+      name: market_hash_name, // full with wear for display under hash
+      nameNoWear,
+      wear: mWear,
+      pattern: mPattern.trim(),
+      float: mFloat.trim(),
+      image: "",
+      inspectLink: "",
+      quantity: 1,
+      skinportAUD: spAUD,
+      priceAUD,
+      totalAUD: priceAUD ?? undefined,
+      source: "manual",
+    };
+
+    setRows((r) => [newRow, ...r]);
+    setMName("");
+    setMWear("");
+    setMFloat("");
+    setMPattern("");
   }
 
-  function remove(id: string) {
-    const next = items.filter((i) => i.id !== id);
-    setItems(next);
-    writeList(next);
+  function removeRow(idx: number) {
+    setRows((r) => r.filter((_, i) => i !== idx));
   }
 
-  function clearAll() {
-    setItems([]);
-    writeList([]);
-  }
+  const totalItems = useMemo(
+    () => rows.reduce((acc, r) => acc + (r.quantity ?? 1), 0),
+    [rows]
+  );
 
   return (
-    <main className="mx-auto max-w-6xl px-6 py-10">
-      {mode === "guest" && (
-        <div className="mb-4 rounded-md border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-sm text-amber-300">
-          Guest mode — items will be cleared when you close this page.{" "}
-          <a href="/" className="underline">Create an account</a> to save permanently.
-        </div>
-      )}
-
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Your Portfolio</h1>
-          <p className="mt-1 text-white/70">Steam imports + manual items shown here.</p>
-        </div>
-        <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2 text-sm">
-          Total items: <span className="font-semibold">{totalQty}</span>
+    <div className="mx-auto max-w-6xl p-6">
+      {/* Header */}
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">
+          Total items: {totalItems}
         </div>
       </div>
 
-      {/* Add / Import */}
-      <section id="add-items" className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {/* Import + Manual */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* Import from Steam */}
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <h2 className="mb-3 text-lg font-semibold">Import from Steam</h2>
-          <p className="text-sm text-white/70">
-            Paste your <strong>SteamID64</strong> or a{" "}
-            <code className="rounded bg-white/10 px-1">steamcommunity.com/profiles/&lt;id&gt;</code> URL (public inventory).
+        <div className="rounded-2xl border border-zinc-800 p-4">
+          <div className="mb-2 text-lg font-medium">Import from Steam</div>
+          <p className="mb-3 text-sm text-zinc-400">
+            Paste your <span className="font-medium">SteamID64</span> or a{" "}
+            <span className="font-mono">steamcommunity.com/profiles/&lt;id&gt;</span> URL (public inventory).
           </p>
-          <form onSubmit={handleImport} className="mt-3 flex gap-2">
+          <div className="flex items-center gap-2">
             <input
-              value={importId}
-              onChange={(e) => setImportId(e.target.value)}
-              placeholder="76561198XXXXXXXXX or /profiles/<id>"
-              className="flex-1 rounded-md border border-white/10 bg-black/30 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
+              className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-2"
+              placeholder="76561198XXXXXXXXXX or /profiles/<id>"
+              value={steamId}
+              onChange={(e) => setSteamId(e.target.value)}
             />
             <button
-              disabled={loadingImport || !importId.trim()}
-              className="rounded-md bg-amber-500 px-4 font-semibold text-black disabled:opacity-50"
+              onClick={() => load(steamId || undefined)}
+              className="rounded-xl bg-amber-600 px-4 py-2 text-black hover:bg-amber-500 disabled:opacity-60"
+              disabled={loading}
             >
-              {loadingImport ? "Importing…" : "Import"}
+              {loading ? "Importing…" : "Import"}
             </button>
-          </form>
-          {importMsg && (
-            <div className="mt-3 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-2 text-sm">
-              {importMsg}
-            </div>
-          )}
-          {importErr && (
-            <div className="mt-3 rounded-md border border-red-500/30 bg-red-500/10 p-2 text-sm">
-              {importErr}
-            </div>
-          )}
+          </div>
         </div>
 
-        {/* Manual Add */}
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <h2 className="mb-3 text-lg font-semibold">Add manual item</h2>
-          <form onSubmit={addManual} className="grid grid-cols-1 gap-2 sm:grid-cols-5">
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Item name (e.g., AK-47 | Redline)"
-              className="rounded-md border border-white/10 bg-black/30 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 sm:col-span-2"
-            />
-            <input
-              value={exterior}
-              onChange={(e) => setExterior(e.target.value)}
-              placeholder="Exterior (FN/MW/FT/WW/BS)"
-              className="rounded-md border border-white/10 bg-black/30 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
-            />
-            <input
-              value={icon}
-              onChange={(e) => setIcon(e.target.value)}
-              placeholder="Icon URL (optional)"
-              className="rounded-md border border-white/10 bg-black/30 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
-            />
-            <input
-              type="number"
-              min={1}
-              value={qty}
-              onChange={(e) => setQty(Number(e.target.value))}
-              placeholder="Qty"
-              className="rounded-md border border-white/10 bg-black/30 px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
-            />
-            <button className="rounded-md bg-amber-500 px-4 font-semibold text-black hover:bg-amber-400">
-              Add
-            </button>
-          </form>
+        {/* Add manual item */}
+        <div className="rounded-2xl border border-zinc-800 p-4">
+          <div className="mb-2 text-lg font-medium">Add manual item</div>
+
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-12">
+            {/* Name (no wear) */}
+            <div className="md:col-span-5">
+              <label className="mb-1 block text-xs text-zinc-400">
+                Item name (paste WITHOUT wear)
+              </label>
+              <input
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
+                placeholder="AK-47 | Redline"
+                value={mName}
+                onChange={(e) => setMName(e.target.value)}
+              />
+            </div>
+
+            {/* Wear selector */}
+            <div className="md:col-span-3">
+              <label className="mb-1 block text-xs text-zinc-400">
+                Wear (used for pricing)
+              </label>
+              <select
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
+                value={mWear}
+                onChange={(e) => setMWear(e.target.value as WearCode)}
+              >
+                {WEAR_OPTIONS.map((w) => (
+                  <option key={w.code} value={w.code}>
+                    {w.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Float (note only) */}
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs text-zinc-400">Float (note only)</label>
+              <input
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
+                placeholder="0.1234"
+                value={mFloat}
+                onChange={(e) => setMFloat(e.target.value)}
+              />
+            </div>
+
+            {/* Pattern (note only) */}
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs text-zinc-400">Pattern (note only)</label>
+              <input
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2"
+                placeholder="123"
+                value={mPattern}
+                onChange={(e) => setMPattern(e.target.value)}
+              />
+            </div>
+
+            {/* Add button */}
+            <div className="md:col-span-12">
+              <button
+                onClick={addManual}
+                className="mt-2 w-full rounded-xl bg-amber-600 px-4 py-2 text-black hover:bg-amber-500 disabled:opacity-60"
+                disabled={!mName.trim()}
+              >
+                Add
+              </button>
+              <p className="mt-2 text-xs text-zinc-400">
+                Pricing uses only <span className="font-medium">Item name + Wear</span>. Float/Pattern are for display.
+              </p>
+            </div>
+          </div>
         </div>
-      </section>
+      </div>
 
       {/* Table */}
-      <div className="mt-6 overflow-x-auto rounded-xl border border-white/10">
+      <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-800">
         <table className="min-w-full text-sm">
-          <thead className="bg-white/[0.04]">
+          <thead className="bg-zinc-900/60 text-zinc-300">
             <tr>
-              <th className="px-4 py-3 text-left">Item</th>
-              <th className="px-4 py-3 text-left">Exterior</th>
-              <th className="px-4 py-3 text-left">Qty</th>
-              <th className="px-4 py-3 text-left">Source</th>
-              <th className="px-4 py-3 text-left">Actions</th>
+              <th className="px-4 py-2 text-left">Item</th>
+              <th className="px-4 py-2 text-left">Exterior</th>
+              <th className="px-4 py-2 text-left">Pattern</th>
+              <th className="px-4 py-2 text-left">Float</th>
+              <th className="px-4 py-2 text-right">Qty</th>
+              <th className="px-4 py-2 text-right">Skinport (AUD)</th>
+              <th className="px-4 py-2 text-right">Total (AUD)</th>
+              <th className="px-4 py-2 text-left">Source</th>
+              <th className="px-4 py-2" />
             </tr>
           </thead>
           <tbody>
-            {items.length === 0 && (
+            {rows.length === 0 ? (
               <tr>
-                <td className="px-4 py-6 text-white/60" colSpan={5}>
-                  No items yet. Use <a className="text-amber-400 underline" href="#add-items">Add items</a>.
+                <td colSpan={9} className="px-4 py-6 text-center text-zinc-400">
+                  No items yet. Use <span className="underline">Add manual item</span> or import from Steam.
                 </td>
               </tr>
+            ) : (
+              rows.map((r, idx) => (
+                <tr key={r.market_hash_name + idx} className="border-t border-zinc-800">
+                  <td className="px-4 py-2">
+                    <div className="flex items-center gap-3">
+                      {r.image ? (
+                        <img src={r.image} alt={r.name} className="h-10 w-10 rounded object-contain" />
+                      ) : (
+                        <div className="h-10 w-10 rounded bg-zinc-800" />
+                      )}
+                      <div className="leading-tight">
+                        <div className="font-medium">{r.nameNoWear}</div>
+                        <div className="text-xs text-zinc-500">{r.market_hash_name}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-2">{wearLabel(r.wear as WearCode) || "—"}</td>
+                  <td className="px-4 py-2">{r.pattern || "—"}</td>
+                  <td className="px-4 py-2">{r.float || "—"}</td>
+                  <td className="px-4 py-2 text-right">{r.quantity ?? 1}</td>
+                  <td className="px-4 py-2 text-right">
+                    {typeof r.priceAUD === "number" ? `A$${r.priceAUD.toFixed(2)}` : "—"}
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    {typeof r.totalAUD === "number" ? `A$${r.totalAUD.toFixed(2)}` : "—"}
+                  </td>
+                  <td className="px-4 py-2">{r.source}</td>
+                  <td className="px-4 py-2 text-right">
+                    <button
+                      onClick={() => removeRow(idx)}
+                      className="rounded-lg border border-zinc-700 px-3 py-1 text-zinc-300 hover:bg-zinc-800"
+                    >
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))
             )}
-            {items.map((it) => (
-              <tr key={it.id} className="border-top border-white/10">
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    {it.icon ? (
-                      <img src={it.icon} alt="" className="h-10 w-10 rounded" />
-                    ) : (
-                      <div className="h-10 w-10 rounded bg-white/10" />
-                    )}
-                    <div className="font-medium">{it.name}</div>
-                  </div>
-                </td>
-                <td className="px-4 py-3">{it.exterior || "—"}</td>
-                <td className="px-4 py-3">{it.qty || 1}</td>
-                <td className="px-4 py-3 capitalize">{it.source || "—"}</td>
-                <td className="px-4 py-3">
-                  <button
-                    onClick={() => remove(it.id)}
-                    className="rounded-md bg-white/10 px-3 py-1 hover:bg-white/15"
-                  >
-                    Remove
-                  </button>
-                </td>
-              </tr>
-            ))}
           </tbody>
         </table>
       </div>
-
-      {items.length > 0 && (
-        <div className="mt-4">
-          <button
-            onClick={clearAll}
-            className="rounded-md border border-white/10 px-3 py-1 text-sm text-white/70 hover:bg-white/5"
-          >
-            Clear all
-          </button>
-        </div>
-      )}
-    </main>
+    </div>
   );
 }
-
-
