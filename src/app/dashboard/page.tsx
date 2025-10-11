@@ -23,7 +23,6 @@ const wearLabel = (code?: string) =>
 /** Only for display under item name — hides "(none)". */
 const wearLabelForRow = (code?: WearCode) => (code ? wearLabel(code) : "");
 
-
 const LABEL_TO_CODE: Record<string, WearCode> = {
   "factory new": "FN",
   "minimal wear": "MW",
@@ -142,16 +141,6 @@ function sortReducer(state: SortState, action: SortAction): SortState {
     return { key: state.key, dir: state.dir === "asc" ? "desc" : "asc" };
   }
   return { key: action.key, dir: "asc" };
-}
-
-/* ----------------------------- UI atoms ----------------------------- */
-
-function Pill({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-full bg-zinc-800/70 px-2 py-0.5 text-[11px] text-zinc-300">
-      {children}
-    </span>
-  );
 }
 
 /* ----------------------------- component ----------------------------- */
@@ -346,7 +335,7 @@ export default function DashboardPage() {
     const onScroll = () => setShowBackToTop(window.scrollY > 600);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll");
   }, []);
   const scrollToTop = () => {
     const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -499,8 +488,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     backfillSomeSteamPrices(12);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // eslint-disable-line
   useEffect(() => {
     const id = window.setInterval(() => backfillSomeSteamPrices(8), 5 * 60 * 1000);
     return () => window.clearInterval(id);
@@ -559,21 +547,25 @@ export default function DashboardPage() {
   const formatTime = (ts: number | null) =>
     ts ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—";
 
+  /* ---------- UI helpers ---------- */
+  const joinMeta = (parts: Array<string | null | undefined>) =>
+    parts.filter(Boolean).join(" · ");
+
   return (
     <div className="mx-auto max-w-6xl p-6">
       {/* Header */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Dashboard</h1>
         <div className="flex items-center gap-2">
-          <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">
-            Total items: {totals.totalItems}
+          <div className="rounded-full bg-zinc-800/70 px-3 py-1 text-sm text-zinc-200">
+            Total items: <span className="tabular-nums">{totals.totalItems}</span>
           </div>
-          <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200" title={`Skinport last updated: ${formatTime(skinportUpdatedAt)}`}>
-            Skinport: A${totals.totalSkinport.toFixed(2)}{" "}
+          <div className="rounded-full bg-zinc-800/70 px-3 py-1 text-sm text-zinc-200" title={`Skinport last updated: ${formatTime(skinportUpdatedAt)}`}>
+            Skinport: <span className="tabular-nums">A${totals.totalSkinport.toFixed(2)}</span>{" "}
             <span className="text-zinc-400">({formatTime(skinportUpdatedAt)})</span>
           </div>
-          <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200" title={`Steam last updated: ${formatTime(steamUpdatedAt)}`}>
-            Steam: A${totals.totalSteam.toFixed(2)}{" "}
+          <div className="rounded-full bg-zinc-800/70 px-3 py-1 text-sm text-zinc-200" title={`Steam last updated: ${formatTime(steamUpdatedAt)}`}>
+            Steam: <span className="tabular-nums">A${totals.totalSteam.toFixed(2)}</span>{" "}
             <span className="text-zinc-400">({formatTime(steamUpdatedAt)})</span>
           </div>
         </div>
@@ -582,7 +574,7 @@ export default function DashboardPage() {
       {/* Cards — IMPORT + MANUAL */}
       <div className="grid items-stretch grid-cols-1 gap-6 md:grid-cols-2">
         {/* Import */}
-        <div className="flex h-full flex-col rounded-2xl border border-zinc-800 p-4">
+        <div className="flex h-full flex-col rounded-2xl border border-zinc-800/80 bg-zinc-950/40 p-4">
           <div className="text-lg font-medium">Import from Steam</div>
           <p className="mb-3 mt-1 text-sm text-zinc-400">
             Paste your <span className="font-medium">SteamID64</span> or a{" "}
@@ -590,14 +582,14 @@ export default function DashboardPage() {
           </p>
           <div className="mt-auto flex gap-2">
             <input
-              className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4"
+              className="h-11 w-full rounded-xl border border-zinc-700/70 bg-zinc-900 px-4 placeholder:text-zinc-500"
               placeholder="76561198XXXXXXXXXX or /profiles/&lt;id&gt;"
               value={steamId}
               onChange={(e) => setSteamId(e.target.value)}
             />
             <button
               onClick={() => load(steamId || undefined)}
-              className="h-12 shrink-0 rounded-xl bg-amber-600 px-5 text-black hover:bg-amber-500 disabled:opacity-60"
+              className="h-11 shrink-0 rounded-xl bg-amber-600 px-5 text-black hover:bg-amber-500 disabled:opacity-60"
               disabled={loading}
             >
               {loading ? "Importing…" : "Import"}
@@ -606,13 +598,13 @@ export default function DashboardPage() {
         </div>
 
         {/* Manual add */}
-        <div className="flex h-full flex-col rounded-2xl border border-zinc-800 p-4">
+        <div className="flex h-full flex-col rounded-2xl border border-zinc-800/80 bg-zinc-950/40 p-4">
           <div className="text-lg font-medium">Add manual item</div>
           <div className="mt-3 grid items-end grid-cols-1 gap-3 md:grid-cols-12">
             <div className="md:col-span-5">
               <label className="mb-1 block text-[11px] leading-none text-zinc-400">Item name (paste WITHOUT wear)</label>
               <input
-                className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
+                className="h-11 w-full rounded-xl border border-zinc-700/70 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
                 placeholder="AK-47 | Redline"
                 value={mName}
                 onChange={(e) => setMName(e.target.value)}
@@ -623,7 +615,7 @@ export default function DashboardPage() {
                 Wear {nonWearForCurrentInput && <span className="text-zinc-500">(not applicable)</span>}
               </label>
               <select
-                className={`h-12 w-full appearance-none rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm ${nonWearForCurrentInput ? "opacity-50" : ""}`}
+                className={`h-11 w-full appearance-none rounded-xl border border-zinc-700/70 bg-zinc-900 px-3 text-sm ${nonWearForCurrentInput ? "opacity-50" : ""}`}
                 value={mWear}
                 onChange={(e) => setMWear(e.target.value as WearCode)}
                 disabled={nonWearForCurrentInput}
@@ -634,9 +626,9 @@ export default function DashboardPage() {
               </select>
             </div>
             <div className="md:col-span-2">
-              <label className="mb-1 block text_[11px] leading-none text-zinc-400">Float (note only)</label>
+              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Float (note only)</label>
               <input
-                className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
+                className="h-11 w-full rounded-xl border border-zinc-700/70 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
                 placeholder="0.1234"
                 value={mFloat}
                 onChange={(e) => setMFloat(e.target.value)}
@@ -645,7 +637,7 @@ export default function DashboardPage() {
             <div className="md:col-span-2">
               <label className="mb-1 block text-[11px] leading-none text-zinc-400">Pattern (note only)</label>
               <input
-                className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
+                className="h-11 w-full rounded-xl border border-zinc-700/70 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
                 placeholder="123"
                 value={mPattern}
                 onChange={(e) => setMPattern(e.target.value)}
@@ -655,13 +647,13 @@ export default function DashboardPage() {
               <div className="flex items-center gap-3">
                 <div className="w-40">
                   <label className="mb-1 block text-[11px] leading-none text-zinc-400">Quantity</label>
-                  <div className="flex h-12 items-center gap-2">
-                    <button type="button" className="h-12 w-12 rounded-xl border border-zinc-700 bg-zinc-900" onClick={() => setMQty((q) => Math.max(1, q - 1))}>−</button>
-                    <div className="flex h-12 min-w-[3rem] items-center justify-center rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm">{mQty}</div>
-                    <button type="button" className="h-12 w-12 rounded-xl border border-zinc-700 bg-zinc-900" onClick={() => setMQty((q) => q + 1)}>+</button>
+                  <div className="flex h-11 items-center gap-2">
+                    <button type="button" className="h-9 w-9 rounded-lg border border-zinc-700/70 hover:bg-zinc-800" onClick={() => setMQty((q) => Math.max(1, q - 1))}>−</button>
+                    <div className="flex h-9 min-w-[3rem] items-center justify-center rounded-lg border border-zinc-700/70 bg-zinc-900 px-3 text-sm tabular-nums">{mQty}</div>
+                    <button type="button" className="h-9 w-9 rounded-lg border border-zinc-700/70 hover:bg-zinc-800" onClick={() => setMQty((q) => q + 1)}>+</button>
                   </div>
                 </div>
-                <button onClick={addManual} className="h-12 grow rounded-xl bg-amber-600 px-4 text-black hover:bg-amber-500 disabled:opacity-60" disabled={!mName.trim()}>
+                <button onClick={addManual} className="h-11 grow rounded-xl bg-amber-600 px-4 text-black hover:bg-amber-500 disabled:opacity-60" disabled={!mName.trim()}>
                   Add
                 </button>
               </div>
@@ -684,22 +676,22 @@ export default function DashboardPage() {
       </div>
 
       {/* TABLE */}
-      <div className="overflow-hidden rounded-2xl border border-zinc-800">
+      <div className="overflow-hidden rounded-2xl border border-zinc-800/80">
         <table className="min-w-full text-sm">
-          <thead className="bg-zinc-900/60 text-zinc-300">
+          <thead className="bg-zinc-950/60 text-zinc-300">
             <tr>
               <th className="px-4 py-2 text-left">Item</th>
-              <th className="px-4 py-2 text-left">Qty</th>
-              <th className="px-4 py-2 text-left">Skinport (AUD)</th>
-              <th className="px-4 py-2 text-left">Steam (AUD)</th>
-              <th className="px-4 py-2" />
+              <th className="px-4 py-2 text-right">Qty</th>
+              <th className="px-4 py-2 text-right">Skinport (AUD)</th>
+              <th className="px-4 py-2 text-right">Steam (AUD)</th>
+              <th className="px-3 py-2" />
             </tr>
           </thead>
 
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-zinc-400">
+                <td colSpan={5} className="px-4 py-8 text-center text-zinc-400">
                   No items yet. Use <span className="underline">Add manual item</span> or import from Steam.
                 </td>
               </tr>
@@ -707,11 +699,14 @@ export default function DashboardPage() {
               sorted.map((r) => {
                 const orig = origIndexMap.get(r)!;
                 return (
-                  <tr key={r.market_hash_name + "|" + orig} className="border-t border-zinc-800">
-                    {/* ITEM (title w/ hover + meta pills) */}
-                    <td className="px-4 py-2">
+                  <tr
+                    key={r.market_hash_name + "|" + orig}
+                    className="border-t border-zinc-800/70 bg-zinc-950/30 hover:bg-zinc-900/30 transition-colors"
+                  >
+                    {/* ITEM */}
+                    <td className="px-4 py-3">
                       <div className="flex items-start gap-3">
-                        {r.image ? (
+                        {(r.image ? (
                           <img
                             src={r.image}
                             alt={r.name}
@@ -721,68 +716,68 @@ export default function DashboardPage() {
                               const el = e.currentTarget as HTMLImageElement;
                               if (el.src !== FALLBACK_DATA_URL) el.src = FALLBACK_DATA_URL;
                             }}
-                            className="h-10 w-10 rounded object-contain bg-zinc-800"
+                            className="h-10 w-10 rounded-md object-contain bg-zinc-800"
                           />
                         ) : (
-                          <img src={FALLBACK_DATA_URL} alt="" className="h-10 w-10 rounded object-contain" />
-                        )}
-
+                          <img src={FALLBACK_DATA_URL} alt="" className="h-10 w-10 rounded-md object-contain" />
+                        ))}
                         <div className="min-w-0">
-                          <div className="truncate font-medium" title={r.market_hash_name}>
+                          <div className="truncate font-medium text-zinc-100" title={r.market_hash_name}>
                             {r.nameNoWear}
                           </div>
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {/* NOTE: wear hidden if code==="" */}
-                            {wearLabelForRow(r.wear as WearCode) && (
-                              <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>
-                            )}
-                            {r.pattern && <Pill>Pattern: {r.pattern}</Pill>}
-                            {r.float && <Pill>Float: {r.float}</Pill>}
+                          {/* single muted meta line */}
+                          <div className="mt-0.5 truncate text-xs text-zinc-400">
+                            {joinMeta([
+                              wearLabelForRow(r.wear as WearCode) || null,
+                              r.pattern ? `Pattern ${r.pattern}` : null,
+                              r.float ? `Float ${r.float}` : null,
+                            ])}
                           </div>
                         </div>
                       </div>
                     </td>
 
                     {/* QTY */}
-                    <td className="px-4 py-2">
-                      <div className="flex items-center justify-end gap-2">
-                        <button className="h-8 w-8 rounded border border-zinc-700" onClick={() => updateQty(orig, (r.quantity ?? 1) - 1)}>−</button>
-                        <div className="flex h-8 min-w-[2.5rem] items-center justify-center rounded border border-zinc-700 bg-zinc-900 text-sm">
+                    <td className="px-4 py-3 text-right">
+                      <div className="ml-auto flex w-full justify-end gap-1">
+                        <button className="h-8 w-8 rounded-md border border-zinc-700/70 hover:bg-zinc-800" onClick={() => updateQty(orig, (r.quantity ?? 1) - 1)}>−</button>
+                        <div className="flex h-8 min-w-[2.5rem] items-center justify-center rounded-md border border-zinc-700/70 bg-zinc-900 px-2 text-sm tabular-nums">
                           {r.quantity ?? 1}
                         </div>
-                        <button className="h-8 w-8 rounded border border-zinc-700" onClick={() => updateQty(orig, (r.quantity ?? 1) + 1)}>+</button>
+                        <button className="h-8 w-8 rounded-md border border-zinc-700/70 hover:bg-zinc-800" onClick={() => updateQty(orig, (r.quantity ?? 1) + 1)}>+</button>
                       </div>
                     </td>
 
                     {/* SKINPORT */}
-                    <td className="px-4 py-2">
-                      <div className="text-right leading-tight">
-                        <div>{typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}</div>
+                    <td className="px-4 py-3 text-right">
+                      <div className="leading-tight">
+                        <div className="tabular-nums">{typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}</div>
                         {typeof r.skinportAUD === "number" && (r.quantity ?? 1) > 1 && (
-                          <div className="mt-0.5 text-[11px] text-zinc-400">
-                            ×{r.quantity ?? 1} ={" "}
-                            <span className="tabular-nums">A${(r.skinportAUD * (r.quantity ?? 1)).toFixed(2)}</span>
+                          <div className="mt-0.5 text-[11px] text-zinc-500 tabular-nums">
+                            ×{r.quantity ?? 1} = A${(r.skinportAUD * (r.quantity ?? 1)).toFixed(2)}
                           </div>
                         )}
                       </div>
                     </td>
 
                     {/* STEAM */}
-                    <td className="px-4 py-2">
-                      <div className="text-right leading-tight">
-                        <div>{typeof r.steamAUD === "number" ? `A$${r.steamAUD.toFixed(2)}` : "—"}</div>
+                    <td className="px-4 py-3 text-right">
+                      <div className="leading-tight">
+                        <div className="tabular-nums">{typeof r.steamAUD === "number" ? `A$${r.steamAUD.toFixed(2)}` : "—"}</div>
                         {typeof r.steamAUD === "number" && (r.quantity ?? 1) > 1 && (
-                          <div className="mt-0.5 text-[11px] text-zinc-400">
-                            ×{r.quantity ?? 1} ={" "}
-                            <span className="tabular-nums">A${(r.steamAUD * (r.quantity ?? 1)).toFixed(2)}</span>
+                          <div className="mt-0.5 text-[11px] text-zinc-500 tabular-nums">
+                            ×{r.quantity ?? 1} = A${(r.steamAUD * (r.quantity ?? 1)).toFixed(2)}
                           </div>
                         )}
                       </div>
                     </td>
 
                     {/* ACTIONS */}
-                    <td className="px-4 py-2 text-right">
-                      <button onClick={() => removeRow(orig)} className="rounded-lg border border-zinc-700 px-3 py-1 text-zinc-300 hover:bg-zinc-800">
+                    <td className="px-3 py-3 text-right">
+                      <button
+                        onClick={() => removeRow(orig)}
+                        className="rounded-lg border border-zinc-700/70 px-3 py-1 text-zinc-300 hover:bg-zinc-800"
+                      >
                         Remove
                       </button>
                     </td>
@@ -814,4 +809,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
