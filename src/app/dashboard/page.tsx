@@ -256,9 +256,12 @@ useEffect(() => {
         const resp = await fetch(`/api/images/by-name?name=${encodeURIComponent(name)}`);
         const data: { url: string | null } = await resp.json();
         if (cancelled) return;
-        if (data?.url) {
+
+        // Only set when we definitely have a string
+        if (typeof data.url === "string" && data.url.length > 0) {
+          const url = data.url; // now narrowed to string
           setRows(prev =>
-            prev.map((row, i) => (i === idx ? { ...row, image: data.url } : row))
+            prev.map((row, i) => (i === idx ? { ...row, image: url } : row))
           );
         }
       } catch {
@@ -270,8 +273,8 @@ useEffect(() => {
   return () => {
     cancelled = true;
   };
-  // re-run when rows set changes so we keep hydrating remaining blanks
 }, [rows]);
+
 
 
   /* debounced save rows (local) */
