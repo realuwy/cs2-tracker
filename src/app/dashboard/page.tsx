@@ -1,7 +1,7 @@
 // src/app/dashboard/page.tsx
 "use client";
 
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { fetchInventory, fetchSkinportMap, InvItem } from "@/lib/api";
 
 /* ---------- local persistence ---------- */
@@ -165,9 +165,18 @@ export default function DashboardPage() {
     } catch {}
   }, []);
 
-  /* save rows (local) */
+  /* debounced save rows (local) */
+  const saveTimer = useRef<number | null>(null);
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(rows)); } catch {}
+    try {
+      if (saveTimer.current) window.clearTimeout(saveTimer.current);
+      saveTimer.current = window.setTimeout(() => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+      }, 150);
+    } catch {}
+    return () => {
+      if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    };
   }, [rows]);
 
   /* load Skinport map once */
@@ -249,22 +258,54 @@ export default function DashboardPage() {
     );
   }
 
-  /* backfill Steam prices lazily */
+  /* -------- batched Steam price backfill (single setRows) -------- */
+  const pricesFetchingRef = useRef(false);
   useEffect(() => {
-    const missing = rows.map((r, i) => ({ r, i })).filter(({ r }) => r.steamAUD === undefined);
+    if (pricesFetchingRef.current) return;
+    const missing = rows
+      .map((r, i) => ({ r, i }))
+      .filter(({ r }) => r.steamAUD === undefined);
     if (missing.length === 0) return;
+
+    pricesFetchingRef.current = true;
+    let cancelled = false;
+
     (async () => {
-      for (const { r, i } of missing) {
-        try {
-          const resp = await fetch(`/api/prices/steam?name=${encodeURIComponent(r.market_hash_name)}`);
-          const data: { aud?: number | null } = await resp.json();
-          const val = typeof data?.aud === "number" ? data.aud : undefined;
-          setRows((prev) => prev.map((row, idx) => (idx === i ? { ...row, steamAUD: val } : row)));
-        } catch {
-          setRows((prev) => prev.map((row, idx) => (idx === i ? { ...row, steamAUD: undefined } : row)));
-        }
+      try {
+        // fetch all in parallel
+        const results = await Promise.all(
+          missing.map(async ({ r, i }) => {
+            try {
+              const resp = await fetch(`/api/prices/steam?name=${encodeURIComponent(r.market_hash_name)}`);
+              const data: { aud?: number | null } = await resp.json();
+              const val = typeof data?.aud === "number" ? data.aud : undefined;
+              return { idx: i, val };
+            } catch {
+              return { idx: i, val: undefined };
+            }
+          })
+        );
+
+        if (cancelled) return;
+
+        // build index -> value map
+        const map = new Map<number, number | undefined>();
+        results.forEach(({ idx, val }) => map.set(idx, val));
+
+        // single setRows update
+        setRows(prev =>
+          prev.map((row, idx) =>
+            map.has(idx) ? { ...row, steamAUD: map.get(idx) } : row
+          )
+        );
+      } finally {
+        pricesFetchingRef.current = false;
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [rows]);
 
   /* sorting + totals (stable, missing pinned to bottom) */
@@ -488,7 +529,9 @@ export default function DashboardPage() {
               </tr>
             ) : (
               sorted.map((r) => {
-                const orig = origIndexMap.get(r)!; // O(1) lookup
+                const origIndexMap = new Map<Row, number>();
+                rows.forEach((row, i) => origIndexMap.set(row, i));
+                const orig = origIndexMap.get(r)!;
                 return (
                   <tr key={r.market_hash_name + "|" + orig} className="border-t border-zinc-800">
                     <td className="px-4 py-2">
