@@ -1,54 +1,73 @@
 import { NextResponse } from "next/server";
 
-export const revalidate = 900; // cache 15m on the server
+export const revalidate = 900; // 15 min server cache
+
+type SPItem = {
+  market_hash_name: string;
+  min_price?: number | null;
+  suggested_price?: number | null;
+  image?: string | null;
+};
+
+async function safeJson(url: string): Promise<SPItem[]> {
+  try {
+    const res = await fetch(url, { headers: { "User-Agent": "cs2-tracker/1.0" } });
+    if (!res.ok) return [];
+    const data = (await res.json()) as unknown;
+    return Array.isArray(data) ? (data as SPItem[]) : [];
+  } catch {
+    return [];
+  }
+}
 
 export async function GET() {
-  const url = "https://api.skinport.com/v1/items?app_id=730&currency=AUD";
+  // A: priced list (often lacks image)
+  const pricedUrl = "https://api.skinport.com/v1/items?app_id=730&currency=AUD";
+  // B: generic list (usually has image)
+  const genericUrl = "https://api.skinport.com/v1/items?app_id=730";
 
-  try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "cs2-tracker/1.0" },
-    });
+  const [priced, generic] = await Promise.all([safeJson(pricedUrl), safeJson(genericUrl)]);
 
-    if (!res.ok) {
-      return NextResponse.json(
-        { map: {}, images: {}, updatedAt: Date.now() },
-        { status: 200 }
-      );
+  const imagesByName: Record<string, string> = {};
+  for (const it of generic) {
+    if (it?.market_hash_name && typeof it.image === "string" && it.image) {
+      imagesByName[it.market_hash_name] = it.image;
     }
-
-    type SPItem = {
-      market_hash_name: string;
-      min_price?: number | null;
-      suggested_price?: number | null;
-      image?: string | null;
-    };
-
-    const data = (await res.json()) as SPItem[];
-
-    const map: Record<string, number> = {};
-    const images: Record<string, string> = {};
-
-    for (const it of data) {
-      if (!it?.market_hash_name) continue;
-
-      const price =
-        (typeof it.min_price === "number" && isFinite(it.min_price) && it.min_price > 0
-          ? it.min_price
-          : undefined) ??
-        (typeof it.suggested_price === "number" && isFinite(it.suggested_price) && it.suggested_price > 0
-          ? it.suggested_price
-          : undefined);
-
-      if (price !== undefined) map[it.market_hash_name] = price;
-      if (it.image && typeof it.image === "string") images[it.market_hash_name] = it.image;
-    }
-
-    return NextResponse.json({ map, images, updatedAt: Date.now() }, { status: 200 });
-  } catch {
-    return NextResponse.json(
-      { map: {}, images: {}, updatedAt: Date.now() },
-      { status: 200 }
-    );
   }
+
+  const map: Record<string, number> = {};
+  // try to read price from priced list first; if missing, fall back to generic (has suggested/min too)
+  const byNameFromGeneric = new Map(generic.map((g) => [g.market_hash_name, g]));
+  const all = priced.length > 0 ? priced : generic;
+
+  for (const it of all) {
+    if (!it?.market_hash_name) continue;
+    const primary = it;
+    const fallback = byNameFromGeneric.get(it.market_hash_name);
+
+    const min =
+      typeof primary.min_price === "number" ? primary.min_price :
+      typeof fallback?.min_price === "number" ? fallback.min_price : undefined;
+
+    const suggested =
+      typeof primary.suggested_price === "number" ? primary.suggested_price :
+      typeof fallback?.suggested_price === "number" ? fallback.suggested_price : undefined;
+
+    const price =
+      (typeof min === "number" && isFinite(min) && min > 0 ? min : undefined) ??
+      (typeof suggested === "number" && isFinite(suggested) && suggested > 0 ? suggested : undefined);
+
+    if (price !== undefined) {
+      map[it.market_hash_name] = price;
+    }
+    // hydrate images map as well (generic set already filled)
+    if (!imagesByName[it.market_hash_name] && typeof it.image === "string" && it.image) {
+      imagesByName[it.market_hash_name] = it.image;
+    }
+  }
+
+  return NextResponse.json(
+    { map, images: imagesByName, updatedAt: Date.now() },
+    { status: 200 }
+  );
 }
