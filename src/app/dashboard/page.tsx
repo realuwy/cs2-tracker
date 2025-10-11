@@ -9,7 +9,7 @@ const STORAGE_KEY = "cs2:dashboard:rows";
 
 /* ---------- wear options & helpers ---------- */
 const WEAR_OPTIONS = [
-  { code: "", label: "(none)" },
+  { code: "",  label: "(none)" },
   { code: "FN", label: "Factory New" },
   { code: "MW", label: "Minimal Wear" },
   { code: "FT", label: "Field-Tested" },
@@ -211,30 +211,25 @@ export default function DashboardPage() {
     })();
   }, [rows]);
 
-  /* sorting + totals */
+  /* sorting + totals (stable, missing at bottom, big hit-area) */
   const [sorted, totals] = useMemo(() => {
     const copy = [...rows];
     const dir: 1 | -1 = sortDir === "asc" ? 1 : -1;
 
     copy.sort((a, b) => {
+      let c = 0;
       switch (sortKey) {
-        case "item":
-          return cmpStr(a.nameNoWear, b.nameNoWear, dir);
-        case "wear":
-          return cmpWear(a.wear as string, b.wear as string, dir);
-        case "pattern":
-          return cmpNum(a.pattern, b.pattern, dir);
-        case "float":
-          return cmpNum(a.float, b.float, dir);
-        case "qty":
-          return cmpNum(a.quantity, b.quantity, dir);
-        case "skinport":
-          return cmpNum(a.skinportAUD, b.skinportAUD, dir);
-        case "steam":
-          return cmpNum(a.steamAUD, b.steamAUD, dir);
-        default:
-          return 0;
+        case "item":      c = cmpStr(a.nameNoWear, b.nameNoWear, dir); break;
+        case "wear":      c = cmpWear(a.wear as string, b.wear as string, dir); break;
+        case "pattern":   c = cmpNum(a.pattern, b.pattern, dir); break;
+        case "float":     c = cmpNum(a.float, b.float, dir); break;
+        case "qty":       c = cmpNum(a.quantity, b.quantity, dir); break;
+        case "skinport":  c = cmpNum(a.skinportAUD, b.skinportAUD, dir); break;
+        case "steam":     c = cmpNum(a.steamAUD, b.steamAUD, dir); break;
       }
+      // stable tiebreaker by name so list doesn't "jump"
+      if (c === 0) c = cmpStr(a.nameNoWear, b.nameNoWear, 1);
+      return c;
     });
 
     const totalItems = copy.reduce((acc, r) => acc + (r.quantity ?? 1), 0);
@@ -243,19 +238,29 @@ export default function DashboardPage() {
     return [copy, { totalItems, totalSkinport, totalSteam }] as const;
   }, [rows, sortKey, sortDir]);
 
-  /* sortable header cell (uses parent state via closure) */
+  /* sortable header cell: full-width button (big hit-area) */
   function Th({ label, keyId }: { label: string; keyId: SortKey }) {
     const active = sortKey === keyId;
+    const ariaSort: React.AriaAttributes["aria-sort"] =
+      active ? (sortDir === "asc" ? "ascending" : "descending") : "none";
+
+    const handleClick = () => {
+      if (active) setSortDir(d => (d === "asc" ? "desc" : "asc"));
+      else { setSortKey(keyId); setSortDir("asc"); }
+    };
+
     return (
-      <th
-        onClick={() => {
-          if (active) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-          else { setSortKey(keyId); setSortDir("asc"); }
-        }}
-        className={`px-4 py-2 text-left select-none cursor-pointer ${active ? "text-white" : ""}`}
-        title="Click to sort"
-      >
-        {label} {active ? (sortDir === "asc" ? "▲" : "▼") : ""}
+      <th className="p-0" aria-sort={ariaSort}>
+        <button
+          type="button"
+          onClick={handleClick}
+          className={`flex w-full items-center gap-2 px-4 py-2 text-left select-none cursor-pointer bg-transparent ${
+            active ? "text-white" : "text-zinc-300"
+          }`}
+        >
+          <span>{label}</span>
+          {active && <span className="opacity-70">{sortDir === "asc" ? "▲" : "▼"}</span>}
+        </button>
       </th>
     );
   }
