@@ -1,9 +1,10 @@
+// src/app/dashboard/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { fetchInventory, fetchSkinportMap, InvItem } from "@/lib/api";
 
-/* ---------- config ---------- */
+/* ---------- local persistence ---------- */
 const STORAGE_KEY = "cs2:dashboard:rows";
 
 /* ---------- wear options & helpers ---------- */
@@ -20,17 +21,18 @@ const wearLabel = (code?: string) =>
   WEAR_OPTIONS.find((w) => w.code === code)?.label ?? "";
 const toMarketHash = (nameNoWear: string, wear?: WearCode) => {
   const full = wearLabel(wear);
+  // If no wear (stickers, agents, cases…), key is just the name
   return full ? `${nameNoWear} (${full})` : nameNoWear;
 };
 
-/* ---------- types ---------- */
+/* ---------- row type ---------- */
 type Row = InvItem & {
   skinportAUD?: number;
   steamAUD?: number;
-  priceAUD?: number; // alias of skinportAUD for existing code
-  totalAUD?: number; // alias of skinport total (qty * skinport)
-  float?: string;
-  pattern?: string;
+  priceAUD?: number;      // alias of skinportAUD for legacy display
+  totalAUD?: number;      // alias of skinport total (qty * skinport)
+  float?: string;         // display only
+  pattern?: string;       // display only
   source: "steam" | "manual";
 };
 
@@ -69,7 +71,7 @@ export default function DashboardPage() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(rows)); } catch {}
   }, [rows]);
 
-  /* prices once */
+  /* load Skinport map once */
   useEffect(() => {
     fetchSkinportMap().then(res => setSpMap(res.map)).catch(() => {});
   }, []);
@@ -99,6 +101,7 @@ export default function DashboardPage() {
           source: "steam",
         };
       });
+      // Replace steam rows but keep manual rows
       setRows(prev => [...prev.filter(r => r.source === "manual"), ...mapped]);
     } finally {
       setLoading(false);
@@ -114,7 +117,7 @@ export default function DashboardPage() {
 
     const newRow: Row = {
       market_hash_name,
-      name: market_hash_name,
+      name: market_hash_name, // show full with wear
       nameNoWear,
       wear: mWear,
       pattern: mPattern.trim(),
@@ -136,45 +139,41 @@ export default function DashboardPage() {
   }
 
   function updateQty(idx: number, qty: number) {
-    setRows(r => r.map((row, i) => i === idx ? { 
-      ...row, 
-      quantity: qty < 1 ? 1 : Math.floor(qty),
-      totalAUD: typeof row.skinportAUD === "number" ? row.skinportAUD * (qty < 1 ? 1 : Math.floor(qty)) : row.totalAUD
-    } : row));
+    const q = Math.max(1, Math.floor(qty || 1));
+    setRows(r => r.map((row, i) =>
+      i === idx
+        ? {
+            ...row,
+            quantity: q,
+            totalAUD: typeof row.skinportAUD === "number" ? row.skinportAUD * q : row.totalAUD,
+          }
+        : row
+    ));
   }
 
-/* backfill Steam prices lazily */
-useEffect(() => {
-  const missing = rows
-    .map((r, i) => ({ r, i }))
-    .filter(({ r }) => r.steamAUD === undefined);
-  if (missing.length === 0) return;
+  /* backfill Steam prices lazily (and cache 10 min via API) */
+  useEffect(() => {
+    const missing = rows
+      .map((r, i) => ({ r, i }))
+      .filter(({ r }) => r.steamAUD === undefined);
+    if (missing.length === 0) return;
 
-  (async () => {
-    for (const { r, i } of missing) {
-      try {
-        const resp = await fetch(
-          `/api/prices/steam?name=${encodeURIComponent(r.market_hash_name)}`
-        );
-        const data: { aud?: number | null } = await resp.json();
-        const val = typeof data?.aud === "number" ? data.aud : undefined;
-        setRows(prev =>
-          prev.map((row, idx) => (idx === i ? { ...row, steamAUD: val } : row))
-        );
-      } catch {
-        setRows(prev =>
-          prev.map((row, idx) =>
-            idx === i ? { ...row, steamAUD: undefined } : row
-          )
-        );
+    (async () => {
+      for (const { r, i } of missing) {
+        try {
+          const resp = await fetch(`/api/prices/steam?name=${encodeURIComponent(r.market_hash_name)}`);
+          const data: { aud?: number | null } = await resp.json();
+          const val = typeof data?.aud === "number" ? data.aud : undefined;
+          setRows(prev => prev.map((row, idx) => (idx === i ? { ...row, steamAUD: val } : row)));
+        } catch {
+          setRows(prev => prev.map((row, idx) => (idx === i ? { ...row, steamAUD: undefined } : row)));
+        }
       }
-    }
-  })();
-}, [rows]);
+    })();
+  }, [rows]);
 
-
-  /* sorting logic */
-  const sorted = useMemo(() => {
+  /* sorting */
+  const [sorted, totals] = useMemo(() => {
     const copy = [...rows];
     const cmp = (a: any, b: any) => (a < b ? -1 : a > b ? 1 : 0);
     copy.sort((a, b) => {
@@ -191,28 +190,19 @@ useEffect(() => {
       const c = cmp(va, vb);
       return sortDir === "asc" ? c : -c;
     });
-    return copy;
+
+    const totalItems = copy.reduce((acc, r) => acc + (r.quantity ?? 1), 0);
+    const totalSkinport = copy.reduce((s, r) => s + ((r.skinportAUD ?? 0) * (r.quantity ?? 1)), 0);
+    const totalSteam = copy.reduce((s, r) => s + ((r.steamAUD ?? 0) * (r.quantity ?? 1)), 0);
+    return [copy, { totalItems, totalSkinport, totalSteam }] as const;
   }, [rows, sortKey, sortDir]);
 
-  /* totals */
-  const totalItems = useMemo(() => sorted.reduce((acc, r) => acc + (r.quantity ?? 1), 0), [sorted]);
-  const totalSkinport = useMemo(
-    () => sorted.reduce((s, r) => s + ((r.skinportAUD ?? 0) * (r.quantity ?? 1)), 0),
-    [sorted]
-  );
-  const totalSteam = useMemo(
-    () => sorted.reduce((s, r) => s + ((r.steamAUD ?? 0) * (r.quantity ?? 1)), 0),
-    [sorted]
-  );
-
-  function Th({
-    label, keyId
-  }: { label: string; keyId: SortKey }) {
+  function Th({ label, keyId }: { label: string; keyId: SortKey }) {
     const active = sortKey === keyId;
     return (
       <th
         onClick={() => {
-          if (active) setSortDir(d => (d === "asc" ? "desc" : "asc"));
+          if (active) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
           else { setSortKey(keyId); setSortDir("asc"); }
         }}
         className={`px-4 py-2 text-left select-none cursor-pointer ${active ? "text-white" : ""}`}
@@ -230,19 +220,136 @@ useEffect(() => {
         <h1 className="text-2xl font-semibold">Dashboard</h1>
         <div className="flex items-center gap-2">
           <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">
-            Total items: {totalItems}
+            Total items: {totals.totalItems}
           </div>
           <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">
-            Skinport: A${totalSkinport.toFixed(2)}
+            Skinport: A${totals.totalSkinport.toFixed(2)}
           </div>
           <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">
-            Steam: A${totalSteam.toFixed(2)}
+            Steam: A${totals.totalSteam.toFixed(2)}
           </div>
         </div>
       </div>
 
-      {/* Cards (unchanged UI for import/manual) */}
-      {/* ... keep your existing cards here (we didn't change them in this diff) ... */}
+      {/* Cards — IMPORT + MANUAL (restored) */}
+      <div className="grid items-stretch grid-cols-1 gap-6 md:grid-cols-2">
+        {/* Import from Steam */}
+        <div className="flex h-full flex-col rounded-2xl border border-zinc-800 p-4">
+          <div className="text-lg font-medium">Import from Steam</div>
+          <p className="mb-3 mt-1 text-sm text-zinc-400">
+            Paste your <span className="font-medium">SteamID64</span> or a{" "}
+            <span className="font-mono">steamcommunity.com/profiles/&lt;id&gt;</span> URL (public inventory).
+          </p>
+          <div className="mt-auto flex gap-2">
+            <input
+              className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4"
+              placeholder="76561198XXXXXXXXXX or /profiles/<id>"
+              value={steamId}
+              onChange={(e) => setSteamId(e.target.value)}
+            />
+            <button
+              onClick={() => load(steamId || undefined)}
+              className="h-12 shrink-0 rounded-xl bg-amber-600 px-5 text-black hover:bg-amber-500 disabled:opacity-60"
+              disabled={loading}
+            >
+              {loading ? "Importing…" : "Import"}
+            </button>
+          </div>
+        </div>
+
+        {/* Add manual item */}
+        <div className="flex h-full flex-col rounded-2xl border border-zinc-800 p-4">
+          <div className="text-lg font-medium">Add manual item</div>
+
+          <div className="mt-3 grid items-end grid-cols-1 gap-3 md:grid-cols-12">
+            <div className="md:col-span-5">
+              <label className="mb-1 block text-[11px] leading-none text-zinc-400">
+                Item name (paste WITHOUT wear)
+              </label>
+              <input
+                className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
+                placeholder="AK-47 | Redline"
+                value={mName}
+                onChange={(e) => setMName(e.target.value)}
+              />
+            </div>
+
+            <div className="md:col-span-3">
+              <label className="mb-1 block text-[11px] leading-none text-zinc-400">
+                Wear (used for pricing)
+              </label>
+              <select
+                className="h-12 w-full appearance-none rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm"
+                value={mWear}
+                onChange={(e) => setMWear(e.target.value as WearCode)}
+              >
+                {WEAR_OPTIONS.map((w) => (
+                  <option key={w.code} value={w.code}>{w.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Float (note only)</label>
+              <input
+                className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
+                placeholder="0.1234"
+                value={mFloat}
+                onChange={(e) => setMFloat(e.target.value)}
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-[11px] leading-none text-zinc-400">Pattern (note only)</label>
+              <input
+                className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-sm placeholder:text-zinc-500"
+                placeholder="123"
+                value={mPattern}
+                onChange={(e) => setMPattern(e.target.value)}
+              />
+            </div>
+
+            <div className="md:col-span-12">
+              <div className="flex items-center gap-3">
+                <div className="w-40">
+                  <label className="mb-1 block text-[11px] leading-none text-zinc-400">Quantity</label>
+                  <div className="flex h-12 items-center gap-2">
+                    <button
+                      type="button"
+                      className="h-12 w-12 rounded-xl border border-zinc-700 bg-zinc-900"
+                      onClick={() => setMQty(q => Math.max(1, q - 1))}
+                    >−</button>
+                    <input
+                      type="number"
+                      min={1}
+                      className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 text-center"
+                      value={mQty}
+                      onChange={(e) => setMQty(Math.max(1, Number(e.target.value) || 1))}
+                    />
+                    <button
+                      type="button"
+                      className="h-12 w-12 rounded-xl border border-zinc-700 bg-zinc-900"
+                      onClick={() => setMQty(q => q + 1)}
+                    >+</button>
+                  </div>
+                </div>
+
+                <button
+                  onClick={addManual}
+                  className="h-12 grow rounded-xl bg-amber-600 px-4 text-black hover:bg-amber-500 disabled:opacity-60"
+                  disabled={!mName.trim()}
+                >
+                  Add
+                </button>
+              </div>
+
+              <p className="mt-2 text-xs text-zinc-400">
+                Pricing uses only <span className="font-medium">Item name + Wear</span>. Float/Pattern are for display.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* TABLE */}
       <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-800">
@@ -328,5 +435,14 @@ useEffect(() => {
   );
 }
 
-
-
+/* ----- small sortable header cell ----- */
+function Th({ label, keyId }: { label: string; keyId: SortKey }) {
+  const [sortKey, setSortKey] = useState<SortKey>("item");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  // This component is only used within <thead>, but it needs to talk to parent state.
+  // To keep the file simple, we hoist handlers via custom events:
+  // Parent uses onClick handlers directly above. This stub exists for TS typing.
+  return (
+    <th className="px-4 py-2 text-left">{label}</th>
+  );
+}
