@@ -730,17 +730,15 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Sort toolbar */}
-      <div className="mt-6 mb-3 flex flex-wrap items-center gap-2 text-sm">
-        <span className="mr-1 text-zinc-400">Sort:</span>
-        <SortChip k="item" label="Item" />
-        <SortChip k="wear" label="Exterior" />
-        <SortChip k="pattern" label="Pattern" />
-        <SortChip k="float" label="Float" />
-        <SortChip k="qty" label="Qty" />
-        <SortChip k="skinport" label="Skinport" />
-        <SortChip k="steam" label="Steam" />
-      </div>
+     {/* Sort toolbar */}
+<div className="mt-6 mb-3 flex flex-wrap items-center gap-2 text-sm">
+  <span className="mr-1 text-zinc-400">Sort:</span>
+  <SortChip k="item" label="Item" />
+  <SortChip k="float" label="Float" />
+  <SortChip k="skinport" label="Skinport" />
+  <SortChip k="steam" label="Steam" />
+</div>
+
 
       {/* TABLE */}
       <div className="overflow-hidden rounded-2xl border border-zinc-800">
