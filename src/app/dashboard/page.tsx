@@ -99,6 +99,59 @@ function sortReducer(state: SortState, action: SortAction): SortState {
   }
   return { key: action.key, dir: "asc" };
 }
+/* ---------- tiny UI helpers ---------- */
+function ChangeBadge({ label, value }: { label: string; value: number | undefined }) {
+  if (value === undefined || Number.isNaN(value)) return null;
+  const neg = value < 0;
+  const zero = value === 0;
+  const color = zero
+    ? "text-zinc-400 border-zinc-700"
+    : neg
+    ? "text-red-400 border-red-700"
+    : "text-emerald-400 border-emerald-700";
+  const arrow = zero ? "" : neg ? "↓" : "↑";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] ${color}`}
+      title={`${label} change`}
+    >
+      <span className="opacity-75">{label}</span>
+      <span className="tabular-nums">
+        {arrow}
+        {Math.abs(value).toFixed(1)}%
+      </span>
+    </span>
+  );
+}
+
+function PriceCell({
+  price,
+  h1,
+  d1,
+  m1,
+}: {
+  price?: number;
+  h1?: number;
+  d1?: number;
+  m1?: number;
+}) {
+  const hasAny = [h1, d1, m1].some((v) => v !== undefined && !Number.isNaN(Number(v)));
+  return (
+    <div className="text-right leading-tight">
+      <div>{typeof price === "number" ? `A$${price.toFixed(2)}` : "—"}</div>
+      {hasAny && (
+        <div className="mt-1 flex flex-wrap justify-end gap-1">
+          <ChangeBadge label="1h" value={h1} />
+          <ChangeBadge label="24h" value={d1} />
+          <span className="hidden sm:inline">
+            <ChangeBadge label="30d" value={m1} />
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 export default function DashboardPage() {
   const [rows, setRows] = useState<Row[]>([]);
