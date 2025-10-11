@@ -33,23 +33,6 @@ const toMarketHash = (nameNoWear: string, wear?: WearCode) => {
   const full = wearLabel(wear);
   return full ? `${nameNoWear} (${full})` : nameNoWear;
 };
-function sanitizeSteam(aud: number | undefined, skinport?: number): number | undefined {
-  if (aud === undefined || !isFinite(aud) || aud <= 0) return undefined;
-
-  // hard caps for obvious nonsense
-  if (aud > 20000) return undefined;
-
-  if (typeof skinport === "number" && skinport > 0) {
-    // Tight guard: Steam shouldn't be > 3× Skinport (and over $25)
-    if (aud > skinport * 3 && aud > 25) return undefined;
-
-    // For cheap items, also block if Steam > $100 while Skinport < $50
-    if (skinport < 50 && aud > 100) return undefined;
-  }
-
-  return aud;
-};
-
 
 /** Parse pasted names like "AK-47 | Redline (Factory New)" to extract wear */
 const LABEL_TO_CODE: Record<string, WearCode> = {
@@ -151,7 +134,7 @@ function sortReducer(state: SortState, action: SortAction): SortState {
   return { key: action.key, dir: "asc" };
 }
 
-/* ---------- image helpers ---------- */
+/* ---------- image helpers (from earlier step) ---------- */
 const NONE_SUFFIX_RE = /\s+\(none\)$/i;
 
 // small inline SVG fallback (dark rounded square)
@@ -177,12 +160,33 @@ function findImage(
   const plain = images[row.nameNoWear];
   if (plain) return plain;
 
-  const label = wearLabel(row.wear as WearCode);
-  if (label) {
-    const withWear = `${row.nameNoWear} (${label})`;
+  const lbl = wearLabel(row.wear as WearCode);
+  if (lbl) {
+    const withWear = `${row.nameNoWear} (${lbl})`;
     if (images[withWear]) return images[withWear];
   }
   return undefined;
+}
+
+/* ---------- STEAM sanity guard ---------- */
+// Steam must be within a sane band relative to Skinport (when available)
+function sanitizeSteam(aud: number | undefined, skinport?: number): number | undefined {
+  if (aud === undefined || !isFinite(aud) || aud <= 0) return undefined;
+
+  // hard cap for obvious nonsense
+  if (aud > 20000) return undefined;
+
+  if (typeof skinport === "number" && skinport > 0) {
+    // accept only if Steam is within [0.5x .. 3x] of Skinport
+    const lo = skinport * 0.5;
+    const hi = skinport * 3;
+    if (aud < lo || aud > hi) return undefined;
+
+    // extra guard for cheap items
+    if (skinport < 50 && aud > 100) return undefined;
+  }
+
+  return aud;
 }
 
 /* ---------- component ---------- */
@@ -261,32 +265,6 @@ export default function DashboardPage() {
       setSkinportUpdatedAt(data.updatedAt ?? Date.now());
       setSpMap(map);
 
-      // Skinport map + images
-async function refreshSkinport() { /* ... */ }
-
-useEffect(() => {
-  refreshSkinport(); // initial
-}, []);
-
-useEffect(() => {
-  const id = window.setInterval(() => {
-    refreshSkinport();
-  }, 5 * 60 * 1000);
-  return () => window.clearInterval(id);
-}, []);
-
-      // B) After Skinport prices arrive/refresh, scrub any saved Steam outliers in-place
-useEffect(() => {
-  setRows(prev =>
-    prev.map(r => {
-      const sane = sanitizeSteam(r.steamAUD, r.skinportAUD);
-      return sane === r.steamAUD ? r : { ...r, steamAUD: sane };
-    })
-  );
-}, [spMap]);
-
-
-
       // apply fresh prices AND hydrate missing thumbnails
       setRows((prev) =>
         prev.map((row) => {
@@ -308,12 +286,16 @@ useEffect(() => {
                   wear: row.wear as string | undefined,
                 });
 
+          // also re-sanitize any steam value against newly-known Skinport
+          const saneSteam = sanitizeSteam(row.steamAUD, sp);
+
           return {
             ...row,
             skinportAUD: sp,
             priceAUD,
             totalAUD: priceAUD ? priceAUD * qty : undefined,
             image: img ?? row.image,
+            steamAUD: saneSteam,
           };
         })
       );
@@ -435,69 +417,73 @@ useEffect(() => {
     );
   }
 
-  /* -------- Steam price backfill and auto-refresh (rate-limited) -------- */
+  /* -------- Steam price backfill (strict + starless variants) -------- */
   const pricesFetchingRef = useRef(false);
 
-async function backfillSomeSteamPrices(max = 8) {
-  if (pricesFetchingRef.current) return;
-  pricesFetchingRef.current = true;
+  async function backfillSomeSteamPrices(max = 8) {
+    if (pricesFetchingRef.current) return;
+    pricesFetchingRef.current = true;
 
-  const now = Date.now();
-  const STALE_MS = 45 * 60 * 1000; // 45m
+    const now = Date.now();
+    const STALE_MS = 45 * 60 * 1000; // 45m
 
-  try {
-    const candidates = rows
-      .map((r, i) => ({ r, i }))
-      .filter(
-        ({ r }) =>
-          r.steamAUD === undefined ||
-          !r.steamFetchedAt ||
-          now - r.steamFetchedAt > STALE_MS
-      )
-      .slice(0, max);
+    try {
+      const candidates = rows
+        .map((r, i) => ({ r, i }))
+        .filter(
+          ({ r }) =>
+            r.steamAUD === undefined ||
+            !r.steamFetchedAt ||
+            now - r.steamFetchedAt > STALE_MS
+        )
+        .slice(0, max);
 
-    if (candidates.length === 0) return;
+      if (candidates.length === 0) return;
 
-    const results = await Promise.all(
-      candidates.map(async ({ r, i }) => {
-        const names = [r.market_hash_name, stripNone(r.market_hash_name)].filter(
-          (v, idx, arr) => v && arr.indexOf(v) === idx
-        ) as string[];
+      const results = await Promise.all(
+        candidates.map(async ({ r, i }) => {
+          // Try multiple market-hash variants (with and without ★ etc.)
+          const starless = r.market_hash_name.replace(/^★\s*/, "");
+          const variants = [
+            r.market_hash_name,
+            r.market_hash_name.replace(NONE_SUFFIX_RE, ""),
+            starless,
+            starless.replace(NONE_SUFFIX_RE, ""),
+          ].filter((v, idx, arr) => v && arr.indexOf(v) === idx) as string[];
 
-        for (const name of names) {
-          try {
-            const resp = await fetch(`/api/prices/steam?name=${encodeURIComponent(name)}`);
-            const data: { aud?: number | null } = await resp.json();
-            const parsed = typeof data?.aud === "number" ? data.aud : undefined;
+          for (const name of variants) {
+            try {
+              const resp = await fetch(`/api/prices/steam?name=${encodeURIComponent(name)}`);
+              const data: { aud?: number | null } = await resp.json();
+              const parsed = typeof data?.aud === "number" ? data.aud : undefined;
 
-            const sane = sanitizeSteam(parsed, r.skinportAUD);
-            if (sane !== undefined) {
-              return { idx: i, val: sane, ts: now };
+              const sane = sanitizeSteam(parsed, r.skinportAUD);
+              if (sane !== undefined) {
+                return { idx: i, val: sane, ts: now };
+              }
+            } catch {
+              // try next variant
             }
-          } catch {
-            // try next alias
           }
-        }
-        return { idx: i, val: undefined as number | undefined, ts: now };
-      })
-    );
+          return { idx: i, val: undefined as number | undefined, ts: now };
+        })
+      );
 
-    const map = new Map<number, { val: number | undefined; ts: number }>();
-    results.forEach(({ idx, val, ts }) => map.set(idx, { val, ts }));
+      const map = new Map<number, { val: number | undefined; ts: number }>();
+      results.forEach(({ idx, val, ts }) => map.set(idx, { val, ts }));
 
-    setRows(prev =>
-      prev.map((row, idx) =>
-        map.has(idx)
-          ? { ...row, steamAUD: map.get(idx)!.val, steamFetchedAt: map.get(idx)!.ts }
-          : row
-      )
-    );
-    setSteamUpdatedAt(now);
-  } finally {
-    pricesFetchingRef.current = false;
+      setRows((prev) =>
+        prev.map((row, idx) =>
+          map.has(idx)
+            ? { ...row, steamAUD: map.get(idx)!.val, steamFetchedAt: map.get(idx)!.ts }
+            : row
+        )
+      );
+      setSteamUpdatedAt(now);
+    } finally {
+      pricesFetchingRef.current = false;
+    }
   }
-}
-
 
   useEffect(() => {
     backfillSomeSteamPrices(12); // initial
