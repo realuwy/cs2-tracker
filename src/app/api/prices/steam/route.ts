@@ -1,42 +1,67 @@
-// src/app/api/prices/steam/route.ts
 import { NextResponse } from "next/server";
+
+export const revalidate = 600; // 10 minutes
+
+// Steam currency code for AUD
+const STEAM_CURRENCY_AUD = 22;
+
+function parseSteamMoney(raw?: string | null): number | null {
+  if (!raw) return null;
+
+  // Keep digits, comma, dot, and spaces; drop currency symbols and others
+  let s = raw.replace(/[^0-9,.\s]/g, "").trim();
+
+  // Remove spaces
+  s = s.replace(/\s+/g, "");
+
+  // If both comma and dot exist, treat comma as thousands separator (AUD usually uses dot decimals)
+  if (s.includes(",") && s.includes(".")) {
+    s = s.replace(/,/g, "");
+  } else if (s.includes(",") && !s.includes(".")) {
+    // Only comma present -> treat as decimal separator
+    s = s.replace(/,/g, ".");
+  }
+
+  const val = parseFloat(s);
+  if (!isFinite(val) || val <= 0) return null;
+  // Sanity cap to avoid obviously broken values
+  if (val > 100000) return null;
+  return val;
+}
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const name = searchParams.get("name");
-    if (!name) {
-      return NextResponse.json({ error: "Missing ?name" }, { status: 400 });
-    }
+    if (!name) return NextResponse.json({ error: "Missing ?name" }, { status: 400 });
 
-    // 18 = AUD, Steam Market priceoverview
-    const u = new URL("https://steamcommunity.com/market/priceoverview/");
-    u.searchParams.set("appid", "730");
-    u.searchParams.set("currency", "18");
-    u.searchParams.set("market_hash_name", name);
+    const url = `https://steamcommunity.com/market/priceoverview/?appid=730&currency=${STEAM_CURRENCY_AUD}&market_hash_name=${encodeURIComponent(
+      name
+    )}`;
 
-    const r = await fetch(u.toString(), {
-      // avoid being cached too long by edge
-      cache: "no-store",
-      headers: { "User-Agent": "Mozilla/5.0" },
+    const res = await fetch(url, {
+      headers: { "User-Agent": "cs2-tracker/1.0" },
+      // Let Next cache per revalidate above
     });
 
-    const j = (await r.json()) as
-      | { success: boolean; lowest_price?: string; median_price?: string }
-      | any;
+    if (!res.ok) return NextResponse.json({ aud: null }, { status: 200 });
 
-    if (!j?.success) return NextResponse.json({ aud: null });
-
-    const parseAUD = (s?: string) => {
-      if (!s) return undefined;
-      // Steam formats vary by locale, handle both "A$1.23" and "$1.23 AUD"
-      const num = Number(s.replace(/[^\d.,]/g, "").replace(",", "."));
-      return isFinite(num) ? num : undefined;
+    const data = (await res.json()) as {
+      success?: boolean;
+      lowest_price?: string;
+      median_price?: string;
     };
 
-    const aud = parseAUD(j.lowest_price) ?? parseAUD(j.median_price);
-    return NextResponse.json({ aud: aud ?? null });
+    if (!data?.success) return NextResponse.json({ aud: null }, { status: 200 });
+
+    // Prefer lowest_price; fall back to median_price
+    const price =
+      parseSteamMoney(data.lowest_price) ??
+      parseSteamMoney(data.median_price) ??
+      null;
+
+    return NextResponse.json({ aud: price }, { status: 200 });
   } catch {
-    return NextResponse.json({ aud: null });
+    return NextResponse.json({ aud: null }, { status: 200 });
   }
 }
