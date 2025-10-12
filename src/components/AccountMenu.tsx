@@ -1,108 +1,115 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-type UserLite = { email?: string | null; name?: string | null; avatarUrl?: string | null };
+type UserLike = {
+  name?: string | null;
+  email?: string | null;
+  avatarUrl?: string | null;
+} | null;
 
-export default function AccountMenu() {
+type Props = {
+  user: UserLike;
+  onOpenAuth: () => void;
+  onClearLocal: () => void;
+};
+
+export default function AccountMenu({ user, onOpenAuth, onClearLocal }: Props) {
+  const [mode, setMode] = useState<"none" | "guest" | "user">("none");
   const [open, setOpen] = useState(false);
-  const [user, setUser] = useState<UserLite | null>(null);
-  const [guest, setGuest] = useState(false);
-  const btnRef = useRef<HTMLButtonElement>(null);
 
-  // session (supabase) + guest flag
+  // derive visual mode from session + user
   useEffect(() => {
-    let unsub: (() => void) | undefined;
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      const u = data.session?.user ?? null;
-      setUser(u ? { email: u.email, name: u.user_metadata?.name, avatarUrl: u.user_metadata?.avatar_url } : null);
-      const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-        const su = s?.user ?? null;
-        setUser(su ? { email: su.email, name: su.user_metadata?.name, avatarUrl: su.user_metadata?.avatar_url } : null);
-      });
-      unsub = () => sub.subscription.unsubscribe();
-    })();
-
-    const readGuest = () => setGuest((sessionStorage.getItem("auth_mode") ?? "") === "guest");
-    readGuest();
-    window.addEventListener("storage", readGuest);
-    return () => {
-      window.removeEventListener("storage", readGuest);
-      unsub?.();
+    const derive = () => {
+      if (user) return setMode("user");
+      const s = sessionStorage.getItem("auth_mode");
+      setMode(s === "guest" ? "guest" : "none");
     };
-  }, []);
+    derive();
 
-  const label = user ? (user.name || user.email || "Account")
-    : guest ? "Guest"
-    : "Account";
+    const onChange = () => derive();
+    window.addEventListener("auth-mode-change", onChange as any);
+    window.addEventListener("storage", onChange);
+    return () => {
+      window.removeEventListener("auth-mode-change", onChange as any);
+      window.removeEventListener("storage", onChange);
+    };
+  }, [user]);
 
-  const initial = user
-    ? (user.name?.[0] || user.email?.[0] || "U").toUpperCase()
-    : guest ? "G"
-    : "A";
+  const label =
+    user?.email ? user.email : mode === "guest" ? "Guest" : "Account";
+
+  const initial =
+    (user?.name?.[0] || user?.email?.[0] || (mode === "guest" ? "G" : "A"))
+      ?.toUpperCase() ?? "A";
+
+  async function signOut() {
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      sessionStorage.removeItem("auth_mode");
+      window.dispatchEvent(new CustomEvent("auth-mode-change"));
+      setOpen(false);
+    }
+  }
+
+  function handleTrigger() {
+    if (mode === "none") {
+      onOpenAuth();
+    } else {
+      setOpen((v) => !v);
+    }
+  }
 
   return (
     <div className="relative">
       <button
-        ref={btnRef}
-        onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-800"
+        type="button"
+        onClick={handleTrigger}
+        className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200 border border-zinc-700 hover:bg-zinc-800"
       >
-        <span className="grid h-6 w-6 place-items-center rounded-full bg-amber-600 text-xs font-bold text-black">
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-600 text-black text-xs font-bold">
           {initial}
         </span>
-        <span>{label}</span>
-        <svg width="14" height="14" viewBox="0 0 24 24" className="opacity-70">
-          <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+        {label}
+        <svg className="ml-1 h-4 w-4 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M6 9l6 6 6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-56 rounded-xl border border-zinc-800 bg-zinc-900 p-1 shadow-lg">
-          {!user && !guest && (
+        <div className="absolute right-0 mt-2 w-52 rounded-lg border border-zinc-700 bg-zinc-900 p-1 shadow-xl">
+          {mode === "none" && (
             <button
-              onClick={() => {
-                setOpen(false);
-                window.dispatchEvent(new CustomEvent("open-auth")); // your modal opener
-              }}
-              className="w-full rounded-lg px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800"
+              onClick={() => { onOpenAuth(); setOpen(false); }}
+              className="w-full rounded-md px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800"
             >
-              Log in / Sign up
+              Sign in / Create account
             </button>
           )}
 
-          {!user && guest && (
+          {mode === "guest" && (
             <button
-              onClick={() => {
-                sessionStorage.removeItem("auth_mode");
-                setGuest(false);
-                setOpen(false);
-              }}
-              className="w-full rounded-lg px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800"
+              onClick={() => { onOpenAuth(); setOpen(false); }}
+              className="w-full rounded-md px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800"
             >
-              Leave guest mode
+              Sign in
             </button>
           )}
 
-          {user && (
+          {mode === "user" && (
             <button
-              onClick={async () => {
-                await supabase.auth.signOut();
-                setOpen(false);
-              }}
-              className="w-full rounded-lg px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800"
+              onClick={signOut}
+              className="w-full rounded-md px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800"
             >
               Log out
             </button>
           )}
 
           <button
-            onClick={() => {
-              try { localStorage.removeItem("cs2:dashboard:rows"); } catch {}
-              location.reload();
-            }}
-            className="mt-1 w-full rounded-lg px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800"
+            onClick={() => { onClearLocal(); setOpen(false); }}
+            className="w-full rounded-md px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800"
           >
             Clear local data
           </button>
