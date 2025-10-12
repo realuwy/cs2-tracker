@@ -64,12 +64,25 @@ export default function AppHeader() {
           <AccountMenu
             user={user}
             onOpenAuth={() => setShowAuth(true)}
-            onClearLocal={() => {
-              try {
-                localStorage.removeItem("cs2:dashboard:rows");
-              } catch {}
-              location.reload();
-            }}
+            onClearLocal={async () => {
+  try {
+    // optionally push last local copy before sign-out
+    const cache = JSON.parse(localStorage.getItem("cs2:dashboard:rows") || "[]");
+    await upsertAccountRows(cache);
+  } catch {}
+
+  try {
+    localStorage.removeItem("cs2:dashboard:rows");
+    localStorage.removeItem("cs2:dashboard:rows:updatedAt");
+  } catch {}
+
+  try {
+    await supabase.auth.signOut();
+  } finally {
+    location.href = "/"; // or location.reload()
+  }
+}}
+
           />
         </div>
       </nav>
