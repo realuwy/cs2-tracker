@@ -1,6 +1,8 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { inter, manrope } from "./fonts";
+import AppHeader from "@/components/AppHeader";
+import SiteFooter from "@/components/SiteFooter";
 
 export const metadata: Metadata = {
   title: "CS2 Tracker",
@@ -11,7 +13,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={`${inter.variable} ${manrope.variable} font-sans bg-bg text-text`}>
-        {children}
+        <div className="min-h-screen flex flex-col">
+          <AppHeader />
+          <main className="flex-1">{children}</main>
+          <SiteFooter />
+        </div>
       </body>
     </html>
   );
