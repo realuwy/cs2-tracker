@@ -19,7 +19,7 @@ export default function Footer() {
         <nav className="flex items-center gap-6">
           <Link href="/about" className="hover:text-text">About</Link>
           <Link href="/privacy" className="hover:text-text">Privacy</Link>
-          <Link href="/dashboard" className="hover:text-text">Dashboard</Link>
+          
         </nav>
 
         {/* Copyright */}
