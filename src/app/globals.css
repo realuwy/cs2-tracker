@@ -4,14 +4,30 @@
 
 @layer base {
   html, body { @apply bg-bg text-text; }
-  ::selection { background: #6F6CF6; color: #0F1220; }
-
-  /* 👉 Manrope headings: dense & bold like the screenshot */
+  ::selection { background: #7C6CFF; color: #0F1122; }
   h1,h2,h3,h4 { @apply font-display tracking-tight; }
 }
 
-/* helpers */
+/* Cards, buttons, chips for quick reuse */
 .card { @apply rounded-2xl border border-border bg-surface shadow-card; }
 .btn-primary { @apply rounded-xl bg-accent px-4 py-2 text-sm font-medium text-bg hover:bg-accent-hover transition; }
-.pill { @apply inline-flex items-center rounded-full bg-chip px-2 py-0.5 text-[11px] text-muted; }
+.pill { @apply inline-flex items-center rounded-full bg-accent-soft px-2 py-0.5 text-[11px] text-muted; }
+
+/* Hero backdrop like the screenshot (subtle radial top glow) */
+.hero-violet {
+  position: relative;
+  overflow: hidden;
+}
+.hero-violet::before {
+  content: "";
+  position: absolute;
+  inset: -40% -20% auto -20%;
+  height: 80%;
+  background: radial-gradient(60% 60% at 50% 0%,
+    rgba(124,108,255,0.22) 0%,
+    rgba(124,108,255,0.12) 35%,
+    rgba(124,108,255,0.00) 70%);
+  pointer-events: none;
+  filter: blur(2px);
+}
 
