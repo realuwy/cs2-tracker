@@ -20,14 +20,14 @@ export default function AppHeader() {
           </span>
         </Link>
 
-        {/* Core Nav */}
+        {/* Core nav (Dashboard only) */}
         <nav className="hidden items-center gap-6 md:flex">
           <Link href="/dashboard" className={`text-sm ${active("/dashboard")}`}>
             Dashboard
           </Link>
         </nav>
 
-        {/* Right (Account) */}
+        {/* Right side (Account placeholder) */}
         <div className="flex items-center gap-2">
           <Link
             href="/dashboard"
