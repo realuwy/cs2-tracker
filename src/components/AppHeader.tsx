@@ -5,13 +5,13 @@ import { usePathname } from "next/navigation";
 
 export default function AppHeader() {
   const pathname = usePathname();
-  const isActive = (href: string) =>
+  const active = (href: string) =>
     pathname === href ? "text-amber-400" : "text-zinc-300 hover:text-zinc-100";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-zinc-800/80 bg-black/70 backdrop-blur">
+    <header className="sticky top-0 z-50 border-b border-zinc-800/70 bg-black/70 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        {/* brand */}
+        {/* Brand */}
         <Link href="/" className="flex items-center gap-2">
           <div className="h-2 w-2 rounded-full bg-amber-400" />
           <span className="text-sm font-medium text-zinc-200">CS2 Tracker</span>
@@ -20,17 +20,18 @@ export default function AppHeader() {
           </span>
         </Link>
 
-        {/* nav */}
-        <nav className="hidden items-center gap-5 md:flex">
-          <Link href="/dashboard" className={`text-sm ${isActive("/dashboard")}`}>Dashboard</Link>
-          <Link href="/about" className={`text-sm ${isActive("/about")}`}>About</Link>
-          <Link href="/privacy" className={`text-sm ${isActive("/privacy")}`}>Privacy</Link>
+        {/* Nav */}
+        <nav className="hidden items-center gap-6 md:flex">
+          <Link href="/dashboard" className={`text-sm ${active("/dashboard")}`}>Dashboard</Link>
+          {/* Keep About/Privacy if you want them visible in header; remove if not */}
+          <Link href="/about" className={`text-sm ${active("/about")}`}>About</Link>
+          <Link href="/privacy" className={`text-sm ${active("/privacy")}`}>Privacy</Link>
         </nav>
 
-        {/* right actions (placeholder) */}
+        {/* Right (Account) */}
         <div className="flex items-center gap-2">
           <Link
-            href="/dashboard"
+            href="/dashboard" // point to your account page when ready
             className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200 hover:bg-zinc-800"
           >
             Account
