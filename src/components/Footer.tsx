@@ -1,23 +1,20 @@
-import type { Metadata } from "next";
-import "./globals.css";
-import Footer from "@/components/Footer";
+"use client";
+import Link from "next/link";
 
-export const metadata: Metadata = {
-  title: "CS2 Tracker",
-  description: "Track CS2 items with quick pricing and a clean dashboard.",
-};
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function Footer() {
+  const year = new Date().getFullYear();
   return (
-    <html lang="en">
-      <body className="bg-black text-white">
-        {children}
-        <Footer />
-      </body>
-    </html>
+    <footer className="mt-10 border-t border-zinc-800 bg-black/70">
+      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 p-6 text-sm text-zinc-400 md:flex-row">
+        <div className="space-x-4">
+          <Link href="/about" className="hover:text-zinc-200">About</Link>
+          <span className="text-zinc-600">•</span>
+          <Link href="/privacy" className="hover:text-zinc-200">Privacy</Link>
+        </div>
+        <div className="text-zinc-500">
+          © {year} CS2 Tracker — <span className="text-zinc-400">alpha</span>
+        </div>
+      </div>
+    </footer>
   );
 }
