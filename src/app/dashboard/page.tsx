@@ -757,8 +757,21 @@ export default function DashboardPage() {
     <div className="mx-auto max-w-6xl p-6">
       {/* Header (removed duplicate totals) */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
-      </div>
+  <h1 className="text-2xl font-semibold">Dashboard</h1>
+  <AccountMenu
+    user={null} // pass `{ email, name }` when you wire auth; null = guest ("G")
+    onOpenAuth={() => {
+      const evt = new CustomEvent("open-auth");
+      window.dispatchEvent(evt);
+    }}
+    onClearLocal={() => {
+      try {
+        localStorage.removeItem("cs2:dashboard:rows");
+      } catch {}
+      location.reload();
+    }}
+  />
+</div>
 
       {/* Top row: Left Manual Add / Right Stats */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
