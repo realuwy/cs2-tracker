@@ -320,6 +320,20 @@ useEffect(() => {
 /* ----------------------------- component ----------------------------- */
 
 export default function DashboardPage() {
+ const [authed, setAuthed] = useState<string | null>(null); 
+  useEffect(() => {
+  let unsub: (() => void) | undefined;
+  (async () => {
+    const { data } = await supabase.auth.getSession();
+    setAuthed(data.session?.user?.id ?? null);
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, sess) => {
+      setAuthed(sess?.user?.id ?? null);
+    });
+    unsub = () => sub.subscription.unsubscribe();
+  })();
+  return () => unsub?.();
+}, []);
+
   const [rows, setRows] = useState<Row[]>([]);
   const [spMap, setSpMap] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
