@@ -1,118 +1,87 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { useState, useRef, useEffect } from "react";
 
-type UserLike = {
-  name?: string | null;
-  email?: string | null;
-  avatarUrl?: string | null;
-} | null;
+type UserLite = { name?: string | null; email?: string | null; avatarUrl?: string | null } | null;
 
-type Props = {
-  user: UserLike;
+export default function AccountMenu({
+  user,
+  onOpenAuth,
+  onClearLocal,
+}: {
+  user: UserLite;
   onOpenAuth: () => void;
-  onClearLocal: () => void;
-};
-
-export default function AccountMenu({ user, onOpenAuth, onClearLocal }: Props) {
-  const [mode, setMode] = useState<"none" | "guest" | "user">("none");
+  onClearLocal: () => void | Promise<void>;
+}) {
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
 
-  // derive visual mode from session + user
   useEffect(() => {
-    const derive = () => {
-      if (user) return setMode("user");
-      const s = sessionStorage.getItem("auth_mode");
-      setMode(s === "guest" ? "guest" : "none");
+    const onClick = (e: MouseEvent) => {
+      if (!ref.current) return;
+      if (!ref.current.contains(e.target as Node)) setOpen(false);
     };
-    derive();
-
-    const onChange = () => derive();
-    window.addEventListener("auth-mode-change", onChange as any);
-    window.addEventListener("storage", onChange);
-    return () => {
-      window.removeEventListener("auth-mode-change", onChange as any);
-      window.removeEventListener("storage", onChange);
-    };
-  }, [user]);
-
-  const label =
-    user?.email ? user.email : mode === "guest" ? "Guest" : "Account";
+    window.addEventListener("click", onClick);
+    return () => window.removeEventListener("click", onClick);
+  }, []);
 
   const initial =
-    (user?.name?.[0] || user?.email?.[0] || (mode === "guest" ? "G" : "A"))
-      ?.toUpperCase() ?? "A";
-
-  async function signOut() {
-    try {
-      await supabase.auth.signOut();
-    } finally {
-      sessionStorage.removeItem("auth_mode");
-      window.dispatchEvent(new CustomEvent("auth-mode-change"));
-      setOpen(false);
-    }
-  }
-
-  function handleTrigger() {
-    if (mode === "none") {
-      onOpenAuth();
-    } else {
-      setOpen((v) => !v);
-    }
-  }
+    (user?.name?.trim() || user?.email?.trim() || "A").slice(0, 1).toUpperCase();
 
   return (
-    <div className="relative">
+    <div className="relative" ref={ref}>
       <button
-        type="button"
-        onClick={handleTrigger}
-        className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200 border border-zinc-700 hover:bg-zinc-800"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-text/85 hover:bg-surface2"
       >
-        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-600 text-black text-xs font-bold">
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-accent text-[13px] font-semibold text-bg">
           {initial}
         </span>
-        {label}
-        <svg className="ml-1 h-4 w-4 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path d="M6 9l6 6 6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <span className="hidden sm:inline">{user ? "Account" : "Account"}</span>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          className={`transition ${open ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path d="M6 9l6 6 6-6" />
         </svg>
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-52 rounded-lg border border-zinc-700 bg-zinc-900 p-1 shadow-xl">
-          {mode === "none" && (
-            <button
-              onClick={() => { onOpenAuth(); setOpen(false); }}
-              className="w-full rounded-md px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800"
-            >
-              Sign in / Create account
-            </button>
+        <div className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border border-border bg-surface shadow-card">
+          {user ? (
+            <>
+              <div className="px-3 py-2 text-xs text-muted">
+                {user.name || user.email}
+              </div>
+              <div className="h-px bg-border/60" />
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  void onClearLocal();
+                }}
+                className="block w-full px-3 py-2 text-left text-sm text-text/90 hover:bg-surface2"
+              >
+                Sign out
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  onOpenAuth();
+                }}
+                className="block w-full px-3 py-2 text-left text-sm text-text/90 hover:bg-surface2"
+              >
+                Sign in / Sign up
+              </button>
+            </>
           )}
-
-          {mode === "guest" && (
-            <button
-              onClick={() => { onOpenAuth(); setOpen(false); }}
-              className="w-full rounded-md px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800"
-            >
-              Sign in
-            </button>
-          )}
-
-          {mode === "user" && (
-            <button
-              onClick={signOut}
-              className="w-full rounded-md px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800"
-            >
-              Log out
-            </button>
-          )}
-
-          <button
-            onClick={() => { onClearLocal(); setOpen(false); }}
-            className="w-full rounded-md px-3 py-2 text-left text-zinc-200 hover:bg-zinc-800"
-          >
-            Clear local data
-          </button>
         </div>
       )}
     </div>
