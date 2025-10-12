@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { fetchInventory, InvItem } from "@/lib/api";
+import AccountMenu from "@/components/AccountMenu";
 
 /* ----------------------------- constants ----------------------------- */
 
