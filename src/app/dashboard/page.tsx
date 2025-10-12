@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { fetchInventory, InvItem } from "@/lib/api";
-import AccountMenu from "@/components/AccountMenu";
+
 
 /* ----------------------------- constants ----------------------------- */
 
@@ -758,19 +758,6 @@ export default function DashboardPage() {
       {/* Header (removed duplicate totals) */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
   <h1 className="text-2xl font-semibold">Dashboard</h1>
-  <AccountMenu
-    user={null} // pass `{ email, name }` when you wire auth; null = guest ("G")
-    onOpenAuth={() => {
-      const evt = new CustomEvent("open-auth");
-      window.dispatchEvent(evt);
-    }}
-    onClearLocal={() => {
-      try {
-        localStorage.removeItem("cs2:dashboard:rows");
-      } catch {}
-      location.reload();
-    }}
-  />
 </div>
 
       {/* Top row: Left Manual Add / Right Stats */}
