@@ -5,7 +5,6 @@ import { fetchInventory, InvItem } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 import { fetchAccountRows, upsertAccountRows } from "@/lib/rows";
 
-
 /* ----------------------------- constants ----------------------------- */
 
 const STORAGE_KEY = "cs2:dashboard:rows";
@@ -179,21 +178,6 @@ function EditRowDialog({
   const [flt, setFlt] = useState<string>(row?.float ?? "");
   const [pat, setPat] = useState<string>(row?.pattern ?? "");
   const [qty, setQty] = useState<number>(row?.quantity ?? 1);
-  const [authed, setAuthed] = useState<string | null>(null); // user id or null
-
-useEffect(() => {
-  let unsub: (() => void) | undefined;
-  (async () => {
-    const { data } = await supabase.auth.getSession();
-    setAuthed(data.session?.user?.id ?? null);
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, sess) => {
-      setAuthed(sess?.user?.id ?? null);
-    });
-    unsub = () => sub.subscription.unsubscribe();
-  })();
-  return () => unsub?.();
-}, []);
-
 
   useEffect(() => {
     setName(row?.nameNoWear ?? "");
@@ -320,20 +304,6 @@ useEffect(() => {
 /* ----------------------------- component ----------------------------- */
 
 export default function DashboardPage() {
- const [authed, setAuthed] = useState<string | null>(null); 
-  useEffect(() => {
-  let unsub: (() => void) | undefined;
-  (async () => {
-    const { data } = await supabase.auth.getSession();
-    setAuthed(data.session?.user?.id ?? null);
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, sess) => {
-      setAuthed(sess?.user?.id ?? null);
-    });
-    unsub = () => sub.subscription.unsubscribe();
-  })();
-  return () => unsub?.();
-}, []);
-
   const [rows, setRows] = useState<Row[]>([]);
   const [spMap, setSpMap] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
@@ -358,85 +328,95 @@ export default function DashboardPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editRow, setEditRow] = useState<Row | null>(null);
 
-/* ---- restore rows (local + account sync) ---- */
-useEffect(() => {
-  (async () => {
-    // 1) read LOCAL
-    let localRows: Row[] | null = null;
-    let localTs = 0;
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) localRows = JSON.parse(raw) as Row[];
-      localTs = Number(localStorage.getItem(STORAGE_TS_KEY) || "0");
-    } catch {}
+  // --- auth state (for per-user sync) ---
+  const [authed, setAuthed] = useState<string | null>(null);
+  useEffect(() => {
+    let unsub: (() => void) | undefined;
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      setAuthed(data.session?.user?.id ?? null);
+      const { data: sub } = supabase.auth.onAuthStateChange((_e, sess) => {
+        setAuthed(sess?.user?.id ?? null);
+      });
+      unsub = () => sub.subscription.unsubscribe();
+    })();
+    return () => unsub?.();
+  }, []);
 
-    // normalize local rows (same rules you already use)
-    if (localRows) {
-      localRows = localRows.map((r) => ({
-        ...r,
-        market_hash_name: r.market_hash_name ? stripNone(r.market_hash_name) : r.market_hash_name,
-        name: r.name ? stripNone(r.name) : r.name,
-        nameNoWear: r.nameNoWear ? stripNone(r.nameNoWear) : r.nameNoWear,
-        pattern: r.pattern && String(r.pattern).trim() !== "" ? r.pattern : undefined,
-        float: r.float && String(r.float).trim() !== "" ? r.float : undefined,
-        image: (r as any).image == null ? "" : (r as any).image,
-        skinportAUD: isMissingNum(r.skinportAUD) ? undefined : Number(r.skinportAUD),
-        steamAUD: isMissingNum(r.steamAUD) ? undefined : Number(r.steamAUD),
-        quantity: Math.max(1, Number(r.quantity ?? 1)),
-      }));
-    }
+  /* ---- restore rows (local + account sync) ---- */
+  useEffect(() => {
+    (async () => {
+      // read local
+      let localRows: Row[] | null = null;
+      let localTs = 0;
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) localRows = JSON.parse(raw) as Row[];
+        localTs = Number(localStorage.getItem(STORAGE_TS_KEY) || "0");
+      } catch {}
 
-    // 2) if AUThed → compare with SERVER
-    if (authed) {
-      const server = await fetchAccountRows();
-      const serverTs = server?.updated_at ? new Date(server.updated_at).getTime() : 0;
-
-      if (server && server.rows && serverTs >= localTs) {
-        // server newer → use server
-        setRows(server.rows as Row[]);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(server.rows));
-        localStorage.setItem(STORAGE_TS_KEY, String(serverTs || Date.now()));
-      } else {
-        // local newer or no server row → push local up
-        const payload = localRows ?? [];
-        setRows(payload);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-        localStorage.setItem(STORAGE_TS_KEY, String(localTs || Date.now()));
-        if (payload) void upsertAccountRows(payload);
+      // normalize local (same as your mapping)
+      if (localRows) {
+        localRows = localRows.map((r) => ({
+          ...r,
+          market_hash_name: r.market_hash_name ? stripNone(r.market_hash_name) : r.market_hash_name,
+          name: r.name ? stripNone(r.name) : r.name,
+          nameNoWear: r.nameNoWear ? stripNone(r.nameNoWear) : r.nameNoWear,
+          pattern: r.pattern && String(r.pattern).trim() !== "" ? r.pattern : undefined,
+          float: r.float && String(r.float).trim() !== "" ? r.float : undefined,
+          image: (r as any).image == null ? "" : (r as any).image, // coerce legacy nulls
+          skinportAUD: isMissingNum(r.skinportAUD) ? undefined : Number(r.skinportAUD),
+          steamAUD: isMissingNum(r.steamAUD) ? undefined : Number(r.steamAUD),
+          quantity: Math.max(1, Number(r.quantity ?? 1)),
+        }));
       }
-    } else {
-      // guest mode → just use local
-      setRows(localRows ?? []);
-      if (localRows == null) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
-        localStorage.setItem(STORAGE_TS_KEY, String(Date.now()));
-      }
-    }
-  })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [authed]);
 
-
- /* ---- persist rows (local + upsert when authed) ---- */
-const saveTimer = useRef<number | null>(null);
-useEffect(() => {
-  try {
-    if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    saveTimer.current = window.setTimeout(async () => {
-      const now = Date.now();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
-      localStorage.setItem(STORAGE_TS_KEY, String(now));
+      // if authed, fetch server and decide
       if (authed) {
-        // best-effort; ignore errors
-        await upsertAccountRows(rows);
+        const server = await fetchAccountRows();
+        const serverTs = server?.updated_at ? new Date(server.updated_at).getTime() : 0;
+        if (server && server.rows && serverTs >= localTs) {
+          setRows(server.rows as Row[]);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(server.rows));
+          localStorage.setItem(STORAGE_TS_KEY, String(serverTs || Date.now()));
+        } else {
+          // local newer or no server row -> push local up
+          const payload = localRows ?? [];
+          setRows(payload);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+          localStorage.setItem(STORAGE_TS_KEY, String(localTs || Date.now()));
+          if (payload) void upsertAccountRows(payload);
+        }
+      } else {
+        // guest
+        setRows(localRows ?? []);
+        if (localRows == null) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+          localStorage.setItem(STORAGE_TS_KEY, String(Date.now()));
+        }
       }
-    }, 250);
-  } catch {}
-  return () => {
-    if (saveTimer.current) window.clearTimeout(saveTimer.current);
-  };
-}, [rows, authed]);
+    })();
+  }, [authed]);
 
+  /* ---- persist rows (local + upsert when authed) ---- */
+  const saveTimer = useRef<number | null>(null);
+  useEffect(() => {
+    try {
+      if (saveTimer.current) window.clearTimeout(saveTimer.current);
+      saveTimer.current = window.setTimeout(async () => {
+        const now = Date.now();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+        localStorage.setItem(STORAGE_TS_KEY, String(now));
+        if (authed) {
+          // best-effort, ignore errors
+          await upsertAccountRows(rows);
+        }
+      }, 250);
+    } catch {}
+    return () => {
+      if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    };
+  }, [rows, authed]);
 
   /* ---- Skinport map + images ---- */
   async function refreshSkinport() {
@@ -451,7 +431,7 @@ useEffect(() => {
         images?: Record<string, string>;
         updatedAt?: number;
       } = await priceRes.json();
-      const extraImgData: { images?: Record<string, string> } = (await imgRes?.json?.()) ?? {};
+      const extraImgData: { images?: Record<string, string> } = (await (imgRes as any)?.json?.()) ?? {};
 
       const map = priceData.map || {};
       const images: Record<string, string> = {
@@ -830,9 +810,6 @@ useEffect(() => {
 
   return (
     <div className="mx-auto max-w-6xl p-6">
-     
-
-
       {/* Top row: Left Manual Add / Right Stats */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* Manual add */}
@@ -1033,140 +1010,140 @@ useEffect(() => {
             </tr>
           </thead>
 
-        <tbody>
-          {sorted.length === 0 ? (
-            <tr>
-              <td colSpan={5} className="px-4 py-6 text-center text-zinc-400">
-                No items yet. Use <span className="underline">Search &amp; add item</span> or
-                import from Steam.
-              </td>
-            </tr>
-          ) : (
-            sorted.map((r) => {
-              const orig = origIndexMap.get(r)!;
-              return (
-                <tr key={r.market_hash_name + "|" + orig} className="border-t border-zinc-800">
-                  {/* ITEM (title w/ hover + meta pills) */}
-                  <td className="px-4 py-2">
-                    <div className="flex items-start gap-3">
-                      {r.image ? (
-                        <img
-                          src={r.image}
-                          alt={r.name}
-                          loading="lazy"
-                          decoding="async"
-                          onError={(e) => {
-                            const el = e.currentTarget as HTMLImageElement;
-                            if (el.src !== FALLBACK_DATA_URL) el.src = FALLBACK_DATA_URL;
+          <tbody>
+            {sorted.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-6 text-center text-zinc-400">
+                  No items yet. Use <span className="underline">Search &amp; add item</span> or
+                  import from Steam.
+                </td>
+              </tr>
+            ) : (
+              sorted.map((r) => {
+                const orig = origIndexMap.get(r)!;
+                return (
+                  <tr key={r.market_hash_name + "|" + orig} className="border-t border-zinc-800">
+                    {/* ITEM (title w/ hover + meta pills) */}
+                    <td className="px-4 py-2">
+                      <div className="flex items-start gap-3">
+                        {r.image ? (
+                          <img
+                            src={r.image}
+                            alt={r.name}
+                            loading="lazy"
+                            decoding="async"
+                            onError={(e) => {
+                              const el = e.currentTarget as HTMLImageElement;
+                              if (el.src !== FALLBACK_DATA_URL) el.src = FALLBACK_DATA_URL;
+                            }}
+                            className="h-10 w-10 rounded object-contain bg-zinc-800"
+                          />
+                        ) : (
+                          <img
+                            src={FALLBACK_DATA_URL}
+                            alt=""
+                            className="h-10 w-10 rounded object-contain"
+                          />
+                        )}
+
+                        <div className="min-w-0">
+                          <div className="truncate font-medium" title={r.market_hash_name}>
+                            {r.nameNoWear}
+                          </div>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {wearLabelForRow(r.wear as WearCode) && (
+                              <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>
+                            )}
+                            {r.pattern && <Pill>Pattern: {r.pattern}</Pill>}
+                            {r.float && <Pill>Float: {r.float}</Pill>}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* QTY */}
+                    <td className="px-4 py-2 text-right tabular-nums">
+                      {r.quantity ?? 1}
+                    </td>
+
+                    {/* SKINPORT */}
+                    <td className="px-4 py-2">
+                      <div className="text-right leading-tight">
+                        <div>
+                          {typeof r.skinportAUD === "number"
+                            ? `A$${r.skinportAUD.toFixed(2)}`
+                            : "—"}
+                        </div>
+                        {typeof r.skinportAUD === "number" && (r.quantity ?? 1) > 1 && (
+                          <div className="mt-0.5 text-[11px] text-zinc-400">
+                            ×{r.quantity ?? 1} ={" "}
+                            <span className="tabular-nums">
+                              A${(r.skinportAUD * (r.quantity ?? 1)).toFixed(2)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* STEAM */}
+                    <td className="px-4 py-2">
+                      <div className="text-right leading-tight">
+                        <div>
+                          {typeof r.steamAUD === "number"
+                            ? `A$${r.steamAUD.toFixed(2)}`
+                            : "—"}
+                        </div>
+                        {typeof r.steamAUD === "number" && (r.quantity ?? 1) > 1 && (
+                          <div className="mt-0.5 text-[11px] text-zinc-400">
+                            ×{r.quantity ?? 1} ={" "}
+                            <span className="tabular-nums">
+                              A${(r.steamAUD * (r.quantity ?? 1)).toFixed(2)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* ACTIONS */}
+                    <td className="px-4 py-2 text-right">
+                      <div className="flex justify-end gap-2">
+                        {/* Edit — same visual as Delete + opens dialog */}
+                        <button
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800/60 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                          title="Edit"
+                          onClick={() => {
+                            setEditRow(r);
+                            setEditOpen(true);
                           }}
-                          className="h-10 w-10 rounded object-contain bg-zinc-800"
-                        />
-                      ) : (
-                        <img
-                          src={FALLBACK_DATA_URL}
-                          alt=""
-                          className="h-10 w-10 rounded object-contain"
-                        />
-                      )}
+                        >
+                          {/* pencil icon */}
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                          </svg>
+                        </button>
 
-                      <div className="min-w-0">
-                        <div className="truncate font-medium" title={r.market_hash_name}>
-                          {r.nameNoWear}
-                        </div>
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {wearLabelForRow(r.wear as WearCode) && (
-                            <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>
-                          )}
-                          {r.pattern && <Pill>Pattern: {r.pattern}</Pill>}
-                          {r.float && <Pill>Float: {r.float}</Pill>}
-                        </div>
+                        {/* Delete */}
+                        <button
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800/60 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                          title="Delete"
+                          onClick={() => removeRow(orig)}
+                        >
+                          {/* trash icon */}
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 6h18" />
+                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                            <path d="M10 11v6M14 11v6" />
+                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                          </svg>
+                        </button>
                       </div>
-                    </div>
-                  </td>
-
-                  {/* QTY */}
-                  <td className="px-4 py-2 text-right tabular-nums">
-                    {r.quantity ?? 1}
-                  </td>
-
-                  {/* SKINPORT */}
-                  <td className="px-4 py-2">
-                    <div className="text-right leading-tight">
-                      <div>
-                        {typeof r.skinportAUD === "number"
-                          ? `A$${r.skinportAUD.toFixed(2)}`
-                          : "—"}
-                      </div>
-                      {typeof r.skinportAUD === "number" && (r.quantity ?? 1) > 1 && (
-                        <div className="mt-0.5 text-[11px] text-zinc-400">
-                          ×{r.quantity ?? 1} ={" "}
-                          <span className="tabular-nums">
-                            A${(r.skinportAUD * (r.quantity ?? 1)).toFixed(2)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-
-                  {/* STEAM */}
-                  <td className="px-4 py-2">
-                    <div className="text-right leading-tight">
-                      <div>
-                        {typeof r.steamAUD === "number"
-                          ? `A$${r.steamAUD.toFixed(2)}`
-                          : "—"}
-                      </div>
-                      {typeof r.steamAUD === "number" && (r.quantity ?? 1) > 1 && (
-                        <div className="mt-0.5 text-[11px] text-zinc-400">
-                          ×{r.quantity ?? 1} ={" "}
-                          <span className="tabular-nums">
-                            A${(r.steamAUD * (r.quantity ?? 1)).toFixed(2)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-
-                  {/* ACTIONS */}
-                  <td className="px-4 py-2 text-right">
-                    <div className="flex justify-end gap-2">
-                      {/* Edit — same visual as Delete + opens dialog */}
-                      <button
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800/60 text-zinc-300 hover:bg-zinc-700 hover:text-white"
-                        title="Edit"
-                        onClick={() => {
-                          setEditRow(r);
-                          setEditOpen(true);
-                        }}
-                      >
-                        {/* pencil icon */}
-                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M12 20h9" />
-                          <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                        </svg>
-                      </button>
-
-                      {/* Delete */}
-                      <button
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800/60 text-zinc-300 hover:bg-zinc-700 hover:text-white"
-                        title="Delete"
-                        onClick={() => removeRow(orig)}
-                      >
-                        {/* trash icon */}
-                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M3 6h18" />
-                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                          <path d="M10 11v6M14 11v6" />
-                          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })
-          )}
-        </tbody>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
         </table>
       </div>
 
