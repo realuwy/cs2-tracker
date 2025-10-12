@@ -13,6 +13,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-black text-white">
         <SiteHeader />
         {children}
+        import Footer from "@/components/Footer";
+<body className="bg-black text-white">
+  {children}
+  <Footer />
+</body>
+
         <footer className="border-t border-white/10 py-8 text-center text-xs text-white/40">
           © {new Date().getFullYear()} CS2 Tracker — alpha
         </footer>
