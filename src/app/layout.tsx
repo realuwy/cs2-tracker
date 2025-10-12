@@ -1,20 +1,17 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import AppHeader from "@/components/AppHeader";
-import Footer from "@/components/Footer";
+import { inter, manrope } from "./fonts";
 
 export const metadata: Metadata = {
   title: "CS2 Tracker",
-  description: "Track CS2 items and prices.",
+  description: "Track your CS2 skins with live prices",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-black text-white">
-        <AppHeader />
+      <body className={`${inter.variable} ${manrope.variable} font-sans bg-bg text-text`}>
         {children}
-        <Footer />
       </body>
     </html>
   );
