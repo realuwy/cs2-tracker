@@ -2,20 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
-/* App globals */
-html, body {
-  height: 100%;
-  background: #000;       /* dark background */
-  color: #fff;            /* default text */
+@layer base {
+  html, body { @apply bg-bg text-text; }
+  ::selection { background: #6F6CF6; color: #0F1220; }
+
+  /* 👉 Manrope headings: dense & bold like the screenshot */
+  h1,h2,h3,h4 { @apply font-display tracking-tight; }
 }
 
-/* Smooth fonts */
-body {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+/* helpers */
+.card { @apply rounded-2xl border border-border bg-surface shadow-card; }
+.btn-primary { @apply rounded-xl bg-accent px-4 py-2 text-sm font-medium text-bg hover:bg-accent-hover transition; }
+.pill { @apply inline-flex items-center rounded-full bg-chip px-2 py-0.5 text-[11px] text-muted; }
 
-/* Utility tweak examples */
-.table-row-hover:hover {
-  background: rgba(255,255,255,0.04);
-}
