@@ -30,4 +30,59 @@
   pointer-events: none;
   filter: blur(2px);
 }
+/* ---------- Purple dashboard panels & rows ---------- */
+
+/* Base elevated panel (soft glow, subtle inner stroke) */
+.panel {
+  @apply relative rounded-2xl border border-border bg-surface/85 shadow-card backdrop-blur-sm;
+}
+.panel::before {
+  /* faint outer glow */
+  content: "";
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(60% 80% at 50% -10%,
+      rgba(124,108,255,0.10),
+      rgba(124,108,255,0.00) 60%);
+  filter: blur(8px);
+  opacity: .35;
+}
+
+/* Slightly darker bar/header area look (like the nav & tiles) */
+.panel-muted {
+  @apply rounded-xl border border-border bg-surface2/80;
+}
+
+/* Panel section header line */
+.panel-sep {
+  @apply h-px bg-border/70;
+}
+
+/* Table wrapper: hides rounded corners bleeding */
+.panel-clip {
+  @apply overflow-hidden rounded-2xl;
+}
+
+/* Table header & rows to match the screenshot */
+.table-head {
+  @apply bg-surface2/70 text-muted;
+}
+.table-row {
+  @apply bg-surface/30 transition-colors;
+}
+.table-row:hover {
+  @apply bg-surface/60;
+}
+
+/* Row cell separators */
+.cell {
+  @apply border-t border-border/60;
+}
+
+/* Pills in rows (exterior, pattern, float) */
+.chip {
+  @apply inline-flex items-center rounded-full bg-accent-soft/60 px-2 py-0.5 text-[11px] text-muted;
+}
 
