@@ -2,6 +2,8 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { SiteHeader } from "../components/site-header";
 import Footer from "@/components/Footer";
+import AppHeader from "@/components/AppHeader";
+import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "CS2 Tracker",
