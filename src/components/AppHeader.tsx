@@ -20,18 +20,17 @@ export default function AppHeader() {
           </span>
         </Link>
 
-        {/* Nav */}
+        {/* Core Nav */}
         <nav className="hidden items-center gap-6 md:flex">
-          <Link href="/dashboard" className={`text-sm ${active("/dashboard")}`}>Dashboard</Link>
-          {/* Keep About/Privacy if you want them visible in header; remove if not */}
-          <Link href="/about" className={`text-sm ${active("/about")}`}>About</Link>
-          <Link href="/privacy" className={`text-sm ${active("/privacy")}`}>Privacy</Link>
+          <Link href="/dashboard" className={`text-sm ${active("/dashboard")}`}>
+            Dashboard
+          </Link>
         </nav>
 
         {/* Right (Account) */}
         <div className="flex items-center gap-2">
           <Link
-            href="/dashboard" // point to your account page when ready
+            href="/dashboard"
             className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200 hover:bg-zinc-800"
           >
             Account
