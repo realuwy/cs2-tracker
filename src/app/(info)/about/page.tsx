@@ -8,14 +8,8 @@ export const metadata = {
 export default function AboutPage() {
   return (
     <div className="mx-auto max-w-3xl p-6">
-      {/* Top nav */}
-      <div className="mb-6 flex items-center justify-between">
-        <Link
-          href="/dashboard"
-          className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200 hover:bg-zinc-800"
-        >
-          ← Back to Dashboard
-        </Link>
+      {/* Top link (only to Privacy) */}
+      <div className="mb-6 flex items-center justify-end">
         <Link
           href="/privacy"
           className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm text-black hover:bg-amber-500"
@@ -79,14 +73,8 @@ export default function AboutPage() {
         </section>
       </div>
 
-      {/* Bottom nav */}
-      <div className="mt-10 flex items-center justify-between">
-        <Link
-          href="/dashboard"
-          className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200 hover:bg-zinc-800"
-        >
-          ← Back to Dashboard
-        </Link>
+      {/* Bottom link (only to Privacy) */}
+      <div className="mt-10 flex items-center justify-end">
         <Link
           href="/privacy"
           className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm text-black hover:bg-amber-500"
@@ -97,4 +85,3 @@ export default function AboutPage() {
     </div>
   );
 }
-
