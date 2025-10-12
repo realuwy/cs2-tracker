@@ -756,8 +756,8 @@ export default function DashboardPage() {
   return (
     <div className="mx-auto max-w-6xl p-6">
       {/* Header (removed duplicate totals) */}
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-  <h1 className="text-2xl font-semibold">Dashboard</h1>
+   <div className="mb-5">
+  <h1 className="w-full text-center text-2xl font-semibold">Dashboard</h1>
 </div>
 
       {/* Top row: Left Manual Add / Right Stats */}
