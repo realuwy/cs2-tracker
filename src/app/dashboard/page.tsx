@@ -152,7 +152,7 @@ function sortReducer(state: SortState, action: SortAction): SortState {
 
 function Pill({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-white/5 px-2 py-0.5 text-[11px] text-white/70 ring-1 ring-white/10">
+    <span className="inline-flex items-center rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-white/70">
       {children}
     </span>
   );
@@ -217,14 +217,14 @@ function EditRowDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="relative w-full max-w-md rounded-xl border border-white/10 bg-[#0f0f14] p-6 text-white shadow-[0_10px_40px_-20px_rgba(124,108,255,.35)]">
+      <div className="relative w-full max-w-md rounded-xl border border-white/10 bg-[#12131b] p-6 text-white shadow-[0_6px_40px_rgba(0,0,0,.6)]">
         <h2 className="mb-4 text-center text-2xl font-bold">Edit Item</h2>
 
         <div className="space-y-4">
           <div>
             <label className="mb-1 block text-sm text-white/60">Item</label>
             <input
-              className="w-full rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2 text-white placeholder:text-white/40"
+              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2"
               value={name}
               onChange={(e) => setName(e.target.value)}
               list="item-suggestions"
@@ -235,7 +235,7 @@ function EditRowDialog({
             <div>
               <label className="mb-1 block text-sm text-white/60">Wear</label>
               <select
-                className="w-full rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2"
+                className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2"
                 value={wear}
                 onChange={(e) => setWear(e.target.value as WearCode)}
                 disabled={isNonWearCategory(name)}
@@ -254,7 +254,7 @@ function EditRowDialog({
                 step="0.00001"
                 min="0"
                 max="1"
-                className="w-full rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2"
+                className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2"
                 value={flt}
                 onChange={(e) => setFlt(e.target.value)}
               />
@@ -263,7 +263,7 @@ function EditRowDialog({
               <label className="mb-1 block text-sm text-white/60">Pattern</label>
               <input
                 type="number"
-                className="w-full rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2"
+                className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2"
                 value={pat}
                 onChange={(e) => setPat(e.target.value)}
               />
@@ -275,7 +275,7 @@ function EditRowDialog({
             <input
               type="number"
               min={1}
-              className="w-full rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2"
+              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2"
               value={qty}
               onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
             />
@@ -284,13 +284,13 @@ function EditRowDialog({
 
         <div className="mt-6 flex justify-end gap-2">
           <button
-            className="rounded-lg border border-white/10 bg-white/[0.06] px-4 py-2 text-white/90 hover:bg-white/10"
+            className="rounded-lg bg-white/10 px-4 py-2 text-white/90 hover:bg-white/15"
             onClick={onClose}
           >
             Cancel
           </button>
           <button
-            className="rounded-lg bg-[#7C6CFF] px-4 py-2 font-medium text-white hover:bg-[#8a7fff]"
+            className="rounded-lg bg-indigo-500 px-4 py-2 font-medium text-white hover:bg-indigo-400"
             onClick={apply}
           >
             Save
@@ -355,7 +355,7 @@ export default function DashboardPage() {
         localTs = Number(localStorage.getItem(STORAGE_TS_KEY) || "0");
       } catch {}
 
-      // normalize local
+      // normalize local (same as your mapping)
       if (localRows) {
         localRows = localRows.map((r) => ({
           ...r,
@@ -364,7 +364,7 @@ export default function DashboardPage() {
           nameNoWear: r.nameNoWear ? stripNone(r.nameNoWear) : r.nameNoWear,
           pattern: r.pattern && String(r.pattern).trim() !== "" ? r.pattern : undefined,
           float: r.float && String(r.float).trim() !== "" ? r.float : undefined,
-          image: (r as any).image == null ? "" : (r as any).image,
+          image: (r as any).image == null ? "" : (r as any).image, // coerce legacy nulls
           skinportAUD: isMissingNum(r.skinportAUD) ? undefined : Number(r.skinportAUD),
           steamAUD: isMissingNum(r.steamAUD) ? undefined : Number(r.steamAUD),
           quantity: Math.max(1, Number(r.quantity ?? 1)),
@@ -380,6 +380,7 @@ export default function DashboardPage() {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(server.rows));
           localStorage.setItem(STORAGE_TS_KEY, String(serverTs || Date.now()));
         } else {
+          // local newer or no server row -> push local up
           const payload = localRows ?? [];
           setRows(payload);
           localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -397,7 +398,7 @@ export default function DashboardPage() {
     })();
   }, [authed]);
 
-  /* ---- persist rows ---- */
+  /* ---- persist rows (local + upsert when authed) ---- */
   const saveTimer = useRef<number | null>(null);
   useEffect(() => {
     try {
@@ -407,6 +408,7 @@ export default function DashboardPage() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
         localStorage.setItem(STORAGE_TS_KEY, String(now));
         if (authed) {
+          // best-effort, ignore errors
           await upsertAccountRows(rows);
         }
       }, 250);
@@ -481,7 +483,7 @@ export default function DashboardPage() {
         })
       );
     } catch {
-      // ignore
+      // keep last-good values
     }
   }
 
@@ -489,7 +491,7 @@ export default function DashboardPage() {
     refreshSkinport();
   }, []);
 
-  /* ---- lazy image hydration via by-name API ---- */
+  /* ---- lazy image hydration via by-name API (Skinport→Steam) ---- */
   const hydratedNamesRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     let cancelled = false;
@@ -522,7 +524,9 @@ export default function DashboardPage() {
               })
             );
           }
-        } catch {}
+        } catch {
+          // ignore
+        }
       }
     })();
 
@@ -767,8 +771,8 @@ export default function DashboardPage() {
         onClick={() => dispatchSort({ type: "toggle", key: k })}
         className={`rounded-full border px-2.5 py-1 text-xs transition ${
           active
-            ? "border-[#7C6CFF] text-[#C9C3FF] bg-[#7C6CFF]/10"
-            : "border-white/15 text-white/80 hover:bg-white/10"
+            ? "border-indigo-500 text-indigo-300 bg-indigo-500/10"
+            : "border-white/10 text-white/70 hover:bg-white/10"
         }`}
       >
         {label} {arrow}
@@ -792,7 +796,7 @@ export default function DashboardPage() {
     }
   }
 
-  /* ----- AUTOCOMPLETE OPTIONS ----- */
+  /* ----- AUTOCOMPLETE OPTIONS (from Skinport map + existing rows) ----- */
   const autoNames = useMemo(() => {
     const set = new Set<string>();
     Object.keys(spMap).forEach((k) => set.add(k));
@@ -807,8 +811,8 @@ export default function DashboardPage() {
     <div className="mx-auto max-w-6xl p-6">
       {/* Top row: Left Manual Add / Right Stats */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* Manual add */}
-        <div className="flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset,0_10px_40px_-20px_rgba(124,108,255,.35)] backdrop-blur-sm">
+        {/* Manual add (panel) */}
+        <div className="flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.03)] backdrop-blur-sm">
           <div className="text-lg font-medium text-white">Search & add item</div>
           <p className="mb-3 mt-1 text-sm text-white/60">
             Start typing the base name (without wear). Choose wear, optional float/pattern, set
@@ -820,7 +824,7 @@ export default function DashboardPage() {
                 Item
               </label>
               <input
-                className="h-12 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 text-sm text-white placeholder:text-white/40"
+                className="h-12 w-full rounded-xl border border-white/10 bg-black/40 px-3 text-sm placeholder:text-white/40"
                 placeholder="AK-47 | Redline"
                 value={mName}
                 onChange={(e) => setMName(e.target.value)}
@@ -834,10 +838,10 @@ export default function DashboardPage() {
             </div>
             <div className="md:col-span-3">
               <label className="mb-1 block text-[11px] leading-none text-white/60">
-                Wear {nonWearForCurrentInput && <span className="text-white/50">(not applicable)</span>}
+                Wear {nonWearForCurrentInput && <span className="text-white/40">(not applicable)</span>}
               </label>
               <select
-                className={`h-12 w-full appearance-none rounded-xl border border-white/10 bg-white/[0.05] px-3 text-sm text-white ${
+                className={`h-12 w-full appearance-none rounded-xl border border-white/10 bg-black/40 px-3 text-sm ${
                   nonWearForCurrentInput ? "opacity-50" : ""
                 }`}
                 value={mWear}
@@ -856,7 +860,7 @@ export default function DashboardPage() {
                 Float (note only)
               </label>
               <input
-                className="h-12 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 text-sm text-white placeholder:text-white/40"
+                className="h-12 w-full rounded-xl border border-white/10 bg-black/40 px-3 text-sm placeholder:text-white/40"
                 placeholder="0.1234"
                 value={mFloat}
                 onChange={(e) => setMFloat(e.target.value)}
@@ -867,7 +871,7 @@ export default function DashboardPage() {
                 Pattern (note only)
               </label>
               <input
-                className="h-12 w-full rounded-xl border border-white/10 bg-white/[0.05] px-3 text-sm text-white placeholder:text-white/40"
+                className="h-12 w-full rounded-xl border border-white/10 bg-black/40 px-3 text-sm placeholder:text-white/40"
                 placeholder="123"
                 value={mPattern}
                 onChange={(e) => setMPattern(e.target.value)}
@@ -882,17 +886,17 @@ export default function DashboardPage() {
                   <div className="flex h-12 items-center gap-2">
                     <button
                       type="button"
-                      className="h-12 w-12 rounded-xl border border-white/10 bg-white/[0.06] text-white/80 hover:bg-white/10"
+                      className="h-12 w-12 rounded-xl border border-white/10 bg-black/40 text-white/80"
                       onClick={() => setMQty((q) => Math.max(1, q - 1))}
                     >
                       −
                     </button>
-                    <div className="flex h-12 min-w-[3rem] items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] px-3 text-sm text-white">
+                    <div className="flex h-12 min-w-[3rem] items-center justify-center rounded-xl border border-white/10 bg-black/40 px-3 text-sm text-white/80">
                       {mQty}
                     </div>
                     <button
                       type="button"
-                      className="h-12 w-12 rounded-xl border border-white/10 bg-white/[0.06] text-white/80 hover:bg-white/10"
+                      className="h-12 w-12 rounded-xl border border-white/10 bg-black/40 text-white/80"
                       onClick={() => setMQty((q) => q + 1)}
                     >
                       +
@@ -901,27 +905,27 @@ export default function DashboardPage() {
                 </div>
                 <button
                   onClick={addManual}
-                  className="h-12 grow rounded-xl bg-[#7C6CFF] px-4 font-medium text-white hover:bg-[#8a7fff] disabled:opacity-60"
+                  className="h-12 grow rounded-xl bg-indigo-500 px-4 text-white hover:bg-indigo-400 disabled:opacity-60"
                   disabled={!mName.trim()}
                 >
                   Add
                 </button>
               </div>
               <p className="mt-2 text-xs text-white/60">
-                Pricing uses only <span className="font-medium text-white">Item name + Wear</span>.
+                Pricing uses only <span className="font-medium text-white/80">Item name + Wear</span>.
                 Float/Pattern are for display.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Stats (with corner refresh) */}
-        <div className="relative rounded-2xl border border-white/10 bg-white/[0.03] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset,0_10px_40px_-20px_rgba(124,108,255,.35)] backdrop-blur-sm">
+        {/* Stats (panel + muted tiles) */}
+        <div className="relative rounded-2xl border border-white/10 bg-white/[0.03] p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.03)] backdrop-blur-sm">
           <button
             type="button"
             title="Refresh prices now (Skinport & Steam)"
             onClick={handleManualRefresh}
-            className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-white/90 hover:bg-white/10"
+            className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-black/40 text-white/80 hover:bg-white/10"
             aria-label="Refresh prices"
           >
             <svg
@@ -992,8 +996,8 @@ export default function DashboardPage() {
         <SortChip k="steam" label="Steam" />
       </div>
 
-      {/* TABLE */}
-      <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.03] shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset,0_10px_40px_-20px_rgba(124,108,255,.35)] touch-pan-x">
+      {/* TABLE (panel + muted head + hover rows) */}
+      <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.02] shadow-[0_0_0_1px_rgba(255,255,255,0.03)] touch-pan-x">
         <table className="min-w-[920px] md:min-w-full w-full text-sm">
           <thead className="bg-white/[0.04] text-white/70">
             <tr>
@@ -1019,7 +1023,7 @@ export default function DashboardPage() {
                 return (
                   <tr
                     key={r.market_hash_name + "|" + orig}
-                    className="border-t border-white/10 bg-white/[0.02] transition-colors hover:bg-white/[0.06]"
+                    className="border-t border-white/10 bg-white/[0.015] hover:bg-white/[0.04] transition-colors"
                   >
                     {/* ITEM */}
                     <td className="px-4 py-2">
@@ -1106,7 +1110,7 @@ export default function DashboardPage() {
                     <td className="px-4 py-2 text-right">
                       <div className="flex justify-end gap-2">
                         <button
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-white/90 hover:bg-white/10"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-white/80 hover:bg-white/15 hover:text-white"
                           title="Edit"
                           onClick={() => {
                             setEditRow(r);
@@ -1120,7 +1124,7 @@ export default function DashboardPage() {
                         </button>
 
                         <button
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] text-white/90 hover:bg-white/10"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-white/80 hover:bg-white/15 hover:text-white"
                           title="Delete"
                           onClick={() => removeRow(orig)}
                         >
@@ -1162,9 +1166,9 @@ export default function DashboardPage() {
         aria-label="Back to top"
         onClick={scrollToTop}
         className={[
-          "fixed bottom-6 right-6 z-50 rounded-full bg-white/[0.08] text-white shadow-lg shadow-black/40",
+          "fixed bottom-6 right-6 z-50 rounded-full bg-white/10 text-white shadow-lg shadow-black/40",
           "backdrop-blur px-4 h-12 inline-flex items-center gap-2",
-          "border border-white/10 hover:bg-white/10 transition-all duration-200",
+          "border border-white/10 hover:bg-white/15 transition-all duration-200",
           showBackToTop ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-3 pointer-events-none",
         ].join(" ")}
       >
@@ -1176,4 +1180,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
 
