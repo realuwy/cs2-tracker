@@ -854,17 +854,18 @@ export default function DashboardPage() {
       </div>
 
       {/* TABLE */}
-      <div className="overflow-hidden rounded-2xl border border-zinc-800">
-        <table className="min-w-full text-sm">
-          <thead className="sticky top-0 z-10 bg-zinc-950/80 backdrop-blur text-zinc-300">
-            <tr>
-              <th className="px-4 py-3 text-left font-medium">Item</th>
-              <th className="px-4 py-3 text-right font-medium">Qty</th>
-              <th className="px-4 py-3 text-right font-medium">Skinport (AUD)</th>
-              <th className="px-4 py-3 text-right font-medium">Steam (AUD)</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
+      {/* TABLE */}
+<div className="overflow-x-auto rounded-2xl border border-zinc-800 touch-pan-x">
+  <table className="min-w-[920px] md:min-w-full w-full text-sm">
+    <thead className="sticky top-0 z-10 bg-zinc-950/80 backdrop-blur text-zinc-300">
+      <tr>
+        <th className="px-4 py-3 text-left font-medium">Item</th>
+        <th className="px-4 py-3 text-right font-medium">Qty</th>
+        <th className="px-4 py-3 text-right font-medium">Skinport (AUD)</th>
+        <th className="px-4 py-3 text-right font-medium">Steam (AUD)</th>
+        <th className="px-4 py-3" />
+      </tr>
+    </thead>
 
           <tbody className="divide-y divide-zinc-800">
             {sorted.length === 0 ? (
