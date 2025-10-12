@@ -1,6 +1,15 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
+// ...
+<button
+  onClick={async () => { await supabase.auth.signOut(); }}
+  className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-zinc-200 hover:bg-zinc-900"
+>
+  <IconLogout /> Log out
+</button>
+
 
 export type AccountMenuProps = {
   /** null/undefined = guest */
