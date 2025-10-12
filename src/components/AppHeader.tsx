@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import AccountMenu from "@/components/AccountMenu";
 import AuthModal from "@/components/auth-modal";
 import { supabase } from "@/lib/supabase";
+import { upsertAccountRows } from "@/lib/rows";
 
 export default function AppHeader() {
   const pathname = usePathname();
@@ -65,24 +66,22 @@ export default function AppHeader() {
             user={user}
             onOpenAuth={() => setShowAuth(true)}
             onClearLocal={async () => {
-  try {
-    // optionally push last local copy before sign-out
-    const cache = JSON.parse(localStorage.getItem("cs2:dashboard:rows") || "[]");
-    await upsertAccountRows(cache);
-  } catch {}
+              try {
+                const cache = JSON.parse(localStorage.getItem("cs2:dashboard:rows") || "[]");
+                await upsertAccountRows(cache);
+              } catch {}
 
-  try {
-    localStorage.removeItem("cs2:dashboard:rows");
-    localStorage.removeItem("cs2:dashboard:rows:updatedAt");
-  } catch {}
+              try {
+                localStorage.removeItem("cs2:dashboard:rows");
+                localStorage.removeItem("cs2:dashboard:rows:updatedAt");
+              } catch {}
 
-  try {
-    await supabase.auth.signOut();
-  } finally {
-    location.href = "/"; // or location.reload()
-  }
-}}
-
+              try {
+                await supabase.auth.signOut();
+              } finally {
+                location.href = "/";
+              }
+            }}
           />
         </div>
       </nav>
