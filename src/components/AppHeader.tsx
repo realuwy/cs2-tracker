@@ -2,9 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";            
+import AccountMenu from "@/components/AccountMenu";  
+import AuthModal from "@/components/auth-modal";    
 
 export default function AppHeader() {
   const pathname = usePathname();
+  const [showAuth, setShowAuth] = useState(false);
   const active = (href: string) =>
     pathname === href ? "text-amber-400" : "text-zinc-300 hover:text-zinc-100";
 
@@ -27,16 +31,20 @@ export default function AppHeader() {
           </Link>
         </nav>
 
-        {/* Right side (Account placeholder) */}
-        <div className="flex items-center gap-2">
-          <Link
-            href="/dashboard"
-            className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200 hover:bg-zinc-800"
-          >
-            Account
-          </Link>
-        </div>
+        {/* Right side (Account dropdown) */}
+<div className="flex items-center gap-2">
+  <AccountMenu
+    user={null}                 // null = guest -> shows "G"
+    onOpenAuth={() => setShowAuth(true)}
+    onClearLocal={() => {
+      try { localStorage.removeItem("cs2:dashboard:rows"); } catch {}
+      location.reload();
+    }}
+  />
+</div>
+
       </div>
-    </header>
+   {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+ </header>
   );
 }
