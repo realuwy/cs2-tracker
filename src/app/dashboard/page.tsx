@@ -233,20 +233,23 @@ function EditRowDialog({
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="mb-1 block text-sm text-white/60">Wear</label>
-              <select
-                className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2"
-                value={wear}
-                onChange={(e) => setWear(e.target.value as WearCode)}
-                disabled={isNonWearCategory(name)}
-              >
-                {WEAR_OPTIONS.map((w) => (
-                  <option key={w.code} value={w.code}>
-                    {w.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+  <label className="mb-1 block text-sm text-zinc-400">Wear</label>
+  <div className="select-wrap">
+    <select
+      className="theme-select"
+      value={wear}
+      onChange={(e) => setWear(e.target.value as WearCode)}
+      disabled={isNonWearCategory(name)}
+    >
+      {WEAR_OPTIONS.map((w) => (
+        <option key={w.code} value={w.code}>
+          {w.label}
+        </option>
+      ))}
+    </select>
+  </div>
+</div>
+
             <div>
               <label className="mb-1 block text-sm text-white/60">Float</label>
               <input
@@ -837,24 +840,26 @@ export default function DashboardPage() {
               </datalist>
             </div>
             <div className="md:col-span-3">
-              <label className="mb-1 block text-[11px] leading-none text-white/60">
-                Wear {nonWearForCurrentInput && <span className="text-white/40">(not applicable)</span>}
-              </label>
-              <select
-                className={`h-12 w-full appearance-none rounded-xl border border-white/10 bg-black/40 px-3 text-sm ${
-                  nonWearForCurrentInput ? "opacity-50" : ""
-                }`}
-                value={mWear}
-                onChange={(e) => setMWear(e.target.value as WearCode)}
-                disabled={nonWearForCurrentInput}
-              >
-                {WEAR_OPTIONS.map((w) => (
-                  <option key={w.code} value={w.code}>
-                    {w.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+  <label className="mb-1 block text-[11px] leading-none text-zinc-400">
+    Wear {nonWearForCurrentInput && <span className="text-zinc-500">(not applicable)</span>}
+  </label>
+
+  <div className="select-wrap">
+    <select
+      className="theme-select"
+      value={mWear}
+      onChange={(e) => setMWear(e.target.value as WearCode)}
+      disabled={nonWearForCurrentInput}
+    >
+      {WEAR_OPTIONS.map((w) => (
+        <option key={w.code} value={w.code}>
+          {w.label}
+        </option>
+      ))}
+    </select>
+  </div>
+</div>
+
             <div className="md:col-span-2">
               <label className="mb-1 block text-[11px] leading-none text-white/60">
                 Float (note only)
