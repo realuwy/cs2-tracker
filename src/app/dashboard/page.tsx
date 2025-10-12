@@ -155,6 +155,149 @@ function Pill({ children }: { children: React.ReactNode }) {
   );
 }
 
+/* ----------------------------- Edit dialog ----------------------------- */
+
+function EditRowDialog({
+  open,
+  row,
+  onClose,
+  onSave,
+  spMap,
+}: {
+  open: boolean;
+  row: Row | null;
+  onClose: () => void;
+  onSave: (next: Row) => void;
+  spMap: Record<string, number>;
+}) {
+  const [name, setName] = useState(row?.nameNoWear ?? "");
+  const [wear, setWear] = useState<WearCode>((row?.wear as WearCode) ?? "");
+  const [flt, setFlt] = useState<string>(row?.float ?? "");
+  const [pat, setPat] = useState<string>(row?.pattern ?? "");
+  const [qty, setQty] = useState<number>(row?.quantity ?? 1);
+
+  useEffect(() => {
+    setName(row?.nameNoWear ?? "");
+    setWear(((row?.wear as WearCode) ?? "") as WearCode);
+    setFlt(row?.float ?? "");
+    setPat(row?.pattern ?? "");
+    setQty(row?.quantity ?? 1);
+  }, [row]);
+
+  if (!open || !row) return null;
+
+  const apply = () => {
+    const nameNoWear = stripNone(name.trim() || row.nameNoWear);
+    const nonWear = isNonWearCategory(nameNoWear);
+    const wearToUse: WearCode = nonWear ? "" : wear;
+
+    const mhn = stripNone(toMarketHash(nameNoWear, wearToUse));
+    const spAUD = spMap[mhn] ?? spMap[stripNone(mhn)];
+    const priceAUD = typeof spAUD === "number" ? spAUD : undefined;
+
+    const updated: Row = {
+      ...row,
+      market_hash_name: mhn,
+      name: mhn,
+      nameNoWear,
+      wear: wearToUse,
+      pattern: pat.trim() || undefined,
+      float: flt.trim() || undefined,
+      quantity: Math.max(1, qty),
+      skinportAUD: spAUD,
+      priceAUD,
+      totalAUD: priceAUD ? priceAUD * Math.max(1, qty) : undefined,
+    };
+    onSave(updated);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="relative w-full max-w-md rounded-xl bg-zinc-900 p-6 text-white shadow-lg">
+        <h2 className="mb-4 text-center text-2xl font-bold">Edit Item</h2>
+
+        <div className="space-y-4">
+          <div>
+            <label className="mb-1 block text-sm text-zinc-400">Item</label>
+            <input
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              list="item-suggestions"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="mb-1 block text-sm text-zinc-400">Wear</label>
+              <select
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2"
+                value={wear}
+                onChange={(e) => setWear(e.target.value as WearCode)}
+                disabled={isNonWearCategory(name)}
+              >
+                {WEAR_OPTIONS.map((w) => (
+                  <option key={w.code} value={w.code}>
+                    {w.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-zinc-400">Float</label>
+              <input
+                type="number"
+                step="0.00001"
+                min="0"
+                max="1"
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2"
+                value={flt}
+                onChange={(e) => setFlt(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-zinc-400">Pattern</label>
+              <input
+                type="number"
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2"
+                value={pat}
+                onChange={(e) => setPat(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm text-zinc-400">Quantity</label>
+            <input
+              type="number"
+              min={1}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2"
+              value={qty}
+              onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            className="rounded-lg bg-zinc-800 px-4 py-2 hover:bg-zinc-700"
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+          <button
+            className="rounded-lg bg-amber-600 px-4 py-2 text-black hover:bg-amber-500"
+            onClick={apply}
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ----------------------------- component ----------------------------- */
 
 export default function DashboardPage() {
@@ -177,6 +320,10 @@ export default function DashboardPage() {
 
   // manual refresh spinner
   const [refreshing, setRefreshing] = useState(false);
+
+  // edit dialog
+  const [editOpen, setEditOpen] = useState(false);
+  const [editRow, setEditRow] = useState<Row | null>(null);
 
   /* ---- restore rows ---- */
   useEffect(() => {
@@ -594,30 +741,22 @@ export default function DashboardPage() {
     }
   }
 
+  /* ----- AUTOCOMPLETE OPTIONS (from Skinport map + existing rows) ----- */
+  const autoNames = useMemo(() => {
+    const set = new Set<string>();
+    Object.keys(spMap).forEach((k) => set.add(k));
+    rows.forEach((r) => {
+      if (r.market_hash_name) set.add(r.market_hash_name);
+      if (r.nameNoWear) set.add(r.nameNoWear);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [spMap, rows]);
+
   return (
     <div className="mx-auto max-w-6xl p-6">
-      {/* Header */}
+      {/* Header (removed duplicate totals) */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <div className="flex items-center gap-2">
-          <div className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200">
-            Total items: {totals.totalItems}
-          </div>
-          <div
-            className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200"
-            title={`Skinport last updated: ${formatTime(skinportUpdatedAt)}`}
-          >
-            Skinport: A${totals.totalSkinport.toFixed(2)}{" "}
-            <span className="text-zinc-400">({formatTime(skinportUpdatedAt)})</span>
-          </div>
-          <div
-            className="rounded-full bg-zinc-800 px-3 py-1 text-sm text-zinc-200"
-            title={`Steam last updated: ${formatTime(steamUpdatedAt)}`}
-          >
-            Steam: A${totals.totalSteam.toFixed(2)}{" "}
-            <span className="text-zinc-400">({formatTime(steamUpdatedAt)})</span>
-          </div>
-        </div>
       </div>
 
       {/* Top row: Left Manual Add / Right Stats */}
@@ -639,7 +778,13 @@ export default function DashboardPage() {
                 placeholder="AK-47 | Redline"
                 value={mName}
                 onChange={(e) => setMName(e.target.value)}
+                list="item-suggestions"
               />
+              <datalist id="item-suggestions">
+                {autoNames.map((n) => (
+                  <option key={n} value={n} />
+                ))}
+              </datalist>
             </div>
             <div className="md:col-span-3">
               <label className="mb-1 block text-[11px] leading-none text-zinc-400">
@@ -814,131 +959,157 @@ export default function DashboardPage() {
             </tr>
           </thead>
 
-          <tbody>
-            {sorted.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-zinc-400">
-                  No items yet. Use <span className="underline">Search &amp; add item</span> or
-                  import from Steam.
-                </td>
-              </tr>
-            ) : (
-              sorted.map((r) => {
-                const orig = origIndexMap.get(r)!;
-                return (
-                  <tr key={r.market_hash_name + "|" + orig} className="border-t border-zinc-800">
-                    {/* ITEM (title w/ hover + meta pills) */}
-                    <td className="px-4 py-2">
-                      <div className="flex items-start gap-3">
-                        {r.image ? (
-                          <img
-                            src={r.image}
-                            alt={r.name}
-                            loading="lazy"
-                            decoding="async"
-                            onError={(e) => {
-                              const el = e.currentTarget as HTMLImageElement;
-                              if (el.src !== FALLBACK_DATA_URL) el.src = FALLBACK_DATA_URL;
-                            }}
-                            className="h-10 w-10 rounded object-contain bg-zinc-800"
-                          />
-                        ) : (
-                          <img
-                            src={FALLBACK_DATA_URL}
-                            alt=""
-                            className="h-10 w-10 rounded object-contain"
-                          />
-                        )}
-
-                        <div className="min-w-0">
-                          <div className="truncate font-medium" title={r.market_hash_name}>
-                            {r.nameNoWear}
-                          </div>
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {wearLabelForRow(r.wear as WearCode) && (
-                              <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>
-                            )}
-                            {r.pattern && <Pill>Pattern: {r.pattern}</Pill>}
-                            {r.float && <Pill>Float: {r.float}</Pill>}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* QTY (display only number) */}
-                    <td className="px-4 py-2 text-right tabular-nums">
-                      {r.quantity ?? 1}
-                    </td>
-
-                    {/* SKINPORT */}
-                    <td className="px-4 py-2">
-                      <div className="text-right leading-tight">
-                        <div>
-                          {typeof r.skinportAUD === "number"
-                            ? `A$${r.skinportAUD.toFixed(2)}`
-                            : "—"}
-                        </div>
-                        {typeof r.skinportAUD === "number" && (r.quantity ?? 1) > 1 && (
-                          <div className="mt-0.5 text-[11px] text-zinc-400">
-                            ×{r.quantity ?? 1} ={" "}
-                            <span className="tabular-nums">
-                              A${(r.skinportAUD * (r.quantity ?? 1)).toFixed(2)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* STEAM */}
-                    <td className="px-4 py-2">
-                      <div className="text-right leading-tight">
-                        <div>
-                          {typeof r.steamAUD === "number"
-                            ? `A$${r.steamAUD.toFixed(2)}`
-                            : "—"}
-                        </div>
-                        {typeof r.steamAUD === "number" && (r.quantity ?? 1) > 1 && (
-                          <div className="mt-0.5 text-[11px] text-zinc-400">
-                            ×{r.quantity ?? 1} ={" "}
-                            <span className="tabular-nums">
-                              A${(r.steamAUD * (r.quantity ?? 1)).toFixed(2)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* ACTIONS */}
-                    <td className="px-4 py-2 text-right">
-                      <div className="flex justify-end gap-2">
-                        {/* Edit button — opens your mini editor (hook up to your own modal if you like) */}
-                        <button
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800"
-                          title="Edit"
-                          onClick={() => {
-                            // TODO: open mini edit menu (qty, wear, float, pattern)
-                            // For now quick increment/decrement shortcuts could live here if wanted
+        <tbody>
+          {sorted.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="px-4 py-6 text-center text-zinc-400">
+                No items yet. Use <span className="underline">Search &amp; add item</span> or
+                import from Steam.
+              </td>
+            </tr>
+          ) : (
+            sorted.map((r) => {
+              const orig = origIndexMap.get(r)!;
+              return (
+                <tr key={r.market_hash_name + "|" + orig} className="border-t border-zinc-800">
+                  {/* ITEM (title w/ hover + meta pills) */}
+                  <td className="px-4 py-2">
+                    <div className="flex items-start gap-3">
+                      {r.image ? (
+                        <img
+                          src={r.image}
+                          alt={r.name}
+                          loading="lazy"
+                          decoding="async"
+                          onError={(e) => {
+                            const el = e.currentTarget as HTMLImageElement;
+                            if (el.src !== FALLBACK_DATA_URL) el.src = FALLBACK_DATA_URL;
                           }}
-                        >
-                          ✎
-                        </button>
-                        {/* Delete */}
-                        <button
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800"
-                          title="Delete"
-                          onClick={() => removeRow(orig)}
-                        >
-                          🗑
-                        </button>
+                          className="h-10 w-10 rounded object-contain bg-zinc-800"
+                        />
+                      ) : (
+                        <img
+                          src={FALLBACK_DATA_URL}
+                          alt=""
+                          className="h-10 w-10 rounded object-contain"
+                        />
+                      )}
+
+                      <div className="min-w-0">
+                        <div className="truncate font-medium" title={r.market_hash_name}>
+                          {r.nameNoWear}
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {wearLabelForRow(r.wear as WearCode) && (
+                            <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>
+                          )}
+                          {r.pattern && <Pill>Pattern: {r.pattern}</Pill>}
+                          {r.float && <Pill>Float: {r.float}</Pill>}
+                        </div>
                       </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
+                    </div>
+                  </td>
+
+                  {/* QTY */}
+                  <td className="px-4 py-2 text-right tabular-nums">
+                    {r.quantity ?? 1}
+                  </td>
+
+                  {/* SKINPORT */}
+                  <td className="px-4 py-2">
+                    <div className="text-right leading-tight">
+                      <div>
+                        {typeof r.skinportAUD === "number"
+                          ? `A$${r.skinportAUD.toFixed(2)}`
+                          : "—"}
+                      </div>
+                      {typeof r.skinportAUD === "number" && (r.quantity ?? 1) > 1 && (
+                        <div className="mt-0.5 text-[11px] text-zinc-400">
+                          ×{r.quantity ?? 1} ={" "}
+                          <span className="tabular-nums">
+                            A${(r.skinportAUD * (r.quantity ?? 1)).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* STEAM */}
+                  <td className="px-4 py-2">
+                    <div className="text-right leading-tight">
+                      <div>
+                        {typeof r.steamAUD === "number"
+                          ? `A$${r.steamAUD.toFixed(2)}`
+                          : "—"}
+                      </div>
+                      {typeof r.steamAUD === "number" && (r.quantity ?? 1) > 1 && (
+                        <div className="mt-0.5 text-[11px] text-zinc-400">
+                          ×{r.quantity ?? 1} ={" "}
+                          <span className="tabular-nums">
+                            A${(r.steamAUD * (r.quantity ?? 1)).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* ACTIONS */}
+                  <td className="px-4 py-2 text-right">
+                    <div className="flex justify-end gap-2">
+                      {/* Edit — same visual as Delete + opens dialog */}
+                      <button
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800/60 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                        title="Edit"
+                        onClick={() => {
+                          setEditRow(r);
+                          setEditOpen(true);
+                        }}
+                      >
+                        {/* pencil icon */}
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                        </svg>
+                      </button>
+
+                      {/* Delete */}
+                      <button
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800/60 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                        title="Delete"
+                        onClick={() => removeRow(orig)}
+                      >
+                        {/* trash icon */}
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M3 6h18" />
+                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                          <path d="M10 11v6M14 11v6" />
+                          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
         </table>
       </div>
+
+      {/* Edit dialog */}
+      <EditRowDialog
+        open={editOpen}
+        row={editRow}
+        onClose={() => setEditOpen(false)}
+        onSave={(next) => {
+          setRows((prev) =>
+            prev.map((r) =>
+              r === editRow ? next : r
+            )
+          );
+        }}
+        spMap={spMap}
+      />
 
       {/* Back to top */}
       <button
