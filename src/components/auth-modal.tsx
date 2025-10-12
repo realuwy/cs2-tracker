@@ -1,80 +1,49 @@
 "use client";
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
-type User = { username: string; email: string; password: string };
+import { supabase } from "@/lib/supabase";
 
 export default function AuthModal({ onClose }: { onClose: () => void }) {
   const [isLogin, setIsLogin] = useState(true);
-  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const router = useRouter();
 
-  function getUsers(): User[] {
-    try {
-      return JSON.parse(localStorage.getItem("users") || "[]");
-    } catch {
-      return [];
-    }
-  }
-  function setUsers(users: User[]) {
-    localStorage.setItem("users", JSON.stringify(users));
-  }
-  function setAuthed(userEmail: string) {
-    localStorage.setItem("auth_mode", "user");
-    localStorage.setItem("current_user", userEmail);
-  }
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setErr(null);
+    setLoading(true);
 
-  function handleGuest() {
-    // guest mode = session-only storage
-    sessionStorage.setItem("auth_mode", "guest");
-    // optional: start clean each session
-    sessionStorage.removeItem("portfolio_items");
-    onClose();
+    if (isLogin) {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) setErr(error.message);
+      else onClose();
+    } else {
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) setErr(error.message);
+      else onClose();
+    }
+
+    setLoading(false);
     router.push("/dashboard");
   }
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setErr(null);
-
-    if (isLogin) {
-      const users = getUsers();
-      const found = users.find((u) => u.email === email && u.password === password);
-      if (!found) return setErr("Invalid credentials");
-      setAuthed(found.email);
-      onClose();
-      router.push("/dashboard");
-    } else {
-      if (!username || !email || !password) return setErr("All fields are required");
-      const users = getUsers();
-      if (users.some((u) => u.email === email)) return setErr("Email already registered");
-      users.push({ username, email, password });
-      setUsers(users);
-      setAuthed(email);
-      onClose();
-      router.push("/dashboard");
-    }
+  async function handleGuest() {
+    sessionStorage.setItem("auth_mode", "guest");
+    onClose();
+    router.push("/dashboard");
   }
 
   return (
     <div className="fixed inset-0 z-50 flex min-h-screen items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="relative w-full max-w-md rounded-xl bg-zinc-900 p-6 text-white shadow-lg">
-        <h2 className="mb-4 text-center text-2xl font-bold">{isLogin ? "Log In" : "Sign Up"}</h2>
+        <h2 className="mb-4 text-center text-2xl font-bold">
+          {isLogin ? "Log In" : "Sign Up"}
+        </h2>
 
         <form onSubmit={handleSubmit} className="space-y-3">
-          {!isLogin && (
-            <input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              type="text"
-              placeholder="Username"
-              className="w-full rounded-md bg-zinc-800 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-500"
-            />
-          )}
           <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -92,9 +61,10 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
           {err && <p className="text-xs text-red-400">{err}</p>}
           <button
             type="submit"
-            className="w-full rounded-md bg-amber-500 py-2 text-sm font-semibold text-black transition hover:bg-amber-400"
+            disabled={loading}
+            className="w-full rounded-md bg-amber-500 py-2 text-sm font-semibold text-black transition hover:bg-amber-400 disabled:opacity-50"
           >
-            {isLogin ? "Log In" : "Sign Up"}
+            {loading ? "Please wait..." : isLogin ? "Log In" : "Sign Up"}
           </button>
         </form>
 
