@@ -30,11 +30,13 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
     router.push("/dashboard");
   }
 
-  async function handleGuest() {
-    sessionStorage.setItem("auth_mode", "guest");
-    onClose();
-    router.push("/dashboard");
-  }
+  function handleGuest() {
+  sessionStorage.setItem("auth_mode", "guest");
+  window.dispatchEvent(new CustomEvent("auth-mode-change"));
+  onClose();
+  router.push("/dashboard");
+}
+
 
   return (
     <div className="fixed inset-0 z-50 flex min-h-screen items-center justify-center bg-black/70 backdrop-blur-sm">
