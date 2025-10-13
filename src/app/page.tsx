@@ -46,7 +46,7 @@ export default function HomePage() {
       {/* Features */}
       <section className="mx-auto grid max-w-5xl grid-cols-1 gap-4 px-6 pb-20 sm:grid-cols-3">
         <div className="rounded-xl border border-border bg-surface p-5 shadow-card">
-          <div className="mb-2 font-medium text-accent">⏱ Real-time pricing</div>
+          <div className="mb-2 font-medium text-accent"> Real-time pricing</div>
           <p className="text-sm text-muted">
             Live prices (Steam/Skinport) with sensible caching. If no current price exists, last
             sold is used until updated.
@@ -54,7 +54,7 @@ export default function HomePage() {
         </div>
 
         <div className="rounded-xl border border-border bg-surface p-5 shadow-card">
-          <div className="mb-2 font-medium text-accent">📊 Portfolio analytics</div>
+          <div className="mb-2 font-medium text-accent"> Portfolio analytics</div>
           <p className="text-sm text-muted">
             Total value, P/L, and % change over 1h / 24h / 30d. Filter by exterior, rarity, and
             more.
@@ -62,7 +62,7 @@ export default function HomePage() {
         </div>
 
         <div className="rounded-xl border border-border bg-surface p-5 shadow-card">
-          <div className="mb-2 font-medium text-accent">🧰 Manual storage items</div>
+          <div className="mb-2 font-medium text-accent"> Manual storage items</div>
           <p className="text-sm text-muted">
             Add items not in your visible inventory (storage units). Save them to your account or
             browser.
