@@ -6,30 +6,42 @@ export default function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="mt-12 border-t border-slate-800/80">
-      <div className="mx-auto max-w-6xl px-4 py-6 md:grid md:grid-cols-3 md:items-center">
-        {/* Left: brand (centered on mobile, left on desktop) */}
-        <div className="flex items-center justify-center gap-2 md:justify-start text-slate-300">
+    // Header-like bar: same dark bg + subtle top border
+    <footer className="border-t border-slate-800 bg-[#0b0b0b]/90">
+      {/* Desktop layout */}
+      <div className="relative mx-auto flex max-w-6xl items-center justify-between px-4 py-6 text-sm text-slate-300">
+        {/* Left: brand */}
+        <div className="flex items-center gap-2">
           <span className="inline-block h-2 w-2 rounded-full bg-violet-400" />
           <span className="font-medium">CS2 Tracker</span>
-          <span className="ml-2 rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-400">
+          <span className="ml-2 rounded-full bg-slate-800/70 px-2 py-0.5 text-[10px] leading-none text-slate-300">
             alpha
           </span>
         </div>
 
-        {/* Middle: links (centered on desktop as requested) */}
-        <nav className="mt-3 md:mt-0 flex justify-center gap-6 text-slate-400">
-          <Link href="/about" className="hover:text-slate-200">
+        {/* Centered links on desktop */}
+        <nav className="absolute inset-x-0 mx-auto hidden w-fit items-center gap-6 md:flex">
+          <Link href="/about" className="hover:text-white">
             About
           </Link>
-          <Link href="/privacy" className="hover:text-slate-200">
+          <Link href="/privacy" className="hover:text-white">
             Privacy
           </Link>
         </nav>
 
-        {/* Right: copyright (center on mobile, right on desktop) */}
-        <div className="mt-3 md:mt-0 flex justify-center md:justify-end text-slate-500">
-          © {year} CS2 Tracker
+        {/* Right: copyright */}
+        <div className="ml-auto text-right text-slate-400">© {year} CS2 Tracker</div>
+      </div>
+
+      {/* Mobile layout (unchanged, centered below the row) */}
+      <div className="md:hidden px-4 pb-6">
+        <div className="mt-2 flex justify-center gap-6 text-slate-300">
+          <Link href="/about" className="hover:text-white">
+            About
+          </Link>
+          <Link href="/privacy" className="hover:text-white">
+            Privacy
+          </Link>
         </div>
       </div>
     </footer>
