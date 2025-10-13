@@ -3,229 +3,188 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-type View = "login" | "signup" | "forgot";
+type Mode = "login" | "signup" | "reset";
 
 export default function AuthModal({ onClose }: { onClose: () => void }) {
-  const [view, setView] = useState<View>("login");
+  const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [pass, setPass] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  const clearNotices = () => {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
     setMsg(null);
     setErr(null);
-  };
-
-  async function handleLogin() {
-    clearNotices();
-    if (!email || !password) return setErr("Please enter your email and password.");
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      setMsg("Logged in. Redirecting…");
-      // Close and refresh to pull user + rows
-      setTimeout(() => {
-        onClose();
-        location.reload();
-      }, 400);
+      if (mode === "login") {
+        const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+        if (error) throw error;
+        setMsg("Logged in!");
+        onClose(); // close on success
+      } else if (mode === "signup") {
+        const { error } = await supabase.auth.signUp({ email, password: pass });
+        if (error) throw error;
+        setMsg("Check your email to confirm your account.");
+      } else {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset`,
+        });
+        if (error) throw error;
+        setMsg("Password reset link sent. Check your inbox.");
+      }
     } catch (e: any) {
-      setErr(e?.message || "Invalid login credentials.");
+      setErr(e?.message || "Something went wrong.");
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleSignup() {
-    clearNotices();
-    if (!email || !password) return setErr("Please enter your email and a password (min 6 chars).");
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          // Make sure this matches your deployed URL in Supabase settings
-          emailRedirectTo: typeof window !== "undefined" ? window.location.origin : undefined,
-        },
-      });
-      if (error) throw error;
-      setMsg("Check your email to confirm your account.");
-    } catch (e: any) {
-      setErr(e?.message || "Sign up failed.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleForgot() {
-    clearNotices();
-    if (!email) return setErr("Enter your account email first.");
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: typeof window !== "undefined" ? window.location.origin : undefined,
-      });
-      if (error) throw error;
-      setMsg("Password reset email sent. Please check your inbox.");
-    } catch (e: any) {
-      setErr(e?.message || "Could not send reset email.");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const Title = mode === "login" ? "Log In" : mode === "signup" ? "Create account" : "Reset password";
+  const Primary = mode === "login" ? "Log In" : mode === "signup" ? "Sign Up" : "Send reset link";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 p-5 text-white shadow-xl">
-        {/* Close */}
-        <button
-          onClick={onClose}
-          className="absolute right-3 top-3 rounded-md p-1 text-white/60 hover:bg-white/10 hover:text-white"
-          aria-label="Close"
-        >
-          ✕
-        </button>
-
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-2xl border border-slate-800/80 bg-slate-950/95 shadow-[0_0_0_1px_rgba(0,0,0,0.6),0_20px_70px_-30px_rgba(0,0,0,0.7)]">
         {/* Header */}
-        <div className="mb-4 text-center">
-          <h2 className="text-2xl font-semibold">
-            {view === "login" && "Log In"}
-            {view === "signup" && "Sign Up"}
-            {view === "forgot" && "Reset Password"}
-          </h2>
-          {view !== "forgot" && (
-            <p className="mt-1 text-sm text-white/60">
-              {view === "login" ? "Welcome back." : "Create your account."}
-            </p>
-          )}
+        <div className="flex items-center justify-between px-5 py-4">
+          <h2 className="text-lg font-semibold text-slate-100">{Title}</h2>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-900 hover:text-slate-100 transition"
+            aria-label="Close"
+          >
+            ✕
+          </button>
         </div>
 
-        {/* Notices */}
-        {err && <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 p-2 text-sm text-red-300">{err}</div>}
-        {msg && <div className="mb-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-sm text-emerald-300">{msg}</div>}
+        <div className="px-5 pb-5">
+          {/* Subtitle */}
+          <p className="mb-4 text-sm text-slate-400">
+            {mode === "login" && "Welcome back."}
+            {mode === "signup" && "Let’s get you set up."}
+            {mode === "reset" && "We’ll email you a reset link."}
+          </p>
 
-        {/* Form */}
-        <div className="space-y-3">
-          <div>
-            <label className="mb-1 block text-xs text-white/60">Email</label>
-            <input
-              type="email"
-              className="w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-white/20"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-            />
-          </div>
+          {/* Alerts */}
+          {err && (
+            <div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {err}
+            </div>
+          )}
+          {msg && (
+            <div className="mb-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+              {msg}
+            </div>
+          )}
 
-          {view !== "forgot" && (
+          <form onSubmit={handleSubmit} className="space-y-3">
+            {/* Email */}
             <div>
-              <label className="mb-1 block text-xs text-white/60">Password</label>
+              <label className="mb-1 block text-xs font-medium text-slate-400">Email</label>
               <input
-                type="password"
-                className="w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-white/20"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={view === "login" ? "current-password" : "new-password"}
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500
+                           shadow-inner shadow-black/40 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/25"
+                placeholder="you@email.com"
               />
             </div>
-          )}
 
-          {/* Forgot link */}
-          {view === "login" && (
-            <div className="text-right">
-              <button
-                className="text-xs text-amber-400 hover:underline"
-                onClick={() => {
-                  clearNotices();
-                  setView("forgot");
-                }}
-              >
-                Forgot password?
-              </button>
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="pt-2">
-            {view === "login" && (
-              <button
-                className="w-full rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-medium text-black hover:bg-amber-400 disabled:opacity-60"
-                onClick={handleLogin}
-                disabled={loading}
-              >
-                {loading ? "Logging in…" : "Log In"}
-              </button>
+            {/* Password (hide for reset mode) */}
+            {mode !== "reset" && (
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-400">Password</label>
+                <input
+                  type="password"
+                  required={mode !== "reset"}
+                  value={pass}
+                  onChange={(e) => setPass(e.target.value)}
+                  className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500
+                             shadow-inner shadow-black/40 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/25"
+                  placeholder="••••••••"
+                />
+              </div>
             )}
 
-            {view === "signup" && (
-              <button
-                className="w-full rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-medium text-black hover:bg-amber-400 disabled:opacity-60"
-                onClick={handleSignup}
-                disabled={loading}
-              >
-                {loading ? "Creating account…" : "Sign Up"}
-              </button>
+            {/* Forgot link */}
+            {mode === "login" && (
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErr(null);
+                    setMsg(null);
+                    setMode("reset");
+                  }}
+                  className="text-xs font-medium text-indigo-300 hover:text-indigo-200"
+                >
+                  Forgot password?
+                </button>
+              </div>
             )}
 
-            {view === "forgot" && (
-              <button
-                className="w-full rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-medium text-black hover:bg-amber-400 disabled:opacity-60"
-                onClick={handleForgot}
-                disabled={loading}
-              >
-                {loading ? "Sending email…" : "Send reset link"}
-              </button>
+            {/* Primary action */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="mt-1 w-full rounded-xl bg-indigo-500 px-4 py-2.5 font-semibold text-white shadow-[0_8px_30px_-12px_rgba(99,102,241,.5)]
+                         transition hover:bg-indigo-400 disabled:opacity-60"
+            >
+              {loading ? "Please wait…" : Primary}
+            </button>
+          </form>
+
+          {/* Switch mode */}
+          <div className="mt-4 text-center text-sm text-slate-400">
+            {mode === "login" ? (
+              <>
+                Don’t have an account?{" "}
+                <button
+                  className="font-medium text-indigo-300 hover:text-indigo-200"
+                  onClick={() => {
+                    setErr(null);
+                    setMsg(null);
+                    setMode("signup");
+                  }}
+                >
+                  Sign Up
+                </button>
+              </>
+            ) : mode === "signup" ? (
+              <>
+                Already have an account?{" "}
+                <button
+                  className="font-medium text-indigo-300 hover:text-indigo-200"
+                  onClick={() => {
+                    setErr(null);
+                    setMsg(null);
+                    setMode("login");
+                  }}
+                >
+                  Log In
+                </button>
+              </>
+            ) : (
+              <>
+                Remembered it?{" "}
+                <button
+                  className="font-medium text-indigo-300 hover:text-indigo-200"
+                  onClick={() => {
+                    setErr(null);
+                    setMsg(null);
+                    setMode("login");
+                  }}
+                >
+                  Back to Log In
+                </button>
+              </>
             )}
           </div>
-        </div>
-
-        {/* Footer links */}
-        <div className="mt-4 text-center text-xs text-white/70">
-          {view === "login" && (
-            <>
-              Don&apos;t have an account?{" "}
-              <button
-                className="font-medium text-amber-400 hover:underline"
-                onClick={() => {
-                  clearNotices();
-                  setView("signup");
-                }}
-              >
-                Sign Up
-              </button>
-            </>
-          )}
-          {view === "signup" && (
-            <>
-              Already have an account?{" "}
-              <button
-                className="font-medium text-amber-400 hover:underline"
-                onClick={() => {
-                  clearNotices();
-                  setView("login");
-                }}
-              >
-                Log In
-              </button>
-            </>
-          )}
-          {view === "forgot" && (
-            <>
-              Remembered your password?{" "}
-              <button
-                className="font-medium text-amber-400 hover:underline"
-                onClick={() => {
-                  clearNotices();
-                  setView("login");
-                }}
-              >
-                Back to Log In
-              </button>
-            </>
-          )}
         </div>
       </div>
     </div>
