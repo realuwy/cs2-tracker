@@ -1,86 +1,90 @@
 import Link from "next/link";
 
-export const metadata = {
-  title: "Privacy · CS2 Tracker",
-  description: "How CS2 Tracker handles your data.",
-};
-
 export default function PrivacyPage() {
   return (
-    <div className="mx-auto max-w-3xl p-6">
-      {/* Top link (only to About) */}
-      <div className="mb-6 flex items-center justify-start">
+    <main className="mx-auto max-w-4xl px-6 py-10 text-slate-200">
+      {/* Top nav back */}
+      <div className="mb-6">
         <Link
           href="/about"
-          className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200 hover:bg-zinc-800"
+          className="inline-flex items-center rounded-full border border-slate-800 bg-slate-900/40 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-900/60"
         >
           ← About
         </Link>
       </div>
 
-      <h1 className="mb-3 text-2xl font-semibold">Privacy</h1>
-      <p className="mb-6 text-zinc-400">
-        CS2 Tracker is designed to be local-first. Most data stays in your browser.
+      <h1 className="text-3xl font-bold tracking-tight">Privacy</h1>
+      <p className="mt-3 text-slate-400">
+        CS2 Tracker is designed to be local-first. Your data stays with you unless you
+        explicitly sign in to sync it to your account.
       </p>
 
-      <div className="space-y-8">
-        <section>
-          <h2 className="mb-2 text-xl font-medium">What we store</h2>
-          <ul className="list-inside list-disc text-zinc-300">
-            <li>Your rows (items you add/import) are saved in <code>localStorage</code> under <code>cs2:dashboard:rows</code>.</li>
-            <li>Transient price/image data from third parties may be cached by your browser for performance.</li>
+      <div className="mt-8 space-y-8">
+        {/* What we store */}
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+          <h2 className="text-xl font-semibold">What we store</h2>
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-slate-300">
+            <li>
+              <span className="font-medium">Guest mode:</span> your rows are saved in{" "}
+              <code className="rounded bg-slate-800/80 px-1.5 py-0.5">localStorage</code> under{" "}
+              <code className="rounded bg-slate-800/80 px-1.5 py-0.5">cs2:dashboard:rows</code>.
+            </li>
+            <li>
+              <span className="font-medium">Signed-in mode:</span> your rows are synced to your
+              account so they’re available across devices. Only your account can access them.
+            </li>
+            <li>
+              Transient price / image data from third-party services may be cached by your
+              browser for performance.
+            </li>
           </ul>
         </section>
 
-        <section>
-          <h2 className="mb-2 text-xl font-medium">What we don’t store</h2>
-          <ul className="list-inside list-disc text-zinc-300">
-            <li>No account data, passwords, or personal info.</li>
-            <li>No server-side copies of your local rows.</li>
+        {/* What we don't store */}
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+          <h2 className="text-xl font-semibold">What we don’t store</h2>
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-slate-300">
+            <li>No advertising profiles.</li>
+            <li>No sale of personal data.</li>
+            <li>No server-side copy of guest rows.</li>
           </ul>
         </section>
 
-        <section>
-          <h2 className="mb-2 text-xl font-medium">Third-party services</h2>
-          <p className="text-zinc-300">
-            Prices and images may come from services like Skinport and Steam. When you view that data,
-            their terms and privacy policies apply.
+        {/* Third-party services */}
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+          <h2 className="text-xl font-semibold">Third-party services</h2>
+          <p className="mt-3 text-slate-300">
+            Prices and images may come from services like Skinport and Steam. When you view that
+            data, their terms and privacy policies apply.
           </p>
         </section>
 
-        <section>
-          <h2 className="mb-2 text-xl font-medium">Your controls</h2>
-          <ul className="list-inside list-disc text-zinc-300">
-            <li>Clear your browser data to remove all locally stored rows.</li>
+        {/* Your controls */}
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+          <h2 className="text-xl font-semibold">Your controls</h2>
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-slate-300">
+            <li>
+              <span className="font-medium">Clear browser storage</span> to remove locally
+              stored guest rows.
+            </li>
+            <li>
+              <span className="font-medium">Sign in</span> to save rows to your account so they
+              persist across devices.
+            </li>
             <li>You can re-import items at any time.</li>
           </ul>
         </section>
 
-        <section>
-          <h2 className="mb-2 text-xl font-medium">Contact</h2>
-          <p className="text-zinc-300">
-            Questions? Open an issue on{" "}
-            <a
-              href="https://github.com/realuwy/cs2-tracker"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-amber-400 hover:underline"
-            >
-              GitHub
-            </a>.
-          </p>
-        </section>
+        {/* Bottom nav back */}
+        <div className="flex items-center justify-start">
+          <Link
+            href="/about"
+            className="inline-flex items-center rounded-full border border-slate-800 bg-slate-900/40 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-900/60"
+          >
+            ← About
+          </Link>
+        </div>
       </div>
-
-      {/* Bottom link (only to About) */}
-      <div className="mt-10 flex items-center justify-start">
-        <Link
-          href="/about"
-          className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200 hover:bg-zinc-800"
-        >
-          ← About
-        </Link>
-      </div>
-    </div>
+    </main>
   );
 }
