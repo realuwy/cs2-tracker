@@ -1,6 +1,4 @@
-"use client";// Manual refresh (Skinport + Steam)
-
-
+"use client"; // Manual refresh (Skinport + Steam)
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { fetchInventory, InvItem } from "@/lib/api";
@@ -219,7 +217,7 @@ function EditRowDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="relative w-full max-w-md rounded-xl bg-slate-900 p-6 text-white shadow-lg">
+      <div className="relative w-full max-w-md rounded-xl border border-slate-800/60 bg-[#0b0b0f] p-6 text-white shadow-lg">
         <h2 className="mb-4 text-center text-2xl font-bold">Edit Item</h2>
 
         <div className="space-y-4">
@@ -288,7 +286,7 @@ function EditRowDialog({
           <button className="rounded-lg bg-slate-800 px-4 py-2 hover:bg-slate-700" onClick={onClose}>
             Cancel
           </button>
-          <button className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-500" onClick={apply}>
+          <button className="rounded-lg bg-violet-600 px-4 py-2 text-white hover:bg-violet-500" onClick={apply}>
             Save
           </button>
         </div>
@@ -301,7 +299,7 @@ function EditRowDialog({
 
 function RowCard({ r }: { r: Row }) {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
+    <div className="rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/60 p-3">
       <div className="flex items-start gap-3">
         {r.image ? (
           <img
@@ -609,7 +607,6 @@ export default function DashboardPage() {
   useEffect(() => {
     const def = process.env.NEXT_PUBLIC_DEFAULT_STEAM_ID64;
     if (def) void load(def);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* ---- back to top visibility ---- */
@@ -770,7 +767,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     backfillSomeSteamPrices(12);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** Auto-refresh every 15 minutes (4/hour) */
@@ -859,49 +855,48 @@ export default function DashboardPage() {
       if (r.nameNoWear) set.add(r.nameNoWear);
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b));
-}, [spMap, rows]);
+  }, [spMap, rows]);
 
-// Manual refresh (Skinport + Steam)
-async function handleManualRefresh() {
-  try {
-    setRefreshing(true);
-    await refreshSkinport();
-    await backfillSomeSteamPrices(12);
-  } finally {
-    setRefreshing(false);
+  // Manual refresh (Skinport + Steam)
+  async function handleManualRefresh() {
+    try {
+      setRefreshing(true);
+      await refreshSkinport();
+      await backfillSomeSteamPrices(12);
+    } finally {
+      setRefreshing(false);
+    }
   }
-}
-// Small helper to show times like "14:32"
-function formatTime(ts: number | null) {
-  return ts
-    ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-    : "—";
-}
-// Sort button chip used in the toolbar
-function SortChip({ k, label }: { k: SortKey; label: string }) {
-  const active = sort.key === k;
-  const arrow = active ? (sort.dir === "asc" ? "▲" : "▼") : "";
+  // Small helper to show times like "14:32"
+  function formatTime(ts: number | null) {
+    return ts
+      ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      : "—";
+  }
+  // Sort button chip used in the toolbar
+  function SortChip({ k, label }: { k: SortKey; label: string }) {
+    const active = sort.key === k;
+    const arrow = active ? (sort.dir === "asc" ? "▲" : "▼") : "";
+    return (
+      <button
+        onClick={() => dispatchSort({ type: "toggle", key: k })}
+        className={`rounded-full border px-2.5 py-1 text-xs transition ${
+          active
+            ? "border-violet-500 text-violet-400 bg-violet-500/10"
+            : "border-slate-700 text-slate-300 hover:bg-slate-800/60"
+        }`}
+      >
+        {label} {arrow}
+      </button>
+    );
+  }
+
   return (
-    <button
-      onClick={() => dispatchSort({ type: "toggle", key: k })}
-      className={`rounded-full border px-2.5 py-1 text-xs transition ${
-        active
-          ? "border-cyan-500 text-cyan-400 bg-cyan-500/10"
-          : "border-slate-700 text-slate-300 hover:bg-slate-800/60"
-      }`}
-    >
-      {label} {arrow}
-    </button>
-  );
-}
-
-
-return (
     <div className="mx-auto max-w-6xl p-6">
       {/* Top row: Left Manual Add / Right Stats */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* Manual add (panel) */}
-        <div className="flex h-full flex-col rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+        <div className="flex h-full flex-col rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/60 p-4">
           <div className="text-lg font-medium">Search &amp; add item</div>
           <p className="mb-3 mt-1 text-sm text-slate-400">
             Start typing the base name (without wear). Choose wear, optional float/pattern, set
@@ -992,7 +987,7 @@ return (
 
                 <button
                   onClick={addManual}
-                  className="h-12 grow rounded-xl bg-indigo-600 px-4 text-white hover:bg-indigo-500 disabled:opacity-60"
+                  className="h-12 grow rounded-xl bg-violet-600 px-4 text-white hover:bg-violet-500 disabled:opacity-60"
                   disabled={!mName.trim()}
                 >
                   Add
@@ -1007,7 +1002,7 @@ return (
         </div>
 
         {/* Stats panel */}
-        <div className="relative rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+        <div className="relative rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/60 p-4">
           <button
             type="button"
             title="Refresh prices now (Skinport & Steam)"
@@ -1068,9 +1063,9 @@ return (
       </div>
 
       {/* DESKTOP/TABLET TABLE */}
-      <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-800 touch-pan-x">
+      <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-800/60 touch-pan-x">
         <table className="min-w-[920px] w-full text-sm">
-          <thead className="bg-slate-900/60 text-slate-300">
+          <thead className="bg-[#0b0b0f]/60 text-slate-300">
             <tr>
               <th className="px-4 py-2 text-left">Item</th>
               <th className="px-4 py-2 text-right">Qty</th>
@@ -1091,7 +1086,7 @@ return (
               sorted.map((r) => {
                 const orig = origIndexMap.get(r)!;
                 return (
-                  <tr key={r.market_hash_name + "|" + orig} className="border-t border-slate-800">
+                  <tr key={r.market_hash_name + "|" + orig} className="border-t border-slate-800/60">
                     {/* ITEM */}
                     <td className="px-4 py-2">
                       <div className="flex items-start gap-3">
@@ -1192,7 +1187,7 @@ return (
       {/* MOBILE CARD LIST */}
       <div className="space-y-3 md:hidden">
         {sorted.length === 0 ? (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 text-center text-slate-400">
+          <div className="rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/40 p-4 text-center text-slate-400">
             No items yet. Use <span className="underline">Search &amp; add item</span> or import from Steam.
           </div>
         ) : (
@@ -1228,6 +1223,6 @@ return (
         </svg>
         <span className="text-sm">Top</span>
       </button>
-  </div>
-);
+    </div>
+  );
 }
