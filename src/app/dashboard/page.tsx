@@ -871,6 +871,12 @@ async function handleManualRefresh() {
     setRefreshing(false);
   }
 }
+// Small helper to show times like "14:32"
+function formatTime(ts: number | null) {
+  return ts
+    ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : "—";
+}
 
 
 return (
