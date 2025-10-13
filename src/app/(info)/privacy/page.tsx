@@ -83,7 +83,6 @@ export default function PrivacyPage() {
           >
             About
           </Link>
-          </Link>
         </div>
       </div>
     </main>
