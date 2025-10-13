@@ -1,4 +1,14 @@
-"use client";
+"use client";// Manual refresh (Skinport + Steam)
+async function handleManualRefresh() {
+  try {
+    setRefreshing(true);
+    await refreshSkinport();
+    await backfillSomeSteamPrices(12);
+  } finally {
+    setRefreshing(false);
+  }
+}
+
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { fetchInventory, InvItem } from "@/lib/api";
@@ -372,7 +382,17 @@ function RowCard({ r }: { r: Row }) {
 
 /* ----------------------------- component ----------------------------- */
 
-export default function DashboardPage() {
+export default function DashboardPage(// Manual refresh (Skinport + Steam)
+async function handleManualRefresh() {
+  try {
+    setRefreshing(true);
+    await refreshSkinport();
+    await backfillSomeSteamPrices(12);
+  } finally {
+    setRefreshing(false);
+  }
+}
+) {
   const [rows, setRows] = useState<Row[]>([]);
   const [spMap, setSpMap] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
