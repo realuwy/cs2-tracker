@@ -877,6 +877,23 @@ function formatTime(ts: number | null) {
     ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     : "—";
 }
+// Sort button chip used in the toolbar
+function SortChip({ k, label }: { k: SortKey; label: string }) {
+  const active = sort.key === k;
+  const arrow = active ? (sort.dir === "asc" ? "▲" : "▼") : "";
+  return (
+    <button
+      onClick={() => dispatchSort({ type: "toggle", key: k })}
+      className={`rounded-full border px-2.5 py-1 text-xs transition ${
+        active
+          ? "border-cyan-500 text-cyan-400 bg-cyan-500/10"
+          : "border-slate-700 text-slate-300 hover:bg-slate-800/60"
+      }`}
+    >
+      {label} {arrow}
+    </button>
+  );
+}
 
 
 return (
