@@ -157,6 +157,85 @@ function Pill({ children }: { children: React.ReactNode }) {
     </span>
   );
 }
+function RowCard({ r }: { r: Row }) {
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
+      <div className="flex items-start gap-3">
+        {r.image ? (
+          <img
+            src={r.image}
+            alt={r.name}
+            className="h-12 w-12 rounded object-contain bg-slate-800"
+            loading="lazy"
+            decoding="async"
+          />
+        ) : (
+          <div className="h-12 w-12 rounded bg-slate-800" />
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-medium text-slate-100" title={r.market_hash_name}>
+            {r.nameNoWear}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {wearLabelForRow(r.wear as WearCode) && <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>}
+            {r.pattern && <Pill>Pattern: {r.pattern}</Pill>}
+            {r.float && <Pill>Float: {r.float}</Pill>}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-slate-300">
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-2">
+          <div className="text-xs text-slate-400">Qty</div>
+          <div className="font-semibold">{r.quantity ?? 1}</div>
+        </div>
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-2 text-right">
+          <div className="text-xs text-slate-400">Skinport</div>
+          <div className="font-semibold">
+            {typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}
+          </div>
+        </div>
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-2">
+          <div className="text-xs text-slate-400">Steam</div>
+          <div className="font-semibold">
+            {typeof r.steamAUD === "number" ? `A$${r.steamAUD.toFixed(2)}` : "—"}
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          {/* You already have edit/delete handlers; we keep the same look */}
+          <button
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 hover:text-white"
+            title="Edit"
+            onClick={() => {
+              // these are defined in page component scope; we’ll call via dispatchers we expose on window
+              (window as any).__dash_openEdit?.(r);
+            }}
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+            </svg>
+          </button>
+          <button
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 hover:text-white"
+            title="Delete"
+            onClick={() => {
+              (window as any).__dash_deleteRow?.(r);
+            }}
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 6h18" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6M14 11v6" />
+              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 /* ----------------------------- Edit dialog ----------------------------- */
 
@@ -330,6 +409,21 @@ export default function DashboardPage() {
   // edit dialog
   const [editOpen, setEditOpen] = useState(false);
   const [editRow, setEditRow] = useState<Row | null>(null);
+// expose handlers for RowCard buttons (mobile)
+useEffect(() => {
+  (window as any).__dash_openEdit = (row: Row) => {
+    setEditRow(row);
+    setEditOpen(true);
+  };
+  (window as any).__dash_deleteRow = (row: Row) => {
+    const orig = origIndexMap.get(row);
+    if (orig != null) removeRow(orig);
+  };
+  return () => {
+    delete (window as any).__dash_openEdit;
+    delete (window as any).__dash_deleteRow;
+  };
+}, [origIndexMap]);
 
   // --- auth state (for per-user sync) ---
   const [authed, setAuthed] = useState<string | null>(null);
@@ -1001,72 +1095,138 @@ export default function DashboardPage() {
         <SortChip k="steam" label="Steam" />
       </div>
 
-      {/* TABLE (panel + muted head + hover rows) */}
-      <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.02] shadow-[0_0_0_1px_rgba(255,255,255,0.03)] touch-pan-x">
-        <table className="min-w-[920px] md:min-w-full w-full text-sm">
-          <thead className="bg-white/[0.04] text-white/70">
-            <tr>
-              <th className="px-4 py-2 text-left">Item</th>
-              <th className="px-4 py-2 text-right">Qty</th>
-              <th className="px-4 py-2 text-right">Skinport (AUD)</th>
-              <th className="px-4 py-2 text-right">Steam (AUD)</th>
-              <th className="px-4 py-2 text-right">Actions</th>
-            </tr>
-          </thead>
+      {/* DESKTOP/TABLET TABLE */}
+<div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-800 touch-pan-x">
+  <table className="min-w-[920px] w-full text-sm">
+    <thead className="bg-slate-900/60 text-slate-300">
+      <tr>
+        <th className="px-4 py-2 text-left">Item</th>
+        <th className="px-4 py-2 text-right">Qty</th>
+        <th className="px-4 py-2 text-right">Skinport (AUD)</th>
+        <th className="px-4 py-2 text-right">Steam (AUD)</th>
+        <th className="px-4 py-2 text-right">Actions</th>
+      </tr>
+    </thead>
 
-          <tbody>
-            {sorted.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-white/60">
-                  No items yet. Use <span className="underline">Search &amp; add item</span> or
-                  import from Steam.
-                </td>
-              </tr>
-            ) : (
-              sorted.map((r) => {
-                const orig = origIndexMap.get(r)!;
-                return (
-                  <tr
-                    key={r.market_hash_name + "|" + orig}
-                    className="border-t border-white/10 bg-white/[0.015] hover:bg-white/[0.04] transition-colors"
+    <tbody>
+      {sorted.length === 0 ? (
+        <tr>
+          <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+            No items yet. Use <span className="underline">Search &amp; add item</span> or import from Steam.
+          </td>
+        </tr>
+      ) : (
+        sorted.map((r) => {
+          const orig = origIndexMap.get(r)!;
+          return (
+            <tr key={r.market_hash_name + "|" + orig} className="border-t border-slate-800">
+              {/* ITEM */}
+              <td className="px-4 py-2">
+                <div className="flex items-start gap-3">
+                  {r.image ? (
+                    <img
+                      src={r.image}
+                      alt={r.name}
+                      loading="lazy"
+                      decoding="async"
+                      onError={(e) => {
+                        const el = e.currentTarget as HTMLImageElement;
+                        if (el.src !== FALLBACK_DATA_URL) el.src = FALLBACK_DATA_URL;
+                      }}
+                      className="h-10 w-10 rounded object-contain bg-slate-800"
+                    />
+                  ) : (
+                    <img src={FALLBACK_DATA_URL} alt="" className="h-10 w-10 rounded object-contain" />
+                  )}
+                  <div className="min-w-0">
+                    <div className="truncate font-medium" title={r.market_hash_name}>
+                      {r.nameNoWear}
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {wearLabelForRow(r.wear as WearCode) && <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>}
+                      {r.pattern && <Pill>Pattern: {r.pattern}</Pill>}
+                      {r.float && <Pill>Float: {r.float}</Pill>}
+                    </div>
+                  </div>
+                </div>
+              </td>
+
+              {/* QTY */}
+              <td className="px-4 py-2 text-right tabular-nums">{r.quantity ?? 1}</td>
+
+              {/* SKINPORT */}
+              <td className="px-4 py-2">
+                <div className="text-right leading-tight">
+                  <div>{typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}</div>
+                  {typeof r.skinportAUD === "number" && (r.quantity ?? 1) > 1 && (
+                    <div className="mt-0.5 text-[11px] text-slate-400">
+                      ×{r.quantity ?? 1} = <span className="tabular-nums">A${(r.skinportAUD * (r.quantity ?? 1)).toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+              </td>
+
+              {/* STEAM */}
+              <td className="px-4 py-2">
+                <div className="text-right leading-tight">
+                  <div>{typeof r.steamAUD === "number" ? `A$${r.steamAUD.toFixed(2)}` : "—"}</div>
+                  {typeof r.steamAUD === "number" && (r.quantity ?? 1) > 1 && (
+                    <div className="mt-0.5 text-[11px] text-slate-400">
+                      ×{r.quantity ?? 1} = <span className="tabular-nums">A${(r.steamAUD * (r.quantity ?? 1)).toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+              </td>
+
+              {/* ACTIONS */}
+              <td className="px-4 py-2 text-right">
+                <div className="flex justify-end gap-2">
+                  <button
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 hover:text-white"
+                    title="Edit"
+                    onClick={() => {
+                      setEditRow(r);
+                      setEditOpen(true);
+                    }}
                   >
-                    {/* ITEM */}
-                    <td className="px-4 py-2">
-                      <div className="flex items-start gap-3">
-                        {r.image ? (
-                          <img
-                            src={r.image}
-                            alt={r.name}
-                            loading="lazy"
-                            decoding="async"
-                            onError={(e) => {
-                              const el = e.currentTarget as HTMLImageElement;
-                              if (el.src !== FALLBACK_DATA_URL) el.src = FALLBACK_DATA_URL;
-                            }}
-                            className="h-10 w-10 rounded object-contain bg-white/10"
-                          />
-                        ) : (
-                          <img
-                            src={FALLBACK_DATA_URL}
-                            alt=""
-                            className="h-10 w-10 rounded object-contain"
-                          />
-                        )}
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                    </svg>
+                  </button>
+                  <button
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 hover:text-white"
+                    title="Delete"
+                    onClick={() => removeRow(orig)}
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 6h18" />
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                      <path d="M10 11v6M14 11v6" />
+                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                    </svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          );
+        })
+      )}
+    </tbody>
+  </table>
+</div>
 
-                        <div className="min-w-0">
-                          <div className="truncate font-medium text-white" title={r.market_hash_name}>
-                            {r.nameNoWear}
-                          </div>
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {wearLabelForRow(r.wear as WearCode) && (
-                              <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>
-                            )}
-                            {r.pattern && <Pill>Pattern: {r.pattern}</Pill>}
-                            {r.float && <Pill>Float: {r.float}</Pill>}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
+{/* MOBILE CARD LIST */}
+<div className="space-y-3 md:hidden">
+  {sorted.length === 0 ? (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 text-center text-slate-400">
+      No items yet. Use <span className="underline">Search &amp; add item</span> or import from Steam.
+    </div>
+  ) : (
+    sorted.map((r) => <RowCard key={r.market_hash_name + '|card'} r={r} />)
+  )}
+</div>
+
 
                     {/* QTY */}
                     <td className="px-4 py-2 text-right tabular-nums text-white/90">
