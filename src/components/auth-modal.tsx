@@ -1,157 +1,282 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 type Mode = "login" | "signup" | "reset";
 
 export default function AuthModal({ onClose }: { onClose: () => void }) {
   const [mode, setMode] = useState<Mode>("login");
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState(""); // email or username
+  const [username, setUsername] = useState("");     // signup only
   const [pass, setPass] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  useEffect(() => {
     setMsg(null);
-    setErr(null);
-    setLoading(true);
+  }, [mode]);
+
+  function asEmailOrNull(value: string) {
+    return value.includes("@") ? value : null;
+  }
+
+  async function resolveEmailFromUsername(name: string): Promise<string | null> {
+    // Public read of 'profiles' to map username -> email
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("email")
+      .ilike("username", name) // case-insensitive
+      .limit(1)
+      .maybeSingle();
+
+    if (error) return null;
+    return data?.email ?? null;
+  }
+
+  async function handleLogin() {
+    setBusy(true);
+    setMsg(null);
     try {
-      if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
-        if (error) throw error;
-        setMsg("Logged in!");
-        onClose(); // close on success
-      } else if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({ email, password: pass });
-        if (error) throw error;
-        setMsg("Check your email to confirm your account.");
-      } else {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/reset`,
-        });
-        if (error) throw error;
-        setMsg("Password reset link sent. Check your inbox.");
+      const maybeEmail = asEmailOrNull(identifier.trim());
+      let emailToUse = maybeEmail;
+
+      if (!emailToUse) {
+        // Treat identifier as username
+        emailToUse = await resolveEmailFromUsername(identifier.trim());
+        if (!emailToUse) {
+          setMsg("We couldn’t find that username. Try email or Sign Up.");
+          return;
+        }
       }
-    } catch (e: any) {
-      setErr(e?.message || "Something went wrong.");
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: emailToUse,
+        password: pass,
+      });
+      if (error) {
+        setMsg(error.message);
+        return;
+      }
+      // clear any guest flag if present
+      try {
+        sessionStorage.removeItem("auth_mode");
+      } catch {}
+      onClose();
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   }
 
-  const Title = mode === "login" ? "Log In" : mode === "signup" ? "Create account" : "Reset password";
-  const Primary = mode === "login" ? "Log In" : mode === "signup" ? "Sign Up" : "Send reset link";
+  async function handleSignup() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const email = identifier.trim();
+      if (!email.includes("@")) {
+        setMsg("Please enter a valid email.");
+        return;
+      }
+      if (!username.trim()) {
+        setMsg("Pick a username.");
+        return;
+      }
+
+      // 1) Create auth user and stash username in metadata too
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password: pass,
+        options: {
+          data: { username: username.trim() },
+        },
+      });
+      if (error) {
+        setMsg(error.message);
+        return;
+      }
+
+      const user = data.user;
+      // If email confirmations are enabled, user may not be logged in yet.
+      // Try to insert profile if we have a session; otherwise it will be created on first login.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const authedId = sessionData.session?.user?.id;
+
+      if (user?.id && authedId === user.id) {
+        // 2) Insert profile row (username -> email mapping)
+        const { error: pErr } = await supabase.from("profiles").insert({
+          id: user.id,
+          username: username.trim(),
+          email,
+        });
+        // Ignore unique violation, etc. (user might re-open signup)
+        if (pErr && !/duplicate|unique/i.test(pErr.message)) {
+          console.warn("profiles insert:", pErr.message);
+        }
+      }
+
+      setMsg(
+        "Account created. If email confirmation is enabled, please check your inbox."
+      );
+      // If email confirmation is off, close modal; otherwise keep open with message
+      if (!data.session) return;
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleReset() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const email = asEmailOrNull(identifier.trim())
+        ?? (await resolveEmailFromUsername(identifier.trim()));
+      if (!email) {
+        setMsg("Enter your account email or username.");
+        return;
+      }
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: typeof window !== "undefined"
+          ? `${location.origin}/reset`
+          : undefined,
+      });
+      if (error) {
+        setMsg(error.message);
+        return;
+      }
+      setMsg("Password reset email sent (if the account exists).");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function continueAsGuest() {
+    try {
+      sessionStorage.setItem("auth_mode", "guest");
+      // Optional: clear any remembered email
+      localStorage.removeItem("current_user");
+    } catch {}
+    onClose();
+  }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-2xl border border-slate-800/80 bg-slate-950/95 shadow-[0_0_0_1px_rgba(0,0,0,0.6),0_20px_70px_-30px_rgba(0,0,0,0.7)]">
-        {/* Header */}
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-[linear-gradient(180deg,#0B0D12,#0A0C10)] shadow-2xl shadow-black/60">
         <div className="flex items-center justify-between px-5 py-4">
-          <h2 className="text-lg font-semibold text-slate-100">{Title}</h2>
+          <div className="text-lg font-semibold text-slate-200">
+            {mode === "login" && "Log In"}
+            {mode === "signup" && "Create account"}
+            {mode === "reset" && "Reset password"}
+          </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-900 hover:text-slate-100 transition"
-            aria-label="Close"
+            className="rounded-lg p-1 text-slate-400 hover:bg-white/5 hover:text-slate-200"
           >
             ✕
           </button>
         </div>
 
         <div className="px-5 pb-5">
-          {/* Subtitle */}
           <p className="mb-4 text-sm text-slate-400">
             {mode === "login" && "Welcome back."}
             {mode === "signup" && "Let’s get you set up."}
-            {mode === "reset" && "We’ll email you a reset link."}
+            {mode === "reset" && "Enter your email or username."}
           </p>
 
-          {/* Alerts */}
-          {err && (
-            <div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-              {err}
+          {/* Signup-only username */}
+          {mode === "signup" && (
+            <div className="mb-3">
+              <label className="mb-1 block text-xs font-medium text-slate-400">
+                Username
+              </label>
+              <input
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="yourname"
+                className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 shadow-inner shadow-black/40 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/25"
+              />
             </div>
           )}
+
+          {/* Identifier: email or username */}
+          <div className="mb-3">
+            <label className="mb-1 block text-xs font-medium text-slate-400">
+              {mode === "reset" ? "Email or Username" : "Email (or Username)"}
+            </label>
+            <input
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder={mode === "reset" ? "you@email.com or yourname" : "you@email.com / yourname"}
+              className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 shadow-inner shadow-black/40 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/25"
+            />
+          </div>
+
+          {/* Password (not shown in reset mode) */}
+          {mode !== "reset" && (
+            <div className="mb-1">
+              <label className="mb-1 block text-xs font-medium text-slate-400">
+                Password
+              </label>
+              <input
+                type="password"
+                required
+                value={pass}
+                onChange={(e) => setPass(e.target.value)}
+                placeholder="••••••••"
+                className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 shadow-inner shadow-black/40 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/25"
+              />
+            </div>
+          )}
+
+          {/* Forgot link (login only) */}
+          {mode === "login" && (
+            <div className="mt-2 mb-4 text-right">
+              <button
+                className="text-xs text-slate-400 underline decoration-slate-700 underline-offset-2 hover:text-slate-300"
+                onClick={() => setMode("reset")}
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
+
+          {/* Message */}
           {msg && (
-            <div className="mb-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+            <div className="mb-3 rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-200">
               {msg}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-3">
-            {/* Email */}
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-400">Email</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500
-                           shadow-inner shadow-black/40 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/25"
-                placeholder="you@email.com"
-              />
-            </div>
+          {/* Primary CTA */}
+          <button
+            disabled={busy}
+            onClick={
+              mode === "login" ? handleLogin : mode === "signup" ? handleSignup : handleReset
+            }
+            className="mb-3 h-11 w-full rounded-xl bg-indigo-600 font-semibold text-white shadow-[inset_0_-6px_14px_rgba(255,255,255,0.05)] outline-none ring-indigo-500/0 transition hover:bg-indigo-500 focus:ring-2 focus:ring-indigo-500/40 disabled:opacity-60"
+          >
+            {mode === "login" && "Log In"}
+            {mode === "signup" && "Sign Up"}
+            {mode === "reset" && "Send reset link"}
+          </button>
 
-            {/* Password (hide for reset mode) */}
-{mode !== "reset" && (
-  <div>
-    <label className="mb-1 block text-xs font-medium text-slate-400">Password</label>
-    <input
-      type="password"
-      required   // ← was: required={mode !== "reset"}
-      value={pass}
-      onChange={(e) => setPass(e.target.value)}
-      className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500
-                 shadow-inner shadow-black/40 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/25"
-      placeholder="••••••••"
-    />
-  </div>
-)}
+          {/* Continue as guest */}
+          <button
+            type="button"
+            onClick={continueAsGuest}
+            className="mb-4 h-11 w-full rounded-xl border border-slate-800 bg-slate-900/70 text-slate-200 hover:bg-slate-900"
+          >
+            Continue as guest
+          </button>
 
-
-            {/* Forgot link */}
-            {mode === "login" && (
-              <div className="text-right">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setErr(null);
-                    setMsg(null);
-                    setMode("reset");
-                  }}
-                  className="text-xs font-medium text-indigo-300 hover:text-indigo-200"
-                >
-                  Forgot password?
-                </button>
-              </div>
-            )}
-
-            {/* Primary action */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="mt-1 w-full rounded-xl bg-indigo-500 px-4 py-2.5 font-semibold text-white shadow-[0_8px_30px_-12px_rgba(99,102,241,.5)]
-                         transition hover:bg-indigo-400 disabled:opacity-60"
-            >
-              {loading ? "Please wait…" : Primary}
-            </button>
-          </form>
-
-          {/* Switch mode */}
-          <div className="mt-4 text-center text-sm text-slate-400">
+          {/* Footer links */}
+          <div className="text-center text-sm text-slate-400">
             {mode === "login" ? (
               <>
                 Don’t have an account?{" "}
                 <button
-                  className="font-medium text-indigo-300 hover:text-indigo-200"
-                  onClick={() => {
-                    setErr(null);
-                    setMsg(null);
-                    setMode("signup");
-                  }}
+                  className="font-medium text-indigo-400 hover:text-indigo-300"
+                  onClick={() => setMode("signup")}
                 >
                   Sign Up
                 </button>
@@ -160,26 +285,18 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
               <>
                 Already have an account?{" "}
                 <button
-                  className="font-medium text-indigo-300 hover:text-indigo-200"
-                  onClick={() => {
-                    setErr(null);
-                    setMsg(null);
-                    setMode("login");
-                  }}
+                  className="font-medium text-indigo-400 hover:text-indigo-300"
+                  onClick={() => setMode("login")}
                 >
                   Log In
                 </button>
               </>
             ) : (
               <>
-                Remembered it?{" "}
+                Remembered your password?{" "}
                 <button
-                  className="font-medium text-indigo-300 hover:text-indigo-200"
-                  onClick={() => {
-                    setErr(null);
-                    setMsg(null);
-                    setMode("login");
-                  }}
+                  className="font-medium text-indigo-400 hover:text-indigo-300"
+                  onClick={() => setMode("login")}
                 >
                   Back to Log In
                 </button>
@@ -191,4 +308,3 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
-
