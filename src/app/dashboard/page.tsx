@@ -867,7 +867,8 @@ export default function DashboardPage() {
       if (r.nameNoWear) set.add(r.nameNoWear);
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [spMap, rows]);
+}, [spMap, rows]);
+
 // Manual refresh (Skinport + Steam)
 async function handleManualRefresh() {
   try {
@@ -878,11 +879,8 @@ async function handleManualRefresh() {
     setRefreshing(false);
   }
 }
-  </div>
-  );
-}
 
-  return (
+return (
     <div className="mx-auto max-w-6xl p-6">
       {/* Top row: Left Manual Add / Right Stats */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -1214,6 +1212,6 @@ async function handleManualRefresh() {
         </svg>
         <span className="text-sm">Top</span>
       </button>
-    </div>
-  );
+  </div>
+);
 }
