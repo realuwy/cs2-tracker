@@ -96,20 +96,21 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
             </div>
 
             {/* Password (hide for reset mode) */}
-            {mode !== "reset" && (
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-400">Password</label>
-                <input
-                  type="password"
-                  required={mode !== "reset"}
-                  value={pass}
-                  onChange={(e) => setPass(e.target.value)}
-                  className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500
-                             shadow-inner shadow-black/40 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/25"
-                  placeholder="••••••••"
-                />
-              </div>
-            )}
+{mode !== "reset" && (
+  <div>
+    <label className="mb-1 block text-xs font-medium text-slate-400">Password</label>
+    <input
+      type="password"
+      required   // ← was: required={mode !== "reset"}
+      value={pass}
+      onChange={(e) => setPass(e.target.value)}
+      className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500
+                 shadow-inner shadow-black/40 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/25"
+      placeholder="••••••••"
+    />
+  </div>
+)}
+
 
             {/* Forgot link */}
             {mode === "login" && (
