@@ -121,8 +121,6 @@ export default function AuthModal({
       if (error) throw error;
 
       // also store username/email in profiles table
-      // if RLS requires auth, this will work for newly created session;
-      // otherwise you may do it after email confirmation.
       const userId = data.user?.id;
       if (userId) {
         await supabase
@@ -170,11 +168,12 @@ export default function AuthModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-[#0b0d12]/95 shadow-2xl">
+      <div className="w-full max-w-lg rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/95 shadow-2xl">
         {/* header */}
-        <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
+        <div className="flex items-center justify-between border-b border-slate-800/60 px-5 py-4">
           <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
           <button
+            type="button"
             onClick={() => onClose?.()}
             className="rounded-md p-2 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
             aria-label="Close"
@@ -225,12 +224,20 @@ export default function AuthModal({
               </div>
 
               {err && (
-                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                <div
+                  className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300"
+                  role="alert"
+                  aria-live="polite"
+                >
                   {err}
                 </div>
               )}
               {ok && (
-                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+                <div
+                  className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300"
+                  role="status"
+                  aria-live="polite"
+                >
                   {ok}
                 </div>
               )}
@@ -308,12 +315,20 @@ export default function AuthModal({
               </div>
 
               {err && (
-                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                <div
+                  className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300"
+                  role="alert"
+                  aria-live="polite"
+                >
                   {err}
                 </div>
               )}
               {ok && (
-                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+                <div
+                  className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300"
+                  role="status"
+                  aria-live="polite"
+                >
                   {ok}
                 </div>
               )}
@@ -358,12 +373,20 @@ export default function AuthModal({
               </div>
 
               {err && (
-                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                <div
+                  className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300"
+                  role="alert"
+                  aria-live="polite"
+                >
                   {err}
                 </div>
               )}
               {ok && (
-                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+                <div
+                  className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300"
+                  role="status"
+                  aria-live="polite"
+                >
                   {ok}
                 </div>
               )}
@@ -392,3 +415,4 @@ export default function AuthModal({
     </div>
   );
 }
+
