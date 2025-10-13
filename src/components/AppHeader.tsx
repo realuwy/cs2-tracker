@@ -1,92 +1,77 @@
 "use client";
-
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 import AccountMenu from "@/components/AccountMenu";
-import { upsertAccountRows } from "@/lib/rows";
+import AuthModal from "@/components/auth-modal";
+import { supabase } from "@/lib/supabase";
 
 export default function AppHeader() {
   const pathname = usePathname();
   const [showAuth, setShowAuth] = useState(false);
-  const [user, setUser] = useState<{ name?: string | null; email?: string | null; avatarUrl?: string | null } | null>(null);
+  const [user, setUser] = useState<{name?: string|null; email?: string|null; avatarUrl?: string|null} | null>(null);
 
   useEffect(() => {
     let unsub: (() => void) | undefined;
     (async () => {
       const { data } = await supabase.auth.getSession();
       const u = data.session?.user ?? null;
-      setUser(
-        u
-          ? { name: u.user_metadata?.name ?? null, email: u.email ?? null, avatarUrl: u.user_metadata?.avatar_url ?? null }
-          : null
-      );
+      setUser(u ? { name: u.user_metadata?.username ?? u.user_metadata?.name ?? null, email: u.email ?? null, avatarUrl: u.user_metadata?.avatar_url ?? null } : null);
       const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
         const su = s?.user ?? null;
-        setUser(
-          su
-            ? { name: su.user_metadata?.name ?? null, email: su.email ?? null, avatarUrl: su.user_metadata?.avatar_url ?? null }
-            : null
-        );
+        setUser(su ? { name: su.user_metadata?.username ?? su.user_metadata?.name ?? null, email: su?.email ?? null, avatarUrl: su.user_metadata?.avatar_url ?? null } : null);
       });
       unsub = () => sub.subscription.unsubscribe();
     })();
     return () => unsub?.();
   }, []);
 
-  return (
-    <header className="sticky top-0 z-40 border-b border-border/60 bg-surface2/80 backdrop-blur">
-      <nav className="mx-auto flex max-w-6xl items-center justify-between px-3 sm:px-4 py-3">
-        {/* Brand */}
-        <div className="justify-self-start flex items-center gap-2">
-          <span className="inline-block h-3 w-3 rounded-full bg-accent" />
-          <Link href="/" className="text-sm font-semibold text-text/85 hover:text-text">
-            CS2 Tracker
-          </Link>
-        </div>
+  const isDash = pathname === "/dashboard";
 
-        {/* Center nav */}
-        <div className="justify-self-center hidden sm:block">
+  return (
+    <header className="sticky top-0 z-40 border-b border-slate-900/60 bg-[#0b0b0f]/80 backdrop-blur">
+      <div className="relative mx-auto flex h-14 max-w-6xl items-center px-4">
+        {/* Left: brand */}
+        <Link href="/" className="flex items-center gap-2">
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-violet-400" />
+          <span className="text-sm font-semibold text-slate-200">CS2 Tracker</span>
+        </Link>
+
+        {/* Center: Dashboard pill (now visible on mobile too) */}
+        <nav
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+          aria-label="Primary"
+        >
           <Link
             href="/dashboard"
-            className={`rounded-md px-2 py-1 text-sm ${
-              pathname === "/dashboard" ? "text-accent" : "text-muted hover:text-text"
-            }`}
+            className={[
+              "rounded-full px-3 py-1.5 text-sm transition shadow-sm",
+              isDash
+                ? "bg-violet-600 text-white"
+                : "bg-slate-900/70 text-slate-200 hover:bg-slate-800/80 border border-slate-800"
+            ].join(" ")}
           >
             Dashboard
           </Link>
-        </div>
+        </nav>
 
-        {/* Right account */}
-        <div className="justify-self-end">
+        {/* Right: account */}
+        <div className="ml-auto">
           <AccountMenu
             user={user}
             onOpenAuth={() => setShowAuth(true)}
-            onClearLocal={async () => {
-              try {
-                const cache = JSON.parse(localStorage.getItem("cs2:dashboard:rows") || "[]");
-                await upsertAccountRows(cache);
-              } catch {}
+            onClearLocal={() => {
               try {
                 localStorage.removeItem("cs2:dashboard:rows");
-                localStorage.removeItem("cs2:dashboard:rows:updatedAt");
               } catch {}
-              try {
-                await supabase.auth.signOut();
-              } finally {
-                location.href = "/";
-              }
+              location.reload();
             }}
           />
         </div>
-      </nav>
+      </div>
 
-      {showAuth && (
-        // Lazy import pattern was used before; if not using, this is fine.
-        // The modal itself already follows the theme.
-        <></>
-      )}
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
     </header>
   );
 }
+
