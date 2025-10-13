@@ -6,8 +6,8 @@ export default function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    // Header-like bar: same dark bg + subtle top border
-    <footer className="border-t border-slate-800 bg-[#0b0b0b]/90">
+    // Header-like bar: same dark bg but no border line
+    <footer className="bg-[#0b0b0b]/90 backdrop-blur">
       {/* Desktop layout */}
       <div className="relative mx-auto flex max-w-6xl items-center justify-between px-4 py-6 text-sm text-slate-300">
         {/* Left: brand */}
@@ -33,7 +33,7 @@ export default function Footer() {
         <div className="ml-auto text-right text-slate-400">© {year} CS2 Tracker</div>
       </div>
 
-      {/* Mobile layout (unchanged, centered below the row) */}
+      {/* Mobile layout (unchanged) */}
       <div className="md:hidden px-4 pb-6">
         <div className="mt-2 flex justify-center gap-6 text-slate-300">
           <Link href="/about" className="hover:text-white">
@@ -47,3 +47,4 @@ export default function Footer() {
     </footer>
   );
 }
+
