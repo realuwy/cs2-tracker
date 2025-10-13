@@ -382,17 +382,7 @@ function RowCard({ r }: { r: Row }) {
 
 /* ----------------------------- component ----------------------------- */
 
-export default function DashboardPage(// Manual refresh (Skinport + Steam)
-async function handleManualRefresh() {
-  try {
-    setRefreshing(true);
-    await refreshSkinport();
-    await backfillSomeSteamPrices(12);
-  } finally {
-    setRefreshing(false);
-  }
-}
-) {
+export default function DashboardPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [spMap, setSpMap] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
@@ -878,6 +868,19 @@ async function handleManualRefresh() {
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [spMap, rows]);
+// Manual refresh (Skinport + Steam)
+async function handleManualRefresh() {
+  try {
+    setRefreshing(true);
+    await refreshSkinport();
+    await backfillSomeSteamPrices(12);
+  } finally {
+    setRefreshing(false);
+  }
+}
+  </div>
+  );
+}
 
   return (
     <div className="mx-auto max-w-6xl p-6">
