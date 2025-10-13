@@ -3,8 +3,6 @@ import Link from "next/link";
 export default function PrivacyPage() {
   return (
     <main className="mx-auto max-w-4xl px-6 py-10 text-slate-200">
-     
-
       <h1 className="text-3xl font-bold tracking-tight">Privacy</h1>
       <p className="mt-3 text-slate-400">
         CS2 Tracker is designed to be local-first. Your data stays with you unless you
@@ -13,13 +11,13 @@ export default function PrivacyPage() {
 
       <div className="mt-8 space-y-8">
         {/* What we store */}
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+        <section className="rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/70 p-6">
           <h2 className="text-xl font-semibold">What we store</h2>
           <ul className="mt-3 list-disc space-y-2 pl-5 text-slate-300">
             <li>
               <span className="font-medium">Guest mode:</span> your rows are saved in{" "}
-              <code className="rounded bg-slate-800/80 px-1.5 py-0.5">localStorage</code> under{" "}
-              <code className="rounded bg-slate-800/80 px-1.5 py-0.5">cs2:dashboard:rows</code>.
+              <code className="rounded bg-slate-900/70 px-1.5 py-0.5">localStorage</code> under{" "}
+              <code className="rounded bg-slate-900/70 px-1.5 py-0.5">cs2:dashboard:rows</code>.
             </li>
             <li>
               <span className="font-medium">Signed-in mode:</span> your rows are synced to your
@@ -33,7 +31,7 @@ export default function PrivacyPage() {
         </section>
 
         {/* What we don't store */}
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+        <section className="rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/70 p-6">
           <h2 className="text-xl font-semibold">What we don’t store</h2>
           <ul className="mt-3 list-disc space-y-2 pl-5 text-slate-300">
             <li>No advertising profiles.</li>
@@ -43,7 +41,7 @@ export default function PrivacyPage() {
         </section>
 
         {/* Third-party services */}
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+        <section className="rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/70 p-6">
           <h2 className="text-xl font-semibold">Third-party services</h2>
           <p className="mt-3 text-slate-300">
             Prices and images may come from services like Skinport and Steam. When you view that
@@ -52,7 +50,7 @@ export default function PrivacyPage() {
         </section>
 
         {/* Your controls */}
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+        <section className="rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/70 p-6">
           <h2 className="text-xl font-semibold">Your controls</h2>
           <ul className="mt-3 list-disc space-y-2 pl-5 text-slate-300">
             <li>
@@ -67,11 +65,11 @@ export default function PrivacyPage() {
           </ul>
         </section>
 
-         {/* CTA row */}
+        {/* CTA row */}
         <div className="flex items-center justify-end">
           <Link
             href="/about"
-            className="rounded-full bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400"
+            className="rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500"
           >
             About
           </Link>
