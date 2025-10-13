@@ -9,17 +9,33 @@ import { supabase } from "@/lib/supabase";
 export default function AppHeader() {
   const pathname = usePathname();
   const [showAuth, setShowAuth] = useState(false);
-  const [user, setUser] = useState<{name?: string|null; email?: string|null; avatarUrl?: string|null} | null>(null);
+  const [user, setUser] = useState<{ name?: string | null; email?: string | null; avatarUrl?: string | null } | null>(null);
 
   useEffect(() => {
     let unsub: (() => void) | undefined;
     (async () => {
       const { data } = await supabase.auth.getSession();
       const u = data.session?.user ?? null;
-      setUser(u ? { name: u.user_metadata?.username ?? u.user_metadata?.name ?? null, email: u.email ?? null, avatarUrl: u.user_metadata?.avatar_url ?? null } : null);
+      setUser(
+        u
+          ? {
+              name: u.user_metadata?.username ?? u.user_metadata?.name ?? null,
+              email: u.email ?? null,
+              avatarUrl: u.user_metadata?.avatar_url ?? null,
+            }
+          : null
+      );
       const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
         const su = s?.user ?? null;
-        setUser(su ? { name: su.user_metadata?.username ?? su.user_metadata?.name ?? null, email: su?.email ?? null, avatarUrl: su.user_metadata?.avatar_url ?? null } : null);
+        setUser(
+          su
+            ? {
+                name: su.user_metadata?.username ?? su.user_metadata?.name ?? null,
+                email: su?.email ?? null,
+                avatarUrl: su.user_metadata?.avatar_url ?? null,
+              }
+            : null
+        );
       });
       unsub = () => sub.subscription.unsubscribe();
     })();
@@ -29,7 +45,7 @@ export default function AppHeader() {
   const isDash = pathname === "/dashboard";
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-900/60 bg-[#0b0b0f]/80 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-slate-800/60 bg-[#0b0b0f]/80 backdrop-blur">
       <div className="relative mx-auto flex h-14 max-w-6xl items-center px-4">
         {/* Left: brand */}
         <Link href="/" className="flex items-center gap-2">
@@ -37,18 +53,19 @@ export default function AppHeader() {
           <span className="text-sm font-semibold text-slate-200">CS2 Tracker</span>
         </Link>
 
-        {/* Center: Dashboard pill (now visible on mobile too) */}
+        {/* Center: Dashboard pill */}
         <nav
           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
           aria-label="Primary"
         >
           <Link
             href="/dashboard"
+            aria-current={isDash ? "page" : undefined}
             className={[
-              "rounded-full px-3 py-1.5 text-sm transition shadow-sm",
+              "rounded-full px-3 py-1.5 text-sm transition shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-500/40",
               isDash
                 ? "bg-violet-600 text-white"
-                : "bg-slate-900/70 text-slate-200 hover:bg-slate-800/80 border border-slate-800"
+                : "border border-slate-800/60 bg-[#0b0b0f]/60 text-slate-300 hover:bg-slate-800/60",
             ].join(" ")}
           >
             Dashboard
@@ -74,4 +91,3 @@ export default function AppHeader() {
     </header>
   );
 }
-
