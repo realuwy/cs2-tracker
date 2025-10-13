@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
 type Mode = "login" | "signup" | "reset";
 
@@ -94,6 +95,14 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
         setMsg(error.message);
         return;
       }
+const router = useRouter();
+
+function handleContinueAsGuest() {
+  // close the modal (so we don’t see it on the next page)
+  onClose?.();
+  // go to dashboard as a guest
+  router.push("/dashboard");
+}
 
       const user = data.user;
       // If email confirmations are enabled, user may not be logged in yet.
@@ -261,13 +270,14 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
           </button>
 
           {/* Continue as guest */}
-          <button
-            type="button"
-            onClick={continueAsGuest}
-            className="mb-4 h-11 w-full rounded-xl border border-slate-800 bg-slate-900/70 text-slate-200 hover:bg-slate-900"
-          >
-            Continue as guest
-          </button>
+         <button
+  type="button"
+  onClick={handleContinueAsGuest}
+  className="w-full rounded-xl bg-slate-800/70 px-4 py-3 text-slate-100 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+>
+  Continue as guest
+</button>
+
 
           {/* Footer links */}
           <div className="text-center text-sm text-slate-400">
