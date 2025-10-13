@@ -27,21 +27,15 @@ export default function HomePage() {
           up-to-date prices, and watch your portfolio value move in real-time.
         </p>
 
-        <div className="mt-8 flex items-center justify-center gap-3">
-          <button
-            onClick={() => setShowModal(true)}
-            className="rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-bg transition hover:bg-accent-hover"
-          >
-            Get started
-          </button>
+        <div className="mt-8 flex items-center justify-center">
+  <button
+    onClick={() => setShowModal(true)}
+    className="rounded-full bg-indigo-500 px-5 py-2.5 font-semibold text-white transition hover:bg-indigo-400"
+  >
+    Get started
+  </button>
+</div>
 
-          <a
-            href="/dashboard"
-            className="rounded-xl border border-border bg-surface2 px-5 py-2.5 text-sm text-text/90 transition hover:bg-surface"
-          >
-            Dashboard
-          </a>
-        </div>
 
         {/* Preview frame */}
         <div className="mx-auto mt-12 w-full max-w-5xl rounded-2xl border border-border bg-surface/70 p-2 shadow-card">
