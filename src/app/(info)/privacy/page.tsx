@@ -75,13 +75,14 @@ export default function PrivacyPage() {
           </ul>
         </section>
 
-        {/* Bottom nav back */}
-        <div className="flex items-center justify-start">
+         {/* CTA row */}
+        <div className="flex items-center justify-end">
           <Link
             href="/about"
-            className="inline-flex items-center rounded-full border border-slate-800 bg-slate-900/40 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-900/60"
+            className="rounded-full bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400"
           >
-            ← About
+            About
+          </Link>
           </Link>
         </div>
       </div>
