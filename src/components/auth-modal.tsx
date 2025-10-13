@@ -1,318 +1,392 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type Mode = "login" | "signup" | "reset";
 
-export default function AuthModal({ onClose }: { onClose: () => void }) {
-  const [mode, setMode] = useState<Mode>("login");
-  const [identifier, setIdentifier] = useState(""); // email or username
-  const [username, setUsername] = useState("");     // signup only
+export default function AuthModal({
+  onClose,
+  initialMode = "login",
+}: {
+  onClose?: () => void;
+  initialMode?: Mode;
+}) {
+  const router = useRouter();
+  const [mode, setMode] = useState<Mode>(initialMode);
+
+  // shared fields
+  const [identifier, setIdentifier] = useState(""); // email OR username (login/reset)
+  const [email, setEmail] = useState(""); // email (signup/reset explicit)
+  const [username, setUsername] = useState(""); // username (signup)
   const [pass, setPass] = useState("");
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
 
   useEffect(() => {
-    setMsg(null);
+    setErr(null);
+    setOk(null);
   }, [mode]);
 
-  function asEmailOrNull(value: string) {
-    return value.includes("@") ? value : null;
-  }
+  const title = useMemo(() => {
+    if (mode === "login") return "Log In";
+    if (mode === "signup") return "Create account";
+    return "Reset password";
+  }, [mode]);
 
-  async function resolveEmailFromUsername(name: string): Promise<string | null> {
-    // Public read of 'profiles' to map username -> email
+  const switchTo = (m: Mode) => {
+    setMode(m);
+    setErr(null);
+    setOk(null);
+  };
+
+  /* -------------------------- helper: username → email -------------------------- */
+  async function resolveEmailFromUsername(maybeUsername: string) {
     const { data, error } = await supabase
       .from("profiles")
       .select("email")
-      .ilike("username", name) // case-insensitive
-      .limit(1)
-      .maybeSingle();
-
-    if (error) return null;
-    return data?.email ?? null;
+      .eq("username", maybeUsername)
+      .single();
+    if (error || !data?.email) throw new Error("Username not found.");
+    return data.email as string;
   }
 
-  async function handleLogin() {
-    setBusy(true);
-    setMsg(null);
-    try {
-      const maybeEmail = asEmailOrNull(identifier.trim());
-      let emailToUse = maybeEmail;
+  /* --------------------------------- handlers --------------------------------- */
 
-      if (!emailToUse) {
-        // Treat identifier as username
-        emailToUse = await resolveEmailFromUsername(identifier.trim());
-        if (!emailToUse) {
-          setMsg("We couldn’t find that username. Try email or Sign Up.");
-          return;
-        }
+  // close then push to dashboard on the next tick (prevents unmount race)
+  const continueAsGuest = () => {
+    try {
+      onClose?.();
+    } catch {}
+    setTimeout(() => router.push("/dashboard"), 0);
+  };
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErr(null);
+    setOk(null);
+    try {
+      // figure out if identifier is email or username
+      let loginEmail = identifier.trim();
+      if (!loginEmail.includes("@")) {
+        loginEmail = await resolveEmailFromUsername(loginEmail);
       }
 
       const { error } = await supabase.auth.signInWithPassword({
-        email: emailToUse,
+        email: loginEmail,
         password: pass,
       });
-      if (error) {
-        setMsg(error.message);
-        return;
-      }
-      // clear any guest flag if present
-      try {
-        sessionStorage.removeItem("auth_mode");
-      } catch {}
-      onClose();
+      if (error) throw error;
+
+      onClose?.();
+      router.refresh();
+      setTimeout(() => router.push("/dashboard"), 0);
+    } catch (e: any) {
+      setErr(e?.message || "Login failed.");
     } finally {
       setBusy(false);
     }
   }
 
-  async function handleSignup() {
+  async function handleSignup(e: React.FormEvent) {
+    e.preventDefault();
     setBusy(true);
-    setMsg(null);
+    setErr(null);
+    setOk(null);
     try {
-      const email = identifier.trim();
-      if (!email.includes("@")) {
-        setMsg("Please enter a valid email.");
-        return;
-      }
-      if (!username.trim()) {
-        setMsg("Pick a username.");
-        return;
+      const cleanEmail = email.trim();
+      const cleanUser = username.trim();
+
+      if (!/^[a-z0-9_\.]{3,20}$/i.test(cleanUser)) {
+        throw new Error(
+          "Username must be 3–20 characters (letters, numbers, underscore, dot)."
+        );
       }
 
-      // 1) Create auth user and stash username in metadata too
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: cleanEmail,
         password: pass,
         options: {
-          data: { username: username.trim() },
+          emailRedirectTo:
+            typeof window !== "undefined"
+              ? `${window.location.origin}/auth/callback`
+              : undefined,
+          data: { username: cleanUser }, // store in auth user metadata as well
         },
       });
-      if (error) {
-        setMsg(error.message);
-        return;
-      }
-const router = useRouter();
+      if (error) throw error;
 
-const continueAsGuest = () => {
-  onClose?.();
-  router.push("/dashboard");
-};
-
-
-      const user = data.user;
-      // If email confirmations are enabled, user may not be logged in yet.
-      // Try to insert profile if we have a session; otherwise it will be created on first login.
-      const { data: sessionData } = await supabase.auth.getSession();
-      const authedId = sessionData.session?.user?.id;
-
-      if (user?.id && authedId === user.id) {
-        // 2) Insert profile row (username -> email mapping)
-        const { error: pErr } = await supabase.from("profiles").insert({
-          id: user.id,
-          username: username.trim(),
-          email,
-        });
-        // Ignore unique violation, etc. (user might re-open signup)
-        if (pErr && !/duplicate|unique/i.test(pErr.message)) {
-          console.warn("profiles insert:", pErr.message);
-        }
+      // also store username/email in profiles table
+      // if RLS requires auth, this will work for newly created session;
+      // otherwise you may do it after email confirmation.
+      const userId = data.user?.id;
+      if (userId) {
+        await supabase
+          .from("profiles")
+          .upsert({ user_id: userId, username: cleanUser, email: cleanEmail });
       }
 
-      setMsg(
-        "Account created. If email confirmation is enabled, please check your inbox."
+      setOk(
+        "Check your inbox to confirm your email. You can log in once confirmed."
       );
-      // If email confirmation is off, close modal; otherwise keep open with message
-      if (!data.session) return;
-      onClose();
+    } catch (e: any) {
+      setErr(e?.message || "Sign up failed.");
     } finally {
       setBusy(false);
     }
   }
 
-  async function handleReset() {
+  async function handleReset(e: React.FormEvent) {
+    e.preventDefault();
     setBusy(true);
-    setMsg(null);
+    setErr(null);
+    setOk(null);
     try {
-      const email = asEmailOrNull(identifier.trim())
-        ?? (await resolveEmailFromUsername(identifier.trim()));
-      if (!email) {
-        setMsg("Enter your account email or username.");
-        return;
-      }
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: typeof window !== "undefined"
-          ? `${location.origin}/reset`
-          : undefined,
+      const clean = (identifier || email).trim();
+      const targetEmail = clean.includes("@")
+        ? clean
+        : await resolveEmailFromUsername(clean);
+
+      const { error } = await supabase.auth.resetPasswordForEmail(targetEmail, {
+        redirectTo:
+          typeof window !== "undefined"
+            ? `${window.location.origin}/auth/reset`
+            : undefined,
       });
-      if (error) {
-        setMsg(error.message);
-        return;
-      }
-      setMsg("Password reset email sent (if the account exists).");
+      if (error) throw error;
+      setOk("Password reset email sent.");
+    } catch (e: any) {
+      setErr(e?.message || "Could not send reset email.");
     } finally {
       setBusy(false);
     }
   }
 
-  function continueAsGuest() {
-    try {
-      sessionStorage.setItem("auth_mode", "guest");
-      // Optional: clear any remembered email
-      localStorage.removeItem("current_user");
-    } catch {}
-    onClose();
-  }
+  /* ---------------------------------- UI ---------------------------------- */
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-[linear-gradient(180deg,#0B0D12,#0A0C10)] shadow-2xl shadow-black/60">
-        <div className="flex items-center justify-between px-5 py-4">
-          <div className="text-lg font-semibold text-slate-200">
-            {mode === "login" && "Log In"}
-            {mode === "signup" && "Create account"}
-            {mode === "reset" && "Reset password"}
-          </div>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-[#0b0d12]/95 shadow-2xl">
+        {/* header */}
+        <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
+          <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
           <button
-            onClick={onClose}
-            className="rounded-lg p-1 text-slate-400 hover:bg-white/5 hover:text-slate-200"
+            onClick={() => onClose?.()}
+            className="rounded-md p-2 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+            aria-label="Close"
           >
-            ✕
+            ×
           </button>
         </div>
 
-        <div className="px-5 pb-5">
-          <p className="mb-4 text-sm text-slate-400">
-            {mode === "login" && "Welcome back."}
-            {mode === "signup" && "Let’s get you set up."}
-            {mode === "reset" && "Enter your email or username."}
-          </p>
-
-          {/* Signup-only username */}
-          {mode === "signup" && (
-            <div className="mb-3">
-              <label className="mb-1 block text-xs font-medium text-slate-400">
-                Username
-              </label>
-              <input
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="yourname"
-                className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 shadow-inner shadow-black/40 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/25"
-              />
-            </div>
-          )}
-
-          {/* Identifier: email or username */}
-          <div className="mb-3">
-            <label className="mb-1 block text-xs font-medium text-slate-400">
-              {mode === "reset" ? "Email or Username" : "Email (or Username)"}
-            </label>
-            <input
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-              placeholder={mode === "reset" ? "you@email.com or yourname" : "you@email.com / yourname"}
-              className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 shadow-inner shadow-black/40 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/25"
-            />
-          </div>
-
-          {/* Password (not shown in reset mode) */}
-          {mode !== "reset" && (
-            <div className="mb-1">
-              <label className="mb-1 block text-xs font-medium text-slate-400">
-                Password
-              </label>
-              <input
-                type="password"
-                required
-                value={pass}
-                onChange={(e) => setPass(e.target.value)}
-                placeholder="••••••••"
-                className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 shadow-inner shadow-black/40 outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/25"
-              />
-            </div>
-          )}
-
-          {/* Forgot link (login only) */}
+        <div className="px-6 pt-4 pb-6">
           {mode === "login" && (
-            <div className="mt-2 mb-4 text-right">
+            <form onSubmit={handleLogin} className="space-y-4">
+              <p className="text-slate-300">Welcome back.</p>
+
+              <div>
+                <label className="mb-1 block text-sm text-slate-400">
+                  Email (or Username)
+                </label>
+                <input
+                  type="text"
+                  autoComplete="username"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="you@email.com / yourname"
+                  className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm text-slate-400">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={pass}
+                  onChange={(e) => setPass(e.target.value)}
+                  className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                />
+                <div className="mt-1 text-right">
+                  <button
+                    type="button"
+                    onClick={() => switchTo("reset")}
+                    className="text-xs text-slate-400 underline-offset-2 hover:text-slate-200 hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              </div>
+
+              {err && (
+                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {err}
+                </div>
+              )}
+              {ok && (
+                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+                  {ok}
+                </div>
+              )}
+
               <button
-                className="text-xs text-slate-400 underline decoration-slate-700 underline-offset-2 hover:text-slate-300"
-                onClick={() => setMode("reset")}
+                type="submit"
+                disabled={busy}
+                className="w-full rounded-xl bg-violet-600 px-4 py-3 font-medium text-white hover:bg-violet-500 disabled:opacity-60"
               >
-                Forgot password?
+                {busy ? "Logging in…" : "Log In"}
               </button>
-            </div>
-          )}
 
-          {/* Message */}
-          {msg && (
-            <div className="mb-3 rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-200">
-              {msg}
-            </div>
-          )}
+              <button
+                type="button"
+                onClick={continueAsGuest}
+                className="w-full rounded-xl bg-slate-800/70 px-4 py-3 text-slate-100 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+              >
+                Continue as guest
+              </button>
 
-          {/* Primary CTA */}
-          <button
-            disabled={busy}
-            onClick={
-              mode === "login" ? handleLogin : mode === "signup" ? handleSignup : handleReset
-            }
-            className="mb-3 h-11 w-full rounded-xl bg-indigo-600 font-semibold text-white shadow-[inset_0_-6px_14px_rgba(255,255,255,0.05)] outline-none ring-indigo-500/0 transition hover:bg-indigo-500 focus:ring-2 focus:ring-indigo-500/40 disabled:opacity-60"
-          >
-            {mode === "login" && "Log In"}
-            {mode === "signup" && "Sign Up"}
-            {mode === "reset" && "Send reset link"}
-          </button>
-
-          {/* Continue as guest */}
-<button
-  type="button"
-  onClick={continueAsGuest}
-  className="w-full rounded-xl bg-slate-800/70 px-4 py-3 text-slate-100 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
->
-  Continue as guest
-</button>
-
-
-
-          {/* Footer links */}
-          <div className="text-center text-sm text-slate-400">
-            {mode === "login" ? (
-              <>
+              <p className="pt-1 text-center text-sm text-slate-400">
                 Don’t have an account?{" "}
                 <button
-                  className="font-medium text-indigo-400 hover:text-indigo-300"
-                  onClick={() => setMode("signup")}
+                  type="button"
+                  onClick={() => switchTo("signup")}
+                  className="font-medium text-violet-300 hover:text-violet-200"
                 >
                   Sign Up
                 </button>
-              </>
-            ) : mode === "signup" ? (
-              <>
+              </p>
+            </form>
+          )}
+
+          {mode === "signup" && (
+            <form onSubmit={handleSignup} className="space-y-4">
+              <p className="text-slate-300">Let’s get you set up.</p>
+
+              <div>
+                <label className="mb-1 block text-sm text-slate-400">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@email.com"
+                  className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm text-slate-400">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="yourname"
+                  className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm text-slate-400">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={pass}
+                  onChange={(e) => setPass(e.target.value)}
+                  className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                />
+              </div>
+
+              {err && (
+                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {err}
+                </div>
+              )}
+              {ok && (
+                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+                  {ok}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={busy}
+                className="w-full rounded-xl bg-violet-600 px-4 py-3 font-medium text-white hover:bg-violet-500 disabled:opacity-60"
+              >
+                {busy ? "Creating…" : "Sign Up"}
+              </button>
+
+              <p className="pt-1 text-center text-sm text-slate-400">
                 Already have an account?{" "}
                 <button
-                  className="font-medium text-indigo-400 hover:text-indigo-300"
-                  onClick={() => setMode("login")}
+                  type="button"
+                  onClick={() => switchTo("login")}
+                  className="font-medium text-violet-300 hover:text-violet-200"
                 >
                   Log In
                 </button>
-              </>
-            ) : (
-              <>
-                Remembered your password?{" "}
+              </p>
+            </form>
+          )}
+
+          {mode === "reset" && (
+            <form onSubmit={handleReset} className="space-y-4">
+              <p className="text-slate-300">
+                Enter your email (or username) and we’ll send a reset link.
+              </p>
+              <div>
+                <label className="mb-1 block text-sm text-slate-400">
+                  Email or Username
+                </label>
+                <input
+                  type="text"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="you@email.com / yourname"
+                  className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                />
+              </div>
+
+              {err && (
+                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {err}
+                </div>
+              )}
+              {ok && (
+                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+                  {ok}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={busy}
+                className="w-full rounded-xl bg-violet-600 px-4 py-3 font-medium text-white hover:bg-violet-500 disabled:opacity-60"
+              >
+                {busy ? "Sending…" : "Send reset link"}
+              </button>
+
+              <p className="pt-1 text-center text-sm text-slate-400">
                 <button
-                  className="font-medium text-indigo-400 hover:text-indigo-300"
-                  onClick={() => setMode("login")}
+                  type="button"
+                  onClick={() => switchTo("login")}
+                  className="font-medium text-violet-300 hover:text-violet-200"
                 >
                   Back to Log In
                 </button>
-              </>
-            )}
-          </div>
+              </p>
+            </form>
+          )}
         </div>
       </div>
     </div>
