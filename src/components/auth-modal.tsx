@@ -97,12 +97,11 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
       }
 const router = useRouter();
 
-function handleContinueAsGuest() {
-  // close the modal (so we don’t see it on the next page)
+const continueAsGuest = () => {
   onClose?.();
-  // go to dashboard as a guest
   router.push("/dashboard");
-}
+};
+
 
       const user = data.user;
       // If email confirmations are enabled, user may not be logged in yet.
@@ -270,13 +269,14 @@ function handleContinueAsGuest() {
           </button>
 
           {/* Continue as guest */}
-         <button
+<button
   type="button"
-  onClick={handleContinueAsGuest}
+  onClick={continueAsGuest}
   className="w-full rounded-xl bg-slate-800/70 px-4 py-3 text-slate-100 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
 >
   Continue as guest
 </button>
+
 
 
           {/* Footer links */}
