@@ -81,7 +81,7 @@ const cmpStr = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
   if (am && bm) return 0;
   if (am) return 1;
   if (bm) return -1;
-  return (a ?? "").toLocaleLowerCase().localeCompare((b ?? "").toLocaleLowerCase()) * dir;
+  return (a ?? "").toLocaleLowerCase().localeCompare((b ?? "")!.toLocaleLowerCase()) * dir;
 };
 const cmpNum = (a: unknown, b: unknown, dir: 1 | -1) => {
   const am = isMissingNum(a);
@@ -152,90 +152,11 @@ function sortReducer(state: SortState, action: SortAction): SortState {
 
 function Pill({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-white/70">
+    <span className="inline-flex items-center rounded-full bg-slate-800/70 px-2 py-0.5 text-[11px] text-slate-300">
       {children}
     </span>
   );
 }
-function RowCard({ r }: { r: Row }) {
-  return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
-      <div className="flex items-start gap-3">
-        {r.image ? (
-          <img
-            src={r.image}
-            alt={r.name}
-            className="h-12 w-12 rounded object-contain bg-slate-800"
-            loading="lazy"
-            decoding="async"
-          />
-        ) : (
-          <div className="h-12 w-12 rounded bg-slate-800" />
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="truncate font-medium text-slate-100" title={r.market_hash_name}>
-            {r.nameNoWear}
-          </div>
-          <div className="mt-1 flex flex-wrap gap-1">
-            {wearLabelForRow(r.wear as WearCode) && <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>}
-            {r.pattern && <Pill>Pattern: {r.pattern}</Pill>}
-            {r.float && <Pill>Float: {r.float}</Pill>}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-slate-300">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-2">
-          <div className="text-xs text-slate-400">Qty</div>
-          <div className="font-semibold">{r.quantity ?? 1}</div>
-        </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-2 text-right">
-          <div className="text-xs text-slate-400">Skinport</div>
-          <div className="font-semibold">
-            {typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}
-          </div>
-        </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-2">
-          <div className="text-xs text-slate-400">Steam</div>
-          <div className="font-semibold">
-            {typeof r.steamAUD === "number" ? `A$${r.steamAUD.toFixed(2)}` : "—"}
-          </div>
-        </div>
-        <div className="flex items-center justify-end gap-2">
-          {/* You already have edit/delete handlers; we keep the same look */}
-          <button
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 hover:text-white"
-            title="Edit"
-            onClick={() => {
-              // these are defined in page component scope; we’ll call via dispatchers we expose on window
-              (window as any).__dash_openEdit?.(r);
-            }}
-          >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-            </svg>
-          </button>
-          <button
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 hover:text-white"
-            title="Delete"
-            onClick={() => {
-              (window as any).__dash_deleteRow?.(r);
-            }}
-          >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 6h18" />
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-              <path d="M10 11v6M14 11v6" />
-              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 
 /* ----------------------------- Edit dialog ----------------------------- */
 
@@ -296,14 +217,14 @@ function EditRowDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="relative w-full max-w-md rounded-xl border border-white/10 bg-[#12131b] p-6 text-white shadow-[0_6px_40px_rgba(0,0,0,.6)]">
+      <div className="relative w-full max-w-md rounded-xl bg-slate-900 p-6 text-white shadow-lg">
         <h2 className="mb-4 text-center text-2xl font-bold">Edit Item</h2>
 
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm text-white/60">Item</label>
+            <label className="mb-1 block text-sm text-slate-400">Item</label>
             <input
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2"
+              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
               value={name}
               onChange={(e) => setName(e.target.value)}
               list="item-suggestions"
@@ -312,40 +233,37 @@ function EditRowDialog({
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-  <label className="mb-1 block text-sm text-zinc-400">Wear</label>
-  <div className="select-wrap">
-    <select
-      className="theme-select"
-      value={wear}
-      onChange={(e) => setWear(e.target.value as WearCode)}
-      disabled={isNonWearCategory(name)}
-    >
-      {WEAR_OPTIONS.map((w) => (
-        <option key={w.code} value={w.code}>
-          {w.label}
-        </option>
-      ))}
-    </select>
-  </div>
-</div>
-
+              <label className="mb-1 block text-sm text-slate-400">Wear</label>
+              <select
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+                value={wear}
+                onChange={(e) => setWear(e.target.value as WearCode)}
+                disabled={isNonWearCategory(name)}
+              >
+                {WEAR_OPTIONS.map((w) => (
+                  <option key={w.code} value={w.code}>
+                    {w.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div>
-              <label className="mb-1 block text-sm text-white/60">Float</label>
+              <label className="mb-1 block text-sm text-slate-400">Float</label>
               <input
                 type="number"
                 step="0.00001"
                 min="0"
                 max="1"
-                className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2"
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
                 value={flt}
                 onChange={(e) => setFlt(e.target.value)}
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-white/60">Pattern</label>
+              <label className="mb-1 block text-sm text-slate-400">Pattern</label>
               <input
                 type="number"
-                className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2"
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
                 value={pat}
                 onChange={(e) => setPat(e.target.value)}
               />
@@ -353,11 +271,11 @@ function EditRowDialog({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-white/60">Quantity</label>
+            <label className="mb-1 block text-sm text-slate-400">Quantity</label>
             <input
               type="number"
               min={1}
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2"
+              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
               value={qty}
               onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
             />
@@ -365,17 +283,86 @@ function EditRowDialog({
         </div>
 
         <div className="mt-6 flex justify-end gap-2">
-          <button
-            className="rounded-lg bg-white/10 px-4 py-2 text-white/90 hover:bg-white/15"
-            onClick={onClose}
-          >
+          <button className="rounded-lg bg-slate-800 px-4 py-2 hover:bg-slate-700" onClick={onClose}>
             Cancel
           </button>
-          <button
-            className="rounded-lg bg-indigo-500 px-4 py-2 font-medium text-white hover:bg-indigo-400"
-            onClick={apply}
-          >
+          <button className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-500" onClick={apply}>
             Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------- Mobile Row Card ----------------------------- */
+
+function RowCard({ r }: { r: Row }) {
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-3">
+      <div className="flex items-start gap-3">
+        {r.image ? (
+          <img
+            src={r.image}
+            alt={r.name}
+            className="h-12 w-12 rounded object-contain bg-slate-800"
+            loading="lazy"
+            decoding="async"
+          />
+        ) : (
+          <div className="h-12 w-12 rounded bg-slate-800" />
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-medium text-slate-100" title={r.market_hash_name}>
+            {r.nameNoWear}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {wearLabelForRow(r.wear as WearCode) && <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>}
+            {r.pattern && <Pill>Pattern: {r.pattern}</Pill>}
+            {r.float && <Pill>Float: {r.float}</Pill>}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-slate-300">
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-2">
+          <div className="text-xs text-slate-400">Qty</div>
+          <div className="font-semibold">{r.quantity ?? 1}</div>
+        </div>
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-2 text-right">
+          <div className="text-xs text-slate-400">Skinport</div>
+          <div className="font-semibold">
+            {typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}
+          </div>
+        </div>
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-2">
+          <div className="text-xs text-slate-400">Steam</div>
+          <div className="font-semibold">
+            {typeof r.steamAUD === "number" ? `A$${r.steamAUD.toFixed(2)}` : "—"}
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          <button
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 hover:text-white"
+            title="Edit"
+            onClick={() => (window as any).__dash_openEdit?.(r)}
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+            </svg>
+          </button>
+          <button
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 hover:text-white"
+            title="Delete"
+            onClick={() => (window as any).__dash_deleteRow?.(r)}
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 6h18" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6M14 11v6" />
+              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+            </svg>
           </button>
         </div>
       </div>
@@ -409,21 +396,6 @@ export default function DashboardPage() {
   // edit dialog
   const [editOpen, setEditOpen] = useState(false);
   const [editRow, setEditRow] = useState<Row | null>(null);
-// expose handlers for RowCard buttons (mobile)
-useEffect(() => {
-  (window as any).__dash_openEdit = (row: Row) => {
-    setEditRow(row);
-    setEditOpen(true);
-  };
-  (window as any).__dash_deleteRow = (row: Row) => {
-    const orig = origIndexMap.get(row);
-    if (orig != null) removeRow(orig);
-  };
-  return () => {
-    delete (window as any).__dash_openEdit;
-    delete (window as any).__dash_deleteRow;
-  };
-}, [origIndexMap]);
 
   // --- auth state (for per-user sync) ---
   const [authed, setAuthed] = useState<string | null>(null);
@@ -452,7 +424,7 @@ useEffect(() => {
         localTs = Number(localStorage.getItem(STORAGE_TS_KEY) || "0");
       } catch {}
 
-      // normalize local (same as your mapping)
+      // normalize local
       if (localRows) {
         localRows = localRows.map((r) => ({
           ...r,
@@ -505,7 +477,6 @@ useEffect(() => {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
         localStorage.setItem(STORAGE_TS_KEY, String(now));
         if (authed) {
-          // best-effort, ignore errors
           await upsertAccountRows(rows);
         }
       }, 250);
@@ -797,6 +768,7 @@ useEffect(() => {
 
   useEffect(() => {
     backfillSomeSteamPrices(12);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** Auto-refresh every 15 minutes (4/hour) */
@@ -860,371 +832,365 @@ useEffect(() => {
     return m;
   }, [rows]);
 
-  function SortChip({ k, label }: { k: SortKey; label: string }) {
-    const active = sort.key === k;
-    const arrow = active ? (sort.dir === "asc" ? "▲" : "▼") : "";
-    return (
-      <button
-        onClick={() => dispatchSort({ type: "toggle", key: k })}
-        className={`rounded-full border px-2.5 py-1 text-xs transition ${
-          active
-            ? "border-indigo-500 text-indigo-300 bg-indigo-500/10"
-            : "border-white/10 text-white/70 hover:bg-white/10"
-        }`}
-      >
-        {label} {arrow}
-      </button>
-    );
-  }
+  // expose handlers for RowCard buttons (mobile)
+  useEffect(() => {
+    (window as any).__dash_openEdit = (row: Row) => {
+      setEditRow(row);
+      setEditOpen(true);
+    };
+    (window as any).__dash_deleteRow = (row: Row) => {
+      const orig = origIndexMap.get(row);
+      if (orig != null) removeRow(orig);
+    };
+    return () => {
+      delete (window as any).__dash_openEdit;
+      delete (window as any).__dash_deleteRow;
+    };
+  }, [origIndexMap]);
 
-  const nonWearForCurrentInput = isNonWearCategory(stripNone(mName || ""));
-  const formatTime = (ts: number | null) =>
-    ts
-      ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      : "—";
+  /* ----- AUTOCOMPLETE OPTIONS (from Skinport map + existing rows) ----- */
+  const autoNames = useMemo(() => {
+    const set = new Set<string>();
+    Object.keys(spMap).forEach((k) => set.add(k));
+    rows.forEach((r) => {
+      if (r.market_hash_name) set.add(r.market_hash_name);
+      if (r.nameNoWear) set.add(r.nameNoWear);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [spMap, rows]);
 
-  async function handleManualRefresh() {
-    try {
-      setRefreshing(true);
-      await refreshSkinport();
-      await backfillSomeSteamPrices(12);
-    } finally {
-      setRefreshing(false);
-    }
-  }
-/* ----- AUTOCOMPLETE OPTIONS (from Skinport map + existing rows) ----- */
-const autoNames = useMemo(() => {
-  const set = new Set<string>();
-  Object.keys(spMap).forEach((k) => set.add(k));
-  rows.forEach((r) => {
-    if (r.market_hash_name) set.add(r.market_hash_name);
-    if (r.nameNoWear) set.add(r.nameNoWear);
-  });
-  return Array.from(set).sort((a, b) => a.localeCompare(b));
-}, [spMap, rows]);
+  return (
+    <div className="mx-auto max-w-6xl p-6">
+      {/* Top row: Left Manual Add / Right Stats */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {/* Manual add (panel) */}
+        <div className="flex h-full flex-col rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+          <div className="text-lg font-medium">Search &amp; add item</div>
+          <p className="mb-3 mt-1 text-sm text-slate-400">
+            Start typing the base name (without wear). Choose wear, optional float/pattern, set
+            quantity and add.
+          </p>
 
-return (
-  <div className="mx-auto max-w-6xl p-6">
-    {/* Top row: Left Manual Add / Right Stats */}
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-      {/* Manual add (panel) */}
-      <div className="flex h-full flex-col rounded-2xl border border-[--ds-card-border] bg-[--ds-card] p-4">
-        <div className="text-lg font-medium">Search &amp; add item</div>
-        <p className="mb-3 mt-1 text-sm text-[--muted]">
-          Start typing the base name (without wear). Choose wear, optional float/pattern, set
-          quantity and add.
-        </p>
+          <div className="mt-3 grid grid-cols-1 items-end gap-3 md:grid-cols-12">
+            <div className="md:col-span-5">
+              <label className="mb-1 block text-[11px] leading-none text-slate-400">Item</label>
+              <input
+                className="h-12 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 text-sm placeholder:text-slate-500"
+                placeholder="AK-47 | Redline"
+                value={mName}
+                onChange={(e) => setMName(e.target.value)}
+                list="item-suggestions"
+              />
+              <datalist id="item-suggestions">
+                {autoNames.map((n) => (
+                  <option key={n} value={n} />
+                ))}
+              </datalist>
+            </div>
 
-        <div className="mt-3 grid grid-cols-1 items-end gap-3 md:grid-cols-12">
-          <div className="md:col-span-5">
-            <label className="mb-1 block text-[11px] leading-none text-[--muted]">Item</label>
-            <input
-              className="h-12 w-full rounded-xl border border-[--control-border] bg-[--control] px-3 text-sm placeholder:text-[--muted]"
-              placeholder="AK-47 | Redline"
-              value={mName}
-              onChange={(e) => setMName(e.target.value)}
-              list="item-suggestions"
-            />
-            <datalist id="item-suggestions">
-              {autoNames.map((n) => (
-                <option key={n} value={n} />
-              ))}
-            </datalist>
-          </div>
+            <div className="md:col-span-3">
+              <label className="mb-1 block text-[11px] leading-none text-slate-400">
+                Wear {isNonWearCategory(stripNone(mName || "")) && <span className="text-slate-500">(not applicable)</span>}
+              </label>
+              <select
+                className={`h-12 w-full appearance-none rounded-xl border border-slate-700 bg-slate-900 px-3 text-sm ${
+                  isNonWearCategory(stripNone(mName || "")) ? "opacity-50" : ""
+                }`}
+                value={mWear}
+                onChange={(e) => setMWear(e.target.value as WearCode)}
+                disabled={isNonWearCategory(stripNone(mName || ""))}
+              >
+                {WEAR_OPTIONS.map((w) => (
+                  <option key={w.code} value={w.code}>
+                    {w.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div className="md:col-span-3">
-            <label className="mb-1 block text-[11px] leading-none text-[--muted]">
-              Wear {nonWearForCurrentInput && <span className="text-[--muted]">(not applicable)</span>}
-            </label>
-            <select
-              className={`h-12 w-full appearance-none rounded-xl border border-[--control-border] bg-[--control] px-3 text-sm ${nonWearForCurrentInput ? "opacity-50" : ""}`}
-              value={mWear}
-              onChange={(e) => setMWear(e.target.value as WearCode)}
-              disabled={nonWearForCurrentInput}
-            >
-              {WEAR_OPTIONS.map((w) => (
-                <option key={w.code} value={w.code}>
-                  {w.label}
-                </option>
-              ))}
-            </select>
-          </div>
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-[11px] leading-none text-slate-400">Float (note only)</label>
+              <input
+                className="h-12 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 text-sm placeholder:text-slate-500"
+                placeholder="0.1234"
+                value={mFloat}
+                onChange={(e) => setMFloat(e.target.value)}
+              />
+            </div>
 
-          <div className="md:col-span-2">
-            <label className="mb-1 block text-[11px] leading-none text-[--muted]">Float (note only)</label>
-            <input
-              className="h-12 w-full rounded-xl border border-[--control-border] bg-[--control] px-3 text-sm placeholder:text-[--muted]"
-              placeholder="0.1234"
-              value={mFloat}
-              onChange={(e) => setMFloat(e.target.value)}
-            />
-          </div>
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-[11px] leading-none text-slate-400">Pattern (note only)</label>
+              <input
+                className="h-12 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 text-sm placeholder:text-slate-500"
+                placeholder="123"
+                value={mPattern}
+                onChange={(e) => setMPattern(e.target.value)}
+              />
+            </div>
 
-          <div className="md:col-span-2">
-            <label className="mb-1 block text-[11px] leading-none text-[--muted]">Pattern (note only)</label>
-            <input
-              className="h-12 w-full rounded-xl border border-[--control-border] bg-[--control] px-3 text-sm placeholder:text-[--muted]"
-              placeholder="123"
-              value={mPattern}
-              onChange={(e) => setMPattern(e.target.value)}
-            />
-          </div>
-
-          <div className="md:col-span-12">
-            <div className="flex items-center gap-3">
-              <div className="w-40">
-                <label className="mb-1 block text-[11px] leading-none text-[--muted]">Quantity</label>
-                <div className="flex h-12 items-center gap-2">
-                  <button
-                    type="button"
-                    className="h-12 w-12 rounded-xl border border-[--control-border] bg-[--control]"
-                    onClick={() => setMQty((q) => Math.max(1, q - 1))}
-                  >
-                    −
-                  </button>
-                  <div className="flex h-12 min-w-[3rem] items-center justify-center rounded-xl border border-[--control-border] bg-[--control] px-3 text-sm">
-                    {mQty}
+            <div className="md:col-span-12">
+              <div className="flex items-center gap-3">
+                <div className="w-40">
+                  <label className="mb-1 block text-[11px] leading-none text-slate-400">Quantity</label>
+                  <div className="flex h-12 items-center gap-2">
+                    <button
+                      type="button"
+                      className="h-12 w-12 rounded-xl border border-slate-700 bg-slate-900"
+                      onClick={() => setMQty((q) => Math.max(1, q - 1))}
+                    >
+                      −
+                    </button>
+                    <div className="flex h-12 min-w-[3rem] items-center justify-center rounded-xl border border-slate-700 bg-slate-900 px-3 text-sm">
+                      {mQty}
+                    </div>
+                    <button
+                      type="button"
+                      className="h-12 w-12 rounded-xl border border-slate-700 bg-slate-900"
+                      onClick={() => setMQty((q) => q + 1)}
+                    >
+                      +
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    className="h-12 w-12 rounded-xl border border-[--control-border] bg-[--control]"
-                    onClick={() => setMQty((q) => q + 1)}
-                  >
-                    +
-                  </button>
                 </div>
+
+                <button
+                  onClick={addManual}
+                  className="h-12 grow rounded-xl bg-indigo-600 px-4 text-white hover:bg-indigo-500 disabled:opacity-60"
+                  disabled={!mName.trim()}
+                >
+                  Add
+                </button>
               </div>
 
-              <button
-                onClick={addManual}
-                className="h-12 grow rounded-xl bg-[--primary] px-4 text-[--primary-foreground] hover:opacity-90 disabled:opacity-60"
-                disabled={!mName.trim()}
-              >
-                Add
-              </button>
+              <p className="mt-2 text-xs text-slate-400">
+                Pricing uses only <span className="font-medium">Item name + Wear</span>. Float/Pattern are for display.
+              </p>
             </div>
+          </div>
+        </div>
 
-            <p className="mt-2 text-xs text-[--muted]">
-              Pricing uses only <span className="font-medium">Item name + Wear</span>. Float/Pattern are for display.
-            </p>
+        {/* Stats panel */}
+        <div className="relative rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+          <button
+            type="button"
+            title="Refresh prices now (Skinport & Steam)"
+            onClick={handleManualRefresh}
+            className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800"
+            aria-label="Refresh prices"
+          >
+            <svg className={["h-4 w-4", refreshing ? "animate-spin" : ""].join(" ")} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12a9 9 0 1 1-3-6.7" />
+              <path d="M21 3v6h-6" />
+            </svg>
+          </button>
+
+          <div className="mb-2 text-lg font-medium">Stats</div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-3">
+              <div className="text-xs text-slate-400">Total items</div>
+              <div className="text-xl font-semibold">{totals.totalItems}</div>
+            </div>
+            <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-3">
+              <div className="text-xs text-slate-400">Steam − Skinport</div>
+              <div className={`text-xl font-semibold ${totals.totalSteam - totals.totalSkinport >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                A${(totals.totalSteam - totals.totalSkinport).toFixed(2)}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-3">
+              <div className="text-xs text-slate-400">Skinport total</div>
+              <div className="text-lg font-medium">A${totals.totalSkinport.toFixed(2)}</div>
+              <div className="text-xs text-slate-500">
+                {rows.filter((r) => typeof r.skinportAUD === "number").length}/{rows.length} priced • {formatTime(skinportUpdatedAt)}
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-3">
+              <div className="text-xs text-slate-400">Steam total</div>
+              <div className="text-lg font-medium">A${totals.totalSteam.toFixed(2)}</div>
+              <div className="text-xs text-slate-500">
+                {rows.filter((r) => typeof r.steamAUD === "number").length}/{rows.length} priced • {formatTime(steamUpdatedAt)}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Stats panel */}
-      <div className="relative rounded-2xl border border-[--ds-card-border] bg-[--ds-card] p-4">
-        <button
-          type="button"
-          title="Refresh prices now (Skinport & Steam)"
-          onClick={handleManualRefresh}
-          className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[--control-border] bg-[--control] text-[--text] hover:opacity-90"
-          aria-label="Refresh prices"
-        >
-          <svg className={["h-4 w-4", refreshing ? "animate-spin" : ""].join(" ")} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 12a9 9 0 1 1-3-6.7" />
-            <path d="M21 3v6h-6" />
-          </svg>
-        </button>
-
-        <div className="mb-2 text-lg font-medium">Stats</div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl border border-[--control-border] bg-[--panel] p-3">
-            <div className="text-xs text-[--muted]">Total items</div>
-            <div className="text-xl font-semibold">{totals.totalItems}</div>
-          </div>
-          <div className="rounded-xl border border-[--control-border] bg-[--panel] p-3">
-            <div className="text-xs text-[--muted]">Steam − Skinport</div>
-            <div className={`text-xl font-semibold ${totals.totalSteam - totals.totalSkinport >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-              A${(totals.totalSteam - totals.totalSkinport).toFixed(2)}
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <div className="rounded-xl border border-[--control-border] bg-[--panel] p-3">
-            <div className="text-xs text-[--muted]">Skinport total</div>
-            <div className="text-lg font-medium">A${totals.totalSkinport.toFixed(2)}</div>
-            <div className="text-xs text-[--muted]">
-              {rows.filter((r) => typeof r.skinportAUD === "number").length}/{rows.length} priced • {formatTime(skinportUpdatedAt)}
-            </div>
-          </div>
-          <div className="rounded-xl border border-[--control-border] bg-[--panel] p-3">
-            <div className="text-xs text-[--muted]">Steam total</div>
-            <div className="text-lg font-medium">A${totals.totalSteam.toFixed(2)}</div>
-            <div className="text-xs text-[--muted]">
-              {rows.filter((r) => typeof r.steamAUD === "number").length}/{rows.length} priced • {formatTime(steamUpdatedAt)}
-            </div>
-          </div>
-        </div>
+      {/* Sort toolbar */}
+      <div className="mt-4 mb-2 flex flex-wrap items-center gap-2 text-sm">
+        <span className="mr-1 text-slate-400">Sort:</span>
+        <SortChip k="item" label="Item" />
+        <SortChip k="wear" label="Exterior" />
+        <SortChip k="pattern" label="Pattern" />
+        <SortChip k="float" label="Float" />
+        <SortChip k="qty" label="Qty" />
+        <SortChip k="skinport" label="Skinport" />
+        <SortChip k="steam" label="Steam" />
       </div>
-    </div>
 
-    {/* Sort toolbar */}
-    <div className="mt-4 mb-2 flex flex-wrap items-center gap-2 text-sm">
-      <span className="mr-1 text-[--muted]">Sort:</span>
-      <SortChip k="item" label="Item" />
-      <SortChip k="wear" label="Exterior" />
-      <SortChip k="pattern" label="Pattern" />
-      <SortChip k="float" label="Float" />
-      <SortChip k="qty" label="Qty" />
-      <SortChip k="skinport" label="Skinport" />
-      <SortChip k="steam" label="Steam" />
-    </div>
-
-    {/* TABLE */}
-    <div className="overflow-x-auto rounded-2xl border border-[--ds-card-border] bg-[--ds-card] touch-pan-x">
-      <table className="w-full min-w-[920px] text-sm md:min-w-full">
-        <thead className="bg-[--panel] text-[--muted]">
-          <tr>
-            <th className="px-4 py-2 text-left">Item</th>
-            <th className="px-4 py-2 text-right">Qty</th>
-            <th className="px-4 py-2 text-right">Skinport (AUD)</th>
-            <th className="px-4 py-2 text-right">Steam (AUD)</th>
-            <th className="px-4 py-2 text-right">Actions</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {sorted.length === 0 ? (
+      {/* DESKTOP/TABLET TABLE */}
+      <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-800 touch-pan-x">
+        <table className="min-w-[920px] w-full text-sm">
+          <thead className="bg-slate-900/60 text-slate-300">
             <tr>
-              <td colSpan={5} className="px-4 py-6 text-center text-[--muted]">
-                No items yet. Use <span className="underline">Search &amp; add item</span> or import from Steam.
-              </td>
+              <th className="px-4 py-2 text-left">Item</th>
+              <th className="px-4 py-2 text-right">Qty</th>
+              <th className="px-4 py-2 text-right">Skinport (AUD)</th>
+              <th className="px-4 py-2 text-right">Steam (AUD)</th>
+              <th className="px-4 py-2 text-right">Actions</th>
             </tr>
-          ) : (
-            sorted.map((r) => {
-              const orig = origIndexMap.get(r)!;
-              return (
-                <tr key={r.market_hash_name + "|" + orig} className="border-t border-[--row]">
-                  {/* ITEM */}
-                  <td className="px-4 py-2">
-                    <div className="flex items-start gap-3">
-                      {r.image ? (
-                        <img
-                          src={r.image}
-                          alt={r.name}
-                          loading="lazy"
-                          decoding="async"
-                          onError={(e) => {
-                            const el = e.currentTarget as HTMLImageElement;
-                            if (el.src !== FALLBACK_DATA_URL) el.src = FALLBACK_DATA_URL;
-                          }}
-                          className="h-10 w-10 rounded object-contain bg-[--chip]"
-                        />
-                      ) : (
-                        <img src={FALLBACK_DATA_URL} alt="" className="h-10 w-10 rounded object-contain" />
-                      )}
+          </thead>
 
-                      <div className="min-w-0">
-                        <div className="truncate font-medium" title={r.market_hash_name}>
-                          {r.nameNoWear}
-                        </div>
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {wearLabelForRow(r.wear as WearCode) && <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>}
-                          {r.pattern && <Pill>Pattern: {r.pattern}</Pill>}
-                          {r.float && <Pill>Float: {r.float}</Pill>}
+          <tbody>
+            {sorted.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                  No items yet. Use <span className="underline">Search &amp; add item</span> or import from Steam.
+                </td>
+              </tr>
+            ) : (
+              sorted.map((r) => {
+                const orig = origIndexMap.get(r)!;
+                return (
+                  <tr key={r.market_hash_name + "|" + orig} className="border-t border-slate-800">
+                    {/* ITEM */}
+                    <td className="px-4 py-2">
+                      <div className="flex items-start gap-3">
+                        {r.image ? (
+                          <img
+                            src={r.image}
+                            alt={r.name}
+                            loading="lazy"
+                            decoding="async"
+                            onError={(e) => {
+                              const el = e.currentTarget as HTMLImageElement;
+                              if (el.src !== FALLBACK_DATA_URL) el.src = FALLBACK_DATA_URL;
+                            }}
+                            className="h-10 w-10 rounded object-contain bg-slate-800"
+                          />
+                        ) : (
+                          <img src={FALLBACK_DATA_URL} alt="" className="h-10 w-10 rounded object-contain" />
+                        )}
+                        <div className="min-w-0">
+                          <div className="truncate font-medium" title={r.market_hash_name}>
+                            {r.nameNoWear}
+                          </div>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {wearLabelForRow(r.wear as WearCode) && <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>}
+                            {r.pattern && <Pill>Pattern: {r.pattern}</Pill>}
+                            {r.float && <Pill>Float: {r.float}</Pill>}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
+                    </td>
 
-                  {/* QTY */}
-                  <td className="px-4 py-2 text-right tabular-nums">{r.quantity ?? 1}</td>
+                    {/* QTY */}
+                    <td className="px-4 py-2 text-right tabular-nums">{r.quantity ?? 1}</td>
 
-                  {/* SKINPORT */}
-                  <td className="px-4 py-2">
-                    <div className="text-right leading-tight">
-                      <div>{typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}</div>
-                      {typeof r.skinportAUD === "number" && (r.quantity ?? 1) > 1 && (
-                        <div className="mt-0.5 text-[11px] text-[--muted]">
-                          ×{r.quantity ?? 1} = <span className="tabular-nums">A${(r.skinportAUD * (r.quantity ?? 1)).toFixed(2)}</span>
-                        </div>
-                      )}
-                    </div>
-                  </td>
+                    {/* SKINPORT */}
+                    <td className="px-4 py-2">
+                      <div className="text-right leading-tight">
+                        <div>{typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}</div>
+                        {typeof r.skinportAUD === "number" && (r.quantity ?? 1) > 1 && (
+                          <div className="mt-0.5 text-[11px] text-slate-400">
+                            ×{r.quantity ?? 1} = <span className="tabular-nums">A${(r.skinportAUD * (r.quantity ?? 1)).toFixed(2)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
 
-                  {/* STEAM */}
-                  <td className="px-4 py-2">
-                    <div className="text-right leading-tight">
-                      <div>{typeof r.steamAUD === "number" ? `A$${r.steamAUD.toFixed(2)}` : "—"}</div>
-                      {typeof r.steamAUD === "number" && (r.quantity ?? 1) > 1 && (
-                        <div className="mt-0.5 text-[11px] text-[--muted]">
-                          ×{r.quantity ?? 1} = <span className="tabular-nums">A${(r.steamAUD * (r.quantity ?? 1)).toFixed(2)}</span>
-                        </div>
-                      )}
-                    </div>
-                  </td>
+                    {/* STEAM */}
+                    <td className="px-4 py-2">
+                      <div className="text-right leading-tight">
+                        <div>{typeof r.steamAUD === "number" ? `A$${r.steamAUD.toFixed(2)}` : "—"}</div>
+                        {typeof r.steamAUD === "number" && (r.quantity ?? 1) > 1 && (
+                          <div className="mt-0.5 text-[11px] text-slate-400">
+                            ×{r.quantity ?? 1} = <span className="tabular-nums">A${(r.steamAUD * (r.quantity ?? 1)).toFixed(2)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
 
-                  {/* ACTIONS */}
-                  <td className="px-4 py-2 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[--chip] text-[--text] hover:opacity-90"
-                        title="Edit"
-                        onClick={() => {
-                          setEditRow(r);
-                          setEditOpen(true);
-                        }}
-                      >
-                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M12 20h9" />
-                          <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                        </svg>
-                      </button>
+                    {/* ACTIONS */}
+                    <td className="px-4 py-2 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 hover:text-white"
+                          title="Edit"
+                          onClick={() => {
+                            setEditRow(r);
+                            setEditOpen(true);
+                          }}
+                        >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                          </svg>
+                        </button>
 
-                      <button
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[--chip] text-[--text] hover:opacity-90"
-                        title="Delete"
-                        onClick={() => removeRow(orig)}
-                      >
-                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M3 6h18" />
-                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                          <path d="M10 11v6M14 11v6" />
-                          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })
-          )}
-        </tbody>
-      </table>
+                        <button
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 hover:text-white"
+                          title="Delete"
+                          onClick={() => removeRow(orig)}
+                        >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 6h18" />
+                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                            <path d="M10 11v6M14 11v6" />
+                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* MOBILE CARD LIST */}
+      <div className="space-y-3 md:hidden">
+        {sorted.length === 0 ? (
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 text-center text-slate-400">
+            No items yet. Use <span className="underline">Search &amp; add item</span> or import from Steam.
+          </div>
+        ) : (
+          sorted.map((r) => <RowCard key={r.market_hash_name + "|card"} r={r} />)
+        )}
+      </div>
+
+      {/* Edit dialog */}
+      <EditRowDialog
+        open={editOpen}
+        row={editRow}
+        onClose={() => setEditOpen(false)}
+        onSave={(next) => {
+          setRows((prev) => prev.map((r) => (r === editRow ? next : r)));
+        }}
+        spMap={spMap}
+      />
+
+      {/* Back to top */}
+      <button
+        type="button"
+        aria-label="Back to top"
+        onClick={scrollToTop}
+        className={[
+          "fixed bottom-6 right-6 z-50 rounded-full bg-slate-800/90 text-slate-100 shadow-lg shadow-black/40",
+          "backdrop-blur px-4 h-12 inline-flex items-center gap-2",
+          "border border-slate-700 hover:bg-slate-700/80 transition-all duration-200",
+          showBackToTop ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-3 pointer-events-none",
+        ].join(" ")}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="-mt-[1px]">
+          <path d="M6 14l6-6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span className="text-sm">Top</span>
+      </button>
     </div>
-
-    {/* Edit dialog */}
-    <EditRowDialog
-      open={editOpen}
-      row={editRow}
-      onClose={() => setEditOpen(false)}
-      onSave={(next) => {
-        setRows((prev) => prev.map((r) => (r === editRow ? next : r)));
-      }}
-      spMap={spMap}
-    />
-
-    {/* Back to top */}
-    <button
-      type="button"
-      aria-label="Back to top"
-      onClick={scrollToTop}
-      className={[
-        "fixed bottom-6 right-6 z-50 rounded-full bg-[--chip] text-[--text] shadow-lg shadow-black/40",
-        "backdrop-blur px-4 h-12 inline-flex items-center gap-2",
-        "border border-[--control-border] hover:opacity-90 transition-all duration-200",
-        showBackToTop ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-3 pointer-events-none",
-      ].join(" ")}
-    >
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="-mt-[1px]">
-        <path d="M6 14l6-6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      <span className="text-sm">Top</span>
-    </button>
-  </div>
-);
-
- 
-
+  );
+}
