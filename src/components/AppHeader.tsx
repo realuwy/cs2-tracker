@@ -37,7 +37,7 @@ export default function AppHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-surface2/80 backdrop-blur">
-      <nav className="relative mx-auto grid max-w-6xl grid-cols-3 items-center px-4 py-3">
+      <nav className="mx-auto flex max-w-6xl items-center justify-between px-3 sm:px-4 py-3">
         {/* Brand */}
         <div className="justify-self-start flex items-center gap-2">
           <span className="inline-block h-3 w-3 rounded-full bg-accent" />
