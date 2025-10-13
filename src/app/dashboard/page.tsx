@@ -1,13 +1,5 @@
 "use client";// Manual refresh (Skinport + Steam)
-async function handleManualRefresh() {
-  try {
-    setRefreshing(true);
-    await refreshSkinport();
-    await backfillSomeSteamPrices(12);
-  } finally {
-    setRefreshing(false);
-  }
-}
+
 
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
@@ -879,6 +871,7 @@ async function handleManualRefresh() {
     setRefreshing(false);
   }
 }
+
 
 return (
     <div className="mx-auto max-w-6xl p-6">
