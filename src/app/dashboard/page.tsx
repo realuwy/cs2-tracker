@@ -857,76 +857,76 @@ export default function DashboardPage() {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [spMap, rows]);
 
-  // Manual refresh (Skinport + Steam)
-  async function handleManualRefresh() {
-    try {
-      setRefreshing(true);
-      await refreshSkinport();
-      await backfillSomeSteamPrices(12);
-    } finally {
-      setRefreshing(false);
-    }
+// Manual refresh (Skinport + Steam)
+async function handleManualRefresh() {
+  try {
+    setRefreshing(true);
+    await refreshSkinport();
+    await backfillSomeSteamPrices(12);
+  } finally {
+    setRefreshing(false);
   }
-  // Small helper to show times like "14:32"
-  function formatTime(ts: number | null) {
-    return ts
-      ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      : "—";
-  }
-  // Sort button chip used in the toolbar
-  function SortChip({ k, label }: { k: SortKey; label: string }) {
-    const active = sort.key === k;
-    const arrow = active ? (sort.dir === "asc" ? "▲" : "▼") : "";
-    return (
-      <button
-        onClick={() => dispatchSort({ type: "toggle", key: k })}
-        className={`rounded-full border px-2.5 py-1 text-xs transition ${
-          active
-            ? "border-violet-500 text-violet-400 bg-violet-500/10"
-            : "border-slate-700 text-slate-300 hover:bg-slate-800/60"
-        }`}
-      >
-        {label} {arrow}
-      </button>
-    );
-  }
+}
 
+// Small helper to show times like "14:32"
+function formatTime(ts: number | null) {
+  return ts
+    ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : "—";
+}
+
+// Sort button chip used in the toolbar
+function SortChip({ k, label }: { k: SortKey; label: string }) {
+  const active = sort.key === k;
+  const arrow = active ? (sort.dir === "asc" ? "▲" : "▼") : "";
   return (
-    <div className="mx-auto max-w-6xl p-6">
-      {/* Top row: Left Manual Add / Right Stats */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* Manual add (panel) */}
-        {/* Manual add (panel) */}
-<div className="flex h-full flex-col rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
-  <div className="mb-2 flex items-center gap-2">
-    <span className="inline-block h-1.5 w-1.5 rounded-full bg-violet-400" />
-    <h3 className="text-base font-semibold text-slate-100">Search &amp; add item</h3>
-  </div>
-  <p className="mb-4 text-sm text-slate-400">
-    Type the base name (without wear). Choose wear, optional float/pattern, set quantity, then add.
-  </p>
+    <button
+      onClick={() => dispatchSort({ type: "toggle", key: k })}
+      className={`rounded-full border px-2.5 py-1 text-xs transition ${
+        active
+          ? "border-violet-500 text-violet-400 bg-violet-500/10"
+          : "border-slate-700 text-slate-300 hover:bg-slate-800/60"
+      }`}
+    >
+      {label} {arrow}
+    </button>
+  );
+} // ← closes SortChip ONLY
 
-  <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-12">
-    <div className="md:col-span-5">
-      <label className="mb-1 block text-[11px] tracking-wide text-slate-400">
-        Item
-      </label>
-      <div className="relative">
-        <input
-          className="h-12 w-full rounded-xl border border-slate-800 bg-slate-950/80 px-3 pr-9 text-sm text-slate-100 placeholder:text-slate-500 outline-none ring-0 focus:border-violet-600/60 focus:ring-2 focus:ring-violet-500/30 transition"
-          placeholder="AK-47 | Redline"
-          value={mName}
-          onChange={(e) => setMName(e.target.value)}
-          list="item-suggestions"
-        />
-        <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m21 21-4.35-4.35"></path><circle cx="11" cy="11" r="7"></circle></svg>
-      </div>
-      <datalist id="item-suggestions">
-        {autoNames.map((n) => (
-          <option key={n} value={n} />
-        ))}
-      </datalist>
-    </div>
+// ⬇️ No extra brace here
+return (
+  <div className="mx-auto max-w-6xl p-6">
+    {/* Top row: Left Manual Add / Right Stats */}
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      {/* Manual add (panel) */}
+      <div className="flex h-full flex-col rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-violet-400" />
+          <h3 className="text-base font-semibold text-slate-100">Search &amp; add item</h3>
+        </div>
+        <p className="mb-4 text-sm text-slate-400">
+          Type the base name (without wear). Choose wear, optional float/pattern, set quantity, then add.
+        </p>
+
+        <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-12">
+          <div className="md:col-span-5">
+            <label className="mb-1 block text-[11px] tracking-wide text-slate-400">Item</label>
+            <div className="relative">
+              <input
+                className="h-12 w-full rounded-xl border border-slate-800 bg-slate-950/80 px-3 pr-9 text-sm text-slate-100 placeholder:text-slate-500 outline-none ring-0 focus:border-violet-600/60 focus:ring-2 focus:ring-violet-500/30 transition"
+                placeholder="AK-47 | Redline"
+                value={mName}
+                onChange={(e) => setMName(e.target.value)}
+                list="item-suggestions"
+              />
+              <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m21 21-4.35-4.35"></path><circle cx="11" cy="11" r="7"></circle></svg>
+            </div>
+            <datalist id="item-suggestions">
+              {autoNames.map((n) => (
+                <option key={n} value={n} />
+              ))}
+            </datalist>
+          </div>
 
     <div className="md:col-span-3">
       <label className="mb-1 block text-[11px] tracking-wide text-slate-400">
