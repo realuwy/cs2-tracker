@@ -1,87 +1,75 @@
 import Link from "next/link";
 
-export const metadata = {
-  title: "About · CS2 Tracker",
-  description: "What CS2 Tracker is, how it works, and what’s coming next.",
-};
-
 export default function AboutPage() {
   return (
-    <div className="mx-auto max-w-3xl p-6">
-      {/* Top link (only to Privacy) */}
-      <div className="mb-6 flex items-center justify-end">
-        <Link
-          href="/privacy"
-          className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm text-black hover:bg-amber-500"
-        >
-          Privacy →
-        </Link>
-      </div>
+    <main className="mx-auto max-w-4xl px-6 py-10 text-slate-200">
+      <h1 className="text-3xl font-bold tracking-tight">About CS2 Tracker</h1>
 
-      <h1 className="mb-3 text-2xl font-semibold">About CS2 Tracker</h1>
-      <p className="mb-8 text-zinc-400">
-        CS2 Tracker helps you keep a clean list of your CS2 items and see rough market values at a
-        glance. It’s fast, minimal, and local-first.
+      <p className="mt-3 text-slate-400">
+        CS2 Tracker helps you keep a clean, private list of your CS2 items and see rough
+        market values at a glance. It’s fast, minimal, and privacy-minded.
       </p>
 
-      <div className="space-y-8">
-        <section>
-          <h2 className="mb-2 text-xl font-medium">Key features</h2>
-          <ul className="list-inside list-disc text-zinc-300">
-            <li><span className="font-medium">Dashboard table</span> with item name + metadata pills (Wear, Pattern, Float).</li>
-            <li><span className="font-medium">Type-ahead add</span>: search items by name and add quickly.</li>
-            <li><span className="font-medium">Pricing</span>: estimates from Skinport/Steam where available.</li>
-            <li><span className="font-medium">Local-first</span>: your inventory rows live in your browser, not on our server.</li>
-            <li><span className="font-medium">Edit mini-panel</span>: tweak quantity, wear, float, and pattern inline.</li>
+      <div className="mt-8 space-y-8">
+        {/* Features */}
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+          <h2 className="text-xl font-semibold">Key features</h2>
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-slate-300">
+            <li>Dashboard table with item name + metadata pills (Wear, Pattern, Float).</li>
+            <li>Type-ahead add: search items by name and add quickly.</li>
+            <li>
+              Pricing from Skinport/Steam where available with sensible sanity checks.
+            </li>
+            <li>
+              Save data to your account <span className="text-slate-400">(Supabase)</span> or use
+              local browser storage as a guest.
+            </li>
+            <li>Inline edit panel: tweak quantity, wear, float, and pattern.</li>
           </ul>
         </section>
 
-        <section>
-          <h2 className="mb-2 text-xl font-medium">How pricing works</h2>
-          <p className="text-zinc-300">
-            Prices are approximate and for convenience only. We match by <span className="font-medium">Item + Wear</span>.
-            Float and Pattern are informational. Steam prices are sanity-checked against Skinport ranges.
+        {/* Pricing notes */}
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+          <h2 className="text-xl font-semibold">How pricing works</h2>
+          <p className="mt-3 text-slate-300">
+            Prices are approximate and for convenience only. Matching is based on
+            <span className="font-medium"> item name + wear</span>; Float and Pattern are
+            informational. Steam prices are checked against Skinport ranges to avoid
+            outliers.
           </p>
         </section>
 
-        <section>
-          <h2 className="mb-2 text-xl font-medium">Local-first design</h2>
-          <p className="text-zinc-300">
-            We store your rows in <code className="rounded bg-zinc-900 px-1">localStorage</code> under{" "}
-            <code className="rounded bg-zinc-900 px-1">cs2:dashboard:rows</code>. Clearing browser data resets the app.
-            You can import again any time.
+        {/* Data model */}
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+          <h2 className="text-xl font-semibold">Local-first design</h2>
+          <p className="mt-3 text-slate-300">
+            As a guest, your rows live in <code className="rounded bg-slate-800/80 px-1.5 py-0.5">localStorage</code>{" "}
+            under <code className="rounded bg-slate-800/80 px-1.5 py-0.5">cs2:dashboard:rows</code>. Clearing browser data resets the app.
+            When signed in, your rows are synced to your account so they follow you between devices.
           </p>
         </section>
 
-        <section>
-          <h2 className="mb-2 text-xl font-medium">Roadmap (short)</h2>
-          <ul className="list-inside list-disc text-zinc-300">
-            <li>Filters & sorting polish (mobile-first improvements).</li>
+        {/* Roadmap */}
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+          <h2 className="text-xl font-semibold">Roadmap (short)</h2>
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-slate-300">
+            <li>Filters &amp; sorting polish and mobile-first improvements.</li>
             <li>Bulk edit and tagging.</li>
-            <li>Optional export/import of saved rows.</li>
+            <li>Optional import/export of saved rows.</li>
           </ul>
         </section>
 
-        <section>
-          <h2 className="mb-2 text-xl font-medium">Open source</h2>
-          <p className="text-zinc-300">
-            Repo:{" "}
-            <a className="underline" href="https://github.com/realuwy/cs2-tracker" target="_blank">
-              realuwy/cs2-tracker
-            </a>. Contributions and issues are welcome.
-          </p>
-        </section>
+        {/* CTA row */}
+        <div className="flex items-center justify-end">
+          <Link
+            href="/privacy"
+            className="rounded-full bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400"
+          >
+            Privacy policy
+          </Link>
+        </div>
       </div>
-
-      {/* Bottom link (only to Privacy) */}
-      <div className="mt-10 flex items-center justify-end">
-        <Link
-          href="/privacy"
-          className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm text-black hover:bg-amber-500"
-        >
-          Privacy →
-        </Link>
-      </div>
-    </div>
+    </main>
   );
 }
+
