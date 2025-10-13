@@ -12,45 +12,43 @@ export default function AboutPage() {
 
       <div className="mt-8 space-y-8">
         {/* Features */}
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+        <section className="rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/70 p-6">
           <h2 className="text-xl font-semibold">Key features</h2>
           <ul className="mt-3 list-disc space-y-2 pl-5 text-slate-300">
             <li>Dashboard table with item name + metadata pills (Wear, Pattern, Float).</li>
             <li>Type-ahead add: search items by name and add quickly.</li>
+            <li>Pricing from Skinport/Steam where available with sensible sanity checks.</li>
             <li>
-              Pricing from Skinport/Steam where available with sensible sanity checks.
-            </li>
-            <li>
-              Save data to your account <span className="text-slate-400">(Supabase)</span> or use
-              local browser storage as a guest.
+              Save data to your account{" "}
+              <span className="text-slate-400">(Supabase)</span> or use local browser storage as a guest.
             </li>
             <li>Inline edit panel: tweak quantity, wear, float, and pattern.</li>
           </ul>
         </section>
 
         {/* Pricing notes */}
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+        <section className="rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/70 p-6">
           <h2 className="text-xl font-semibold">How pricing works</h2>
           <p className="mt-3 text-slate-300">
             Prices are approximate and for convenience only. Matching is based on
-            <span className="font-medium"> item name + wear</span>; Float and Pattern are
-            informational. Steam prices are checked against Skinport ranges to avoid
-            outliers.
+            <span className="font-medium"> item name + wear</span>; Float and Pattern are informational.
+            Steam prices are checked against Skinport ranges to avoid outliers.
           </p>
         </section>
 
         {/* Data model */}
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+        <section className="rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/70 p-6">
           <h2 className="text-xl font-semibold">Local-first design</h2>
           <p className="mt-3 text-slate-300">
-            As a guest, your rows live in <code className="rounded bg-slate-800/80 px-1.5 py-0.5">localStorage</code>{" "}
-            under <code className="rounded bg-slate-800/80 px-1.5 py-0.5">cs2:dashboard:rows</code>. Clearing browser data resets the app.
+            As a guest, your rows live in{" "}
+            <code className="rounded bg-slate-900/70 px-1.5 py-0.5">localStorage</code> under{" "}
+            <code className="rounded bg-slate-900/70 px-1.5 py-0.5">cs2:dashboard:rows</code>. Clearing browser data resets the app.
             When signed in, your rows are synced to your account so they follow you between devices.
           </p>
         </section>
 
         {/* Roadmap */}
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+        <section className="rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/70 p-6">
           <h2 className="text-xl font-semibold">Roadmap (short)</h2>
           <ul className="mt-3 list-disc space-y-2 pl-5 text-slate-300">
             <li>Filters &amp; sorting polish and mobile-first improvements.</li>
@@ -63,7 +61,7 @@ export default function AboutPage() {
         <div className="flex items-center justify-end">
           <Link
             href="/privacy"
-            className="rounded-full bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400"
+            className="rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500"
           >
             Privacy
           </Link>
@@ -72,4 +70,3 @@ export default function AboutPage() {
     </main>
   );
 }
-
