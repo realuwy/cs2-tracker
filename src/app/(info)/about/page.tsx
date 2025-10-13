@@ -65,7 +65,7 @@ export default function AboutPage() {
             href="/privacy"
             className="rounded-full bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400"
           >
-            Privacy policy
+            Privacy
           </Link>
         </div>
       </div>
