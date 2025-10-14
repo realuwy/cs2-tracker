@@ -1,9 +1,8 @@
 "use client";
-
 import { useEffect, useState } from "react";
-import AuthModal from "@/components/auth-modal"; // assumes your existing modal default-exports the UI
+import AuthModal from "@/components/auth-modal";
 
-type Mode = "login" | "signup";
+type Mode = "login" | "signup" | "reset";
 
 export default function AuthModalHost() {
   const [open, setOpen] = useState(false);
@@ -12,8 +11,7 @@ export default function AuthModalHost() {
   useEffect(() => {
     const onOpen = (e: Event) => {
       const detail = (e as CustomEvent)?.detail as { mode?: Mode } | undefined;
-      if (detail?.mode === "signup") setMode("signup");
-      else setMode("login");
+      setMode(detail?.mode ?? "login");
       setOpen(true);
     };
     const onClose = () => setOpen(false);
@@ -26,11 +24,6 @@ export default function AuthModalHost() {
     };
   }, []);
 
-  return (
-    <AuthModal
-      open={open}
-      mode={mode}
-      onClose={() => setOpen(false)}
-    />
-  );
+  if (!open) return null;
+  return <AuthModal initialMode={mode} onClose={() => setOpen(false)} />;
 }
