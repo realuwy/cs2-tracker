@@ -152,7 +152,9 @@ function sortReducer(state: SortState, action: SortAction): SortState {
 
 function Pill({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-slate-800/70 px-2 py-0.5 text-[11px] text-slate-300">
+   <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] text-[var(--text)]/85"
+      style={{ background: "var(--accent-soft)", border: "1px solid var(--border)", borderColor: "color-mix(in oklab, var(--border) 80%, transparent)" }}>
+
       {children}
     </span>
   );
@@ -217,7 +219,8 @@ function EditRowDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="relative w-full max-w-md rounded-xl border border-slate-800/60 bg-[#0b0b0f] p-6 text-white shadow-lg">
+      <div className="relative w-full max-w-md rounded-2xl border bg-[color:var(--surface)] p-6 text-[var(--text)] shadow-card"
+     style={{ borderColor: "var(--border)" }}>
         <h2 className="mb-4 text-center text-2xl font-bold">Edit Item</h2>
 
         <div className="space-y-4">
@@ -343,7 +346,7 @@ function RowCard({ r }: { r: Row }) {
         </div>
         <div className="flex items-center justify-end gap-2">
           <button
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 hover:text-white"
+            className="btn-outline h-9 w-9 p-0"
             title="Edit"
             onClick={() => (window as any).__dash_openEdit?.(r)}
           >
@@ -353,7 +356,7 @@ function RowCard({ r }: { r: Row }) {
             </svg>
           </button>
           <button
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 hover:text-white"
+            className="btn-outline h-9 w-9 p-0"
             title="Delete"
             onClick={() => (window as any).__dash_deleteRow?.(r)}
           >
@@ -884,8 +887,10 @@ function SortChip({ k, label }: { k: SortKey; label: string }) {
       onClick={() => dispatchSort({ type: "toggle", key: k })}
       className={`rounded-full border px-2.5 py-1 text-xs transition ${
         active
-          ? "border-violet-500 text-violet-400 bg-violet-500/10"
-          : "border-slate-700 text-slate-300 hover:bg-slate-800/60"
+         active
+  ? "border-[var(--accent)] text-[var(--accent)] bg-[color:var(--accent-soft)]"
+  : "border-[var(--border)] text-[var(--text)]/85 hover:bg-white/5"
+
       }`}
     >
       {label} {arrow}
@@ -899,7 +904,9 @@ return (
     {/* Top row: Left Manual Add / Right Stats */}
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
       {/* Manual add (panel) */}
-      <div className="flex h-full flex-col rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
+      <div className="rounded-2xl border bg-[color:var(--surface)] p-5 shadow-card"
+style={{ borderColor: "var(--border)" }}
+>
         <div className="mb-2 flex items-center gap-2">
           <span className="inline-block h-1.5 w-1.5 rounded-full bg-violet-400" />
           <h3 className="text-base font-semibold text-slate-100">Search &amp; add item</h3>
@@ -913,7 +920,7 @@ return (
             <label className="mb-1 block text-[11px] tracking-wide text-slate-400">Item</label>
             <div className="relative">
               <input
-                className="h-12 w-full rounded-xl border border-slate-800 bg-slate-950/80 px-3 pr-9 text-sm text-slate-100 placeholder:text-slate-500 outline-none ring-0 focus:border-violet-600/60 focus:ring-2 focus:ring-violet-500/30 transition"
+                className="field h-12 px-3"
                 placeholder="AK-47 | Redline"
                 value={mName}
                 onChange={(e) => setMName(e.target.value)}
@@ -933,7 +940,7 @@ return (
               Wear {isNonWearCategory(stripNone(mName || "")) && <span className="text-slate-500">(n/a)</span>}
             </label>
             <select
-              className={`h-12 w-full appearance-none rounded-xl border border-slate-800 bg-slate-950/80 px-3 text-sm text-slate-100 outline-none focus:border-violet-600/60 focus:ring-2 focus:ring-violet-500/30 transition ${isNonWearCategory(stripNone(mName || "")) ? "opacity-50" : ""}`}
+              className={`field h-12 px-3 text-sm ${isNonWearCategory(stripNone(mName || "")) ? "opacity-50" : ""}`}
               value={mWear}
               onChange={(e) => setMWear(e.target.value as any)}
               disabled={isNonWearCategory(stripNone(mName || ""))}
@@ -970,11 +977,12 @@ return (
             <div className="flex flex-wrap items-center gap-3">
               <div className="w-44">
                 <label className="mb-1 block text-[11px] tracking-wide text-slate-400">Quantity</label>
-                <div className="flex h-12 items-stretch overflow-hidden rounded-xl border border-slate-800 bg-slate-950/80">
+               <div className="flex h-12 items-stretch overflow-hidden rounded-xl border bg-[var(--surface2)]"
+     style={{ borderColor: "var(--border)" }}>
                   <button
                     type="button"
                     onClick={() => setMQty((q) => Math.max(1, q - 1))}
-                    className="px-3 text-slate-300 hover:bg-slate-800/60"
+                    className="px-3 text-[var(--text)]/80 hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/40"
                     aria-label="Decrease quantity"
                   >
                     −
@@ -994,16 +1002,19 @@ return (
               </div>
 
               <button
-                onClick={addManual}
-                disabled={!mName.trim()}
-                className="group relative h-12 flex-1 overflow-hidden rounded-xl text-white transition disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
-              >
-                <span className="absolute inset-0 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 group-hover:from-violet-500 group-hover:to-violet-400 transition" />
-                <span className="relative z-10 inline-flex w-full items-center justify-center gap-2 font-medium">
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" /></svg>
-                  Add
-                </span>
-              </button>
+  type="button"
+  onClick={addManual}
+  disabled={!mName.trim()}
+  className="btn-primary h-12 flex-1 disabled:opacity-60"
+>
+  <span className="inline-flex items-center gap-2">
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+    Add
+  </span>
+</button>
+
             </div>
 
             <p className="mt-2 text-xs text-slate-500">
@@ -1021,7 +1032,7 @@ return (
             type="button"
             title="Refresh prices now (Skinport & Steam)"
             onClick={handleManualRefresh}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-800 bg-slate-950/80 text-slate-300 hover:bg-slate-800/70 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+            className="btn-outline h-9 w-9 p-0"
             aria-label="Refresh prices"
           >
             <svg className={["h-4 w-4", refreshing ? "animate-spin" : ""].join(" ")} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1077,9 +1088,11 @@ return (
       </div>
 
       {/* DESKTOP/TABLET TABLE */}
-      <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-800/60 touch-pan-x">
+      <div className="hidden md:block overflow-x-auto rounded-2xl border shadow-card"
+     style={{ borderColor: "var(--border)" }}>
         <table className="min-w-[920px] w-full text-sm">
-          <thead className="bg-[#0b0b0f]/60 text-slate-300">
+          <thead className="bg-[color:var(--surface2)] text-[var(--text)]/85">
+
             <tr>
               <th className="px-4 py-2 text-left">Item</th>
               <th className="px-4 py-2 text-right">Qty</th>
@@ -1100,7 +1113,8 @@ return (
               sorted.map((r) => {
                 const orig = origIndexMap.get(r)!;
                 return (
-                  <tr key={r.market_hash_name + "|" + orig} className="border-t border-slate-800/60">
+                  <tr key={r.market_hash_name + "|" + orig} className="border-t"
+style={{ borderColor: "var(--border)" }}>
                     {/* ITEM */}
                     <td className="px-4 py-2">
                       <div className="flex items-start gap-3">
@@ -1201,7 +1215,9 @@ return (
       {/* MOBILE CARD LIST */}
       <div className="space-y-3 md:hidden">
         {sorted.length === 0 ? (
-          <div className="rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/40 p-4 text-center text-slate-400">
+          <div className="rounded-2xl border bg-[color:var(--surface)] p-3"
+     style={{ borderColor: "var(--border)" }}>
+
             No items yet. Use <span className="underline">Search &amp; add item</span> or import from Steam.
           </div>
         ) : (
