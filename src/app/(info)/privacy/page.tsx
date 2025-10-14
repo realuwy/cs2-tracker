@@ -1,80 +1,63 @@
 import Link from "next/link";
 
+export const metadata = {
+  title: "Privacy · CS2 Tracker",
+  description: "How we handle data for CS2 Tracker.",
+};
+
 export default function PrivacyPage() {
   return (
-    <main className="mx-auto max-w-4xl px-6 py-10 text-slate-200">
-      <h1 className="text-3xl font-bold tracking-tight">Privacy</h1>
-      <p className="mt-3 text-slate-400">
-        CS2 Tracker is designed to be local-first. Your data stays with you unless you
-        explicitly sign in to sync it to your account.
+    <div className="mx-auto max-w-3xl p-6 text-text">
+      {/* Top nav */}
+      <div className="mb-6 flex items-center justify-between">
+        <Link
+          href="/"
+          className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm hover:bg-surface2 hover:ring-1 hover:ring-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+        >
+          ← Home
+        </Link>
+        <Link
+          href="/dashboard"
+          className="btn-accent px-3 py-1.5 text-sm"
+        >
+          Go to Dashboard →
+        </Link>
+      </div>
+
+      <h1 className="mb-3 text-3xl font-semibold">Privacy Policy</h1>
+      <p className="mb-4 text-muted">
+        We minimize data collection. Inventory data is fetched only to render your view and
+        improve features. We don’t sell your data.
       </p>
 
-      <div className="mt-8 space-y-8">
-        {/* What we store */}
-        <section className="rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/70 p-6">
-          <h2 className="text-xl font-semibold">What we store</h2>
-          <ul className="mt-3 list-disc space-y-2 pl-5 text-slate-300">
-            <li>
-              <span className="font-medium">Guest mode:</span> your rows are saved in{" "}
-              <code className="rounded bg-slate-900/70 px-1.5 py-0.5">localStorage</code> under{" "}
-              <code className="rounded bg-slate-900/70 px-1.5 py-0.5">cs2:dashboard:rows</code>.
-            </li>
-            <li>
-              <span className="font-medium">Signed-in mode:</span> your rows are synced to your
-              account so they’re available across devices. Only your account can access them.
-            </li>
-            <li>
-              Transient price / image data from third-party services may be cached by your
-              browser for performance.
-            </li>
-          </ul>
-        </section>
-
-        {/* What we don't store */}
-        <section className="rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/70 p-6">
-          <h2 className="text-xl font-semibold">What we don’t store</h2>
-          <ul className="mt-3 list-disc space-y-2 pl-5 text-slate-300">
-            <li>No advertising profiles.</li>
-            <li>No sale of personal data.</li>
-            <li>No server-side copy of guest rows.</li>
-          </ul>
-        </section>
-
-        {/* Third-party services */}
-        <section className="rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/70 p-6">
-          <h2 className="text-xl font-semibold">Third-party services</h2>
-          <p className="mt-3 text-slate-300">
-            Prices and images may come from services like Skinport and Steam. When you view that
-            data, their terms and privacy policies apply.
-          </p>
-        </section>
-
-        {/* Your controls */}
-        <section className="rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/70 p-6">
-          <h2 className="text-xl font-semibold">Your controls</h2>
-          <ul className="mt-3 list-disc space-y-2 pl-5 text-slate-300">
-            <li>
-              <span className="font-medium">Clear browser storage</span> to remove locally
-              stored guest rows.
-            </li>
-            <li>
-              <span className="font-medium">Sign in</span> to save rows to your account so they
-              persist across devices.
-            </li>
-            <li>You can re-import items at any time.</li>
-          </ul>
-        </section>
-
-        {/* CTA row */}
-        <div className="flex items-center justify-end">
-          <Link
-            href="/about"
-            className="rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500"
-          >
-            About
-          </Link>
-        </div>
+      <div className="rounded-2xl border border-border bg-surface p-5 shadow-card">
+        <h2 className="mb-2 text-xl font-semibold">Data we handle</h2>
+        <ul className="list-inside list-disc space-y-1 text-muted">
+          <li>Public Steam inventory metadata required to display items</li>
+          <li>Anonymous diagnostics needed to keep the app fast and stable</li>
+          <li>Account info you explicitly provide for sign-in</li>
+        </ul>
       </div>
-    </main>
+
+      <div className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-card">
+        <h2 className="mb-2 text-xl font-semibold">Your choices</h2>
+        <ul className="list-inside list-disc space-y-1 text-muted">
+          <li>Use as a guest with limited features</li>
+          <li>Delete local data via the account menu</li>
+          <li>Contact us to remove server-side data where applicable</li>
+        </ul>
+      </div>
+
+      <p className="mt-6 text-sm text-muted">
+        Questions?{" "}
+        <a
+          href="mailto:support@example.com"
+          className="underline decoration-accent/30 underline-offset-4 hover:decoration-accent text-accent hover:text-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 rounded"
+        >
+          Email support
+        </a>
+        .
+      </p>
+    </div>
   );
 }
