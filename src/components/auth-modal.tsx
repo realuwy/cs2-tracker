@@ -168,14 +168,14 @@ export default function AuthModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/95 shadow-2xl">
+      <div className="w-full max-w-lg rounded-2xl border border-[var(--border)] bg-[color:var(--bg)]/95 shadow-2xl">
         {/* header */}
-        <div className="flex items-center justify-between border-b border-slate-800/60 px-5 py-4">
-          <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
+        <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
+          <h2 className="text-lg font-semibold text-[var(--text)]">{title}</h2>
           <button
             type="button"
             onClick={() => onClose?.()}
-            className="rounded-md p-2 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+            className="rounded-md p-2 text-[color:var(--muted)] hover:bg-white/5 hover:text-[var(--text)]"
             aria-label="Close"
           >
             ×
@@ -185,10 +185,10 @@ export default function AuthModal({
         <div className="px-6 pt-4 pb-6">
           {mode === "login" && (
             <form onSubmit={handleLogin} className="space-y-4">
-              <p className="text-slate-300">Welcome back.</p>
+              <p className="text-[color:var(--muted)]">Welcome back.</p>
 
               <div>
-                <label className="mb-1 block text-sm text-slate-400">
+                <label className="mb-1 block text-sm text-[color:var(--muted)]">
                   Email (or Username)
                 </label>
                 <input
@@ -197,12 +197,12 @@ export default function AuthModal({
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   placeholder="you@email.com / yourname"
-                  className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                  className="field"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-sm text-slate-400">
+                <label className="mb-1 block text-sm text-[color:var(--muted)]">
                   Password
                 </label>
                 <input
@@ -210,13 +210,13 @@ export default function AuthModal({
                   autoComplete="current-password"
                   value={pass}
                   onChange={(e) => setPass(e.target.value)}
-                  className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                  className="field"
                 />
                 <div className="mt-1 text-right">
                   <button
                     type="button"
                     onClick={() => switchTo("reset")}
-                    className="text-xs text-slate-400 underline-offset-2 hover:text-slate-200 hover:underline"
+                    className="text-xs text-[color:var(--muted)] underline-offset-2 hover:text-[var(--text)] hover:underline"
                   >
                     Forgot password?
                   </button>
@@ -245,7 +245,7 @@ export default function AuthModal({
               <button
                 type="submit"
                 disabled={busy}
-                className="w-full rounded-xl bg-violet-600 px-4 py-3 font-medium text-white hover:bg-violet-500 disabled:opacity-60"
+                className="btn-primary w-full py-3 disabled:opacity-60"
               >
                 {busy ? "Logging in…" : "Log In"}
               </button>
@@ -253,17 +253,17 @@ export default function AuthModal({
               <button
                 type="button"
                 onClick={continueAsGuest}
-                className="w-full rounded-xl bg-slate-800/70 px-4 py-3 text-slate-100 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                className="btn-outline w-full py-3"
               >
                 Continue as guest
               </button>
 
-              <p className="pt-1 text-center text-sm text-slate-400">
+              <p className="pt-1 text-center text-sm text-[color:var(--muted)]">
                 Don’t have an account?{" "}
                 <button
                   type="button"
                   onClick={() => switchTo("signup")}
-                  className="font-medium text-violet-300 hover:text-violet-200"
+                  className="font-medium hover:text-[var(--accent)]"
                 >
                   Sign Up
                 </button>
@@ -273,10 +273,10 @@ export default function AuthModal({
 
           {mode === "signup" && (
             <form onSubmit={handleSignup} className="space-y-4">
-              <p className="text-slate-300">Let’s get you set up.</p>
+              <p className="text-[color:var(--muted)]">Let’s get you set up.</p>
 
               <div>
-                <label className="mb-1 block text-sm text-slate-400">
+                <label className="mb-1 block text-sm text-[color:var(--muted)]">
                   Email
                 </label>
                 <input
@@ -284,12 +284,12 @@ export default function AuthModal({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@email.com"
-                  className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                  className="field"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-sm text-slate-400">
+                <label className="mb-1 block text-sm text-[color:var(--muted)]">
                   Username
                 </label>
                 <input
@@ -297,12 +297,12 @@ export default function AuthModal({
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="yourname"
-                  className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                  className="field"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-sm text-slate-400">
+                <label className="mb-1 block text-sm text-[color:var(--muted)]">
                   Password
                 </label>
                 <input
@@ -310,7 +310,7 @@ export default function AuthModal({
                   autoComplete="new-password"
                   value={pass}
                   onChange={(e) => setPass(e.target.value)}
-                  className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                  className="field"
                 />
               </div>
 
@@ -336,17 +336,17 @@ export default function AuthModal({
               <button
                 type="submit"
                 disabled={busy}
-                className="w-full rounded-xl bg-violet-600 px-4 py-3 font-medium text-white hover:bg-violet-500 disabled:opacity-60"
+                className="btn-primary w-full py-3 disabled:opacity-60"
               >
                 {busy ? "Creating…" : "Sign Up"}
               </button>
 
-              <p className="pt-1 text-center text-sm text-slate-400">
+              <p className="pt-1 text-center text-sm text-[color:var(--muted)]">
                 Already have an account?{" "}
                 <button
                   type="button"
                   onClick={() => switchTo("login")}
-                  className="font-medium text-violet-300 hover:text-violet-200"
+                  className="font-medium hover:text-[var(--accent)]"
                 >
                   Log In
                 </button>
@@ -356,11 +356,11 @@ export default function AuthModal({
 
           {mode === "reset" && (
             <form onSubmit={handleReset} className="space-y-4">
-              <p className="text-slate-300">
+              <p className="text-[color:var(--muted)]">
                 Enter your email (or username) and we’ll send a reset link.
               </p>
               <div>
-                <label className="mb-1 block text-sm text-slate-400">
+                <label className="mb-1 block text-sm text-[color:var(--muted)]">
                   Email or Username
                 </label>
                 <input
@@ -368,7 +368,7 @@ export default function AuthModal({
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   placeholder="you@email.com / yourname"
-                  className="w-full rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                  className="field"
                 />
               </div>
 
@@ -394,16 +394,16 @@ export default function AuthModal({
               <button
                 type="submit"
                 disabled={busy}
-                className="w-full rounded-xl bg-violet-600 px-4 py-3 font-medium text-white hover:bg-violet-500 disabled:opacity-60"
+                className="btn-primary w-full py-3 disabled:opacity-60"
               >
                 {busy ? "Sending…" : "Send reset link"}
               </button>
 
-              <p className="pt-1 text-center text-sm text-slate-400">
+              <p className="pt-1 text-center text-sm text-[color:var(--muted)]">
                 <button
                   type="button"
                   onClick={() => switchTo("login")}
-                  className="font-medium text-violet-300 hover:text-violet-200"
+                  className="font-medium hover:text-[var(--accent)]"
                 >
                   Back to Log In
                 </button>
@@ -415,4 +415,5 @@ export default function AuthModal({
     </div>
   );
 }
+
 
