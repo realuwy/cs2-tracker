@@ -1,198 +1,28 @@
+/* src/app/globals.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
 
-:root{
-  --bg: #0a0a0a;           /* jet black */
-  --surface: #101010;      /* card surface */
-  --surface-2: #121212;    /* deeper surface */
-  --border: rgba(255,255,255,0.08);
-  --text: #e4e4e7;         /* primary text */
-  --muted: #a1a1aa;        /* secondary text */
-  --accent: #d8ff35;       /* neon lime */
-  --accent-600: #c9ff0d;   /* hover */
-  --glow: rgba(216,255,53,0.25);
+/* Optional: app-wide tweaks that match your theme */
+html, body {
+  height: 100%;
 }
 
-html, body { background: var(--bg); color: var(--text); font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
-
-@layer components {
-  /* Buttons */
-  .btn-primary {
-    @apply relative inline-flex items-center justify-center rounded-full px-4 py-2 font-semibold text-black transition focus:outline-none;
-    background: var(--accent);
-    box-shadow: 0 0 0 1px rgba(0,0,0,0.2), 0 6px 24px -8px var(--glow);
-  }
-  .btn-primary:hover { background: var(--accent-600); }
-
-  .btn-outline {
-    @apply inline-flex items-center justify-center rounded-full px-4 py-2 font-semibold transition;
-    color: var(--text);
-    box-shadow: inset 0 0 0 1px var(--border);
-    background: transparent;
-  }
-  .btn-outline:hover { background: rgba(255,255,255,0.03); }
-
-  /* Cards */
-  .card {
-    background: color-mix(in oklab, var(--surface) 92%, black);
-    box-shadow: 0 8px 30px -18px rgba(0,0,0,0.7);
-    border: 1px solid var(--border);
-    @apply rounded-2xl;
-  }
-
-  /* Inputs */
-  .field {
-    @apply h-12 w-full rounded-xl px-3 text-sm outline-none transition;
-    background: #0c0c0c; border: 1px solid var(--border); color: var(--text);
-  }
-  .field::placeholder { color: #71717a; }
-  .field:focus { box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 40%, transparent); border-color: color-mix(in oklab, var(--accent) 50%, var(--border)); }
+body {
+  @apply bg-[#0b0b0f] text-slate-200 antialiased;
 }
 
-@layer base {
-  html, body { @apply bg-bg text-text; }
-  ::selection { background: #7C6CFF; color: #0F1122; }
-  h1,h2,h3,h4 { @apply font-display tracking-tight; }
-}
-
-/* Cards, buttons, chips for quick reuse */
-.card { @apply rounded-2xl border border-border bg-surface shadow-card; }
-.btn-primary { @apply rounded-xl bg-accent px-4 py-2 text-sm font-medium text-bg hover:bg-accent-hover transition; }
-.pill { @apply inline-flex items-center rounded-full bg-accent-soft px-2 py-0.5 text-[11px] text-muted; }
-
-/* Hero backdrop like the screenshot (subtle radial top glow) */
-.hero-violet {
-  position: relative;
-  overflow: hidden;
-}
-.hero-violet::before {
-  content: "";
-  position: absolute;
-  inset: -40% -20% auto -20%;
-  height: 80%;
-  background: radial-gradient(60% 60% at 50% 0%,
-    rgba(124,108,255,0.22) 0%,
-    rgba(124,108,255,0.12) 35%,
-    rgba(124,108,255,0.00) 70%);
-  pointer-events: none;
-  filter: blur(2px);
-}
-/* ---------- Purple dashboard panels & rows ---------- */
-
-/* Base elevated panel (soft glow, subtle inner stroke) */
-.panel {
-  @apply relative rounded-2xl border border-border bg-surface/85 shadow-card backdrop-blur-sm;
-}
-.panel::before {
-  /* faint outer glow */
-  content: "";
-  position: absolute;
-  inset: -1px;
-  pointer-events: none;
-  border-radius: inherit;
-  background: radial-gradient(60% 80% at 50% -10%,
-      rgba(124,108,255,0.10),
-      rgba(124,108,255,0.00) 60%);
-  filter: blur(8px);
-  opacity: .35;
-}
-
-/* Slightly darker bar/header area look (like the nav & tiles) */
-.panel-muted {
-  @apply rounded-xl border border-border bg-surface2/80;
-}
-
-/* Panel section header line */
-.panel-sep {
-  @apply h-px bg-border/70;
-}
-
-/* Table wrapper: hides rounded corners bleeding */
-.panel-clip {
-  @apply overflow-hidden rounded-2xl;
-}
-
-/* Table header & rows to match the screenshot */
-.table-head {
-  @apply bg-surface2/70 text-muted;
-}
-.table-row {
-  @apply bg-surface/30 transition-colors;
-}
-.table-row:hover {
-  @apply bg-surface/60;
-}
-
-/* Row cell separators */
-.cell {
-  @apply border-t border-border/60;
-}
-
-/* Pills in rows (exterior, pattern, float) */
-.chip {
-  @apply inline-flex items-center rounded-full bg-accent-soft/60 px-2 py-0.5 text-[11px] text-muted;
-}
-/* ==== Themed native select (dark / purple) ==== */
-
-/* Hint browsers to use dark popovers where supported */
-:root { color-scheme: dark; }
-
-/* Wrapper draws a custom chevron */
-.select-wrap { position: relative; }
-.select-wrap::after {
-  content: "";
-  position: absolute;
-  right: 0.75rem;
-  top: 50%;
-  width: 0.5rem;
-  height: 0.5rem;
-  border-right: 2px solid #a5b4fc; /* indigo-300 */
-  border-bottom: 2px solid #a5b4fc;
-  transform: translateY(-60%) rotate(45deg);
-  pointer-events: none;
-  opacity: .85;
-}
-
-/* Base look for the select field */
-select.theme-select {
-  -webkit-appearance: none;
-  appearance: none;
-  height: 3rem;              /* 48px */
-  width: 100%;
-  padding: 0 0.75rem;        /* matches your inputs */
-  border-radius: 0.75rem;    /* xl */
-  border: 1px solid #2a2e44; /* slate-ish border */
-  background-color: #151726; /* field surface */
-  color: #e5e7eb;            /* zinc-200 text */
-  line-height: 3rem;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.02);
-}
-
-select.theme-select:hover { background-color: #181b2c; }
-
-select.theme-select:focus {
+/* Smooth scroll & focus ring niceties */
+:focus-visible {
   outline: none;
-  border-color: #3f46a8;               /* deeper indigo */
-  box-shadow: 0 0 0 2px rgba(99,102,241,.45); /* ring-indigo-500/45 */
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.5); /* violet ring */
 }
 
-/* Disabled look */
-select.theme-select:disabled { opacity: .5; }
-
-/* Try to darken the popup where browsers allow it */
-select.theme-select, select.theme-select option {
-  color-scheme: dark;
-  background-color: #181b2c;
-  color: #e5e7eb;
+/* Tables default look a bit nicer on dark */
+table th {
+  @apply font-medium text-slate-300;
 }
-
-/* Firefox specifically honors option background */
-@-moz-document url-prefix() {
-  select.theme-select option {
-    background-color: #181b2c !important;
-    color: #e5e7eb !important;
-  }
+table td, table th {
+  @apply align-middle;
 }
 
