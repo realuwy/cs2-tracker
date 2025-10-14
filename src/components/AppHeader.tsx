@@ -45,12 +45,15 @@ export default function AppHeader() {
   const isDash = pathname === "/dashboard";
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-800/60 bg-[#0b0b0f]/80 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--bg)]/85 backdrop-blur">
       <div className="relative mx-auto flex h-14 max-w-6xl items-center px-4">
         {/* Left: brand */}
         <Link href="/" className="flex items-center gap-2">
-          <span className="inline-block h-2.5 w-2.5 rounded-full bg-violet-400" />
-          <span className="text-sm font-semibold text-slate-200">CS2 Tracker</span>
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ background: "var(--accent)" }}
+          />
+          <span className="text-sm font-semibold text-[var(--text)]">CS2 Tracker</span>
         </Link>
 
         {/* Center: Dashboard pill */}
@@ -62,10 +65,8 @@ export default function AppHeader() {
             href="/dashboard"
             aria-current={isDash ? "page" : undefined}
             className={[
-              "rounded-full px-3 py-1.5 text-sm transition shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-500/40",
-              isDash
-                ? "bg-violet-600 text-white"
-                : "border border-slate-800/60 bg-[#0b0b0f]/60 text-slate-300 hover:bg-slate-800/60",
+              isDash ? "btn-primary" : "btn-outline",
+              "px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/40",
             ].join(" ")}
           >
             Dashboard
