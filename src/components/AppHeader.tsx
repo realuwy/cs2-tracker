@@ -19,7 +19,7 @@ export default function AppHeader({ user = null }: { user?: User }) {
                className="drop-shadow-[0_0_10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]">
             <path d="M3 5h5l8 10h5v4h-6L7 9H3V5z" fill="currentColor" className="text-accent" />
           </svg>
-          <span className="text-sm font-semibold tracking-wide text-text">Nightsable</span>
+          <span className="text-sm font-semibold tracking-wide text-text">CS2 Tracker</span>
         </Link>
 
         {/* Center: primary nav */}
