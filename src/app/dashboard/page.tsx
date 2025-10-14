@@ -466,24 +466,34 @@ export default function DashboardPage() {
     })();
   }, [authed]);
 
-  /* ---- persist rows (local + upsert when authed) ---- */
-  const saveTimer = useRef<number | null>(null);
-  useEffect(() => {
+/* ---- persist rows (local + upsert when authed) ---- */
+const saveTimer = useRef<number | null>(null);
+
+useEffect(() => {
+  // SSR guard: only run on the client
+  if (typeof window === "undefined") return;
+
+  // debounce saves
+  if (saveTimer.current) window.clearTimeout(saveTimer.current);
+
+  saveTimer.current = window.setTimeout(async () => {
     try {
-      if (saveTimer.current) window.clearTimeout(saveTimer.current);
-      saveTimer.current = window.setTimeout(async () => {
-        const now = Date.now();
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
-        localStorage.setItem(STORAGE_TS_KEY, String(now));
-        if (authed) {
-          await upsertAccountRows(rows);
-        }
-      }, 250);
-    } catch {}
-    return () => {
-      if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    };
-  }, [rows, authed]);
+      const now = Date.now();
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+      window.localStorage.setItem(STORAGE_TS_KEY, String(now));
+      if (authed) {
+        await upsertAccountRows(rows);
+      }
+    } catch {
+      // optional: console.warn("persist failed", e)
+    }
+  }, 250);
+
+  return () => {
+    if (saveTimer.current) window.clearTimeout(saveTimer.current);
+  };
+}, [rows, authed]);
+
 
   /* ---- Skinport map + images ---- */
   async function refreshSkinport() {
@@ -608,17 +618,25 @@ export default function DashboardPage() {
     if (def) void load(def);
   }, []);
 
-  /* ---- back to top visibility ---- */
-  useEffect(() => {
-    const onScroll = () => setShowBackToTop(window.scrollY > 600);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { capture: false });
-    return () => window.removeEventListener("scroll", onScroll, { capture: false });
-  }, []);
-  const scrollToTop = () => {
-    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
-  };
+/* ---- back to top visibility ---- */
+useEffect(() => {
+  if (typeof window === "undefined") return; // SSR guard
+
+  const onScroll = () => setShowBackToTop(window.scrollY > 600);
+
+  onScroll(); // set initial state
+  window.addEventListener("scroll", onScroll, { passive: true });
+  return () => window.removeEventListener("scroll", onScroll);
+}, []);
+
+/* ---- smooth scroll to top ---- */
+const scrollToTop = () => {
+  if (typeof window === "undefined") return; // SSR guard
+
+  const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
+};
+
 
   /* ---- import & manual add ---- */
   async function load(id?: string) {
@@ -768,17 +786,26 @@ export default function DashboardPage() {
     backfillSomeSteamPrices(12);
   }, []);
 
-  /** Auto-refresh every 15 minutes (4/hour) */
-  useEffect(() => {
-    const tick = async () => {
-      try {
-        await refreshSkinport();
-        await backfillSomeSteamPrices(12);
-      } catch {}
-    };
-    const id = window.setInterval(tick, 15 * 60 * 1000);
-    return () => window.clearInterval(id);
-  }, []);
+/** Auto-refresh every 15 minutes (4/hour) */
+useEffect(() => {
+  if (typeof window === "undefined") return; // SSR guard
+
+  const tick = async () => {
+    try {
+      await refreshSkinport();
+      await backfillSomeSteamPrices(12);
+    } catch {
+      /* noop */
+    }
+  };
+
+  // run once on mount (client)
+  tick();
+
+  const id = window.setInterval(tick, 15 * 60 * 1000);
+  return () => window.clearInterval(id);
+}, []);
+
 
   /* ---- sorting + totals ---- */
   const [sorted, totals] = useMemo(() => {
