@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 
 type Mode = "login" | "signup" | "reset";
 
@@ -43,7 +42,7 @@ export default function AuthModal({
     setOk(null);
   };
 
-  /* -------------------------- helper: username → email -------------------------- */
+  /* helper: username → email */
   async function resolveEmailFromUsername(maybeUsername: string) {
     const { data, error } = await supabase
       .from("profiles")
@@ -53,8 +52,6 @@ export default function AuthModal({
     if (error || !data?.email) throw new Error("Username not found.");
     return data.email as string;
   }
-
-  /* --------------------------------- handlers --------------------------------- */
 
   // close then push to dashboard on the next tick (prevents unmount race)
   const continueAsGuest = () => {
@@ -70,7 +67,6 @@ export default function AuthModal({
     setErr(null);
     setOk(null);
     try {
-      // figure out if identifier is email or username
       let loginEmail = identifier.trim();
       if (!loginEmail.includes("@")) {
         loginEmail = await resolveEmailFromUsername(loginEmail);
@@ -102,9 +98,7 @@ export default function AuthModal({
       const cleanUser = username.trim();
 
       if (!/^[a-z0-9_\.]{3,20}$/i.test(cleanUser)) {
-        throw new Error(
-          "Username must be 3–20 characters (letters, numbers, underscore, dot)."
-        );
+        throw new Error("Username must be 3–20 characters (letters, numbers, underscore, dot).");
       }
 
       const { data, error } = await supabase.auth.signUp({
@@ -112,25 +106,18 @@ export default function AuthModal({
         password: pass,
         options: {
           emailRedirectTo:
-            typeof window !== "undefined"
-              ? `${window.location.origin}/auth/callback`
-              : undefined,
-          data: { username: cleanUser }, // store in auth user metadata as well
+            typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined,
+          data: { username: cleanUser },
         },
       });
       if (error) throw error;
 
-      // also store username/email in profiles table
       const userId = data.user?.id;
       if (userId) {
-        await supabase
-          .from("profiles")
-          .upsert({ user_id: userId, username: cleanUser, email: cleanEmail });
+        await supabase.from("profiles").upsert({ user_id: userId, username: cleanUser, email: cleanEmail });
       }
 
-      setOk(
-        "Check your inbox to confirm your email. You can log in once confirmed."
-      );
+      setOk("Check your inbox to confirm your email. You can log in once confirmed.");
     } catch (e: any) {
       setErr(e?.message || "Sign up failed.");
     } finally {
@@ -145,15 +132,10 @@ export default function AuthModal({
     setOk(null);
     try {
       const clean = (identifier || email).trim();
-      const targetEmail = clean.includes("@")
-        ? clean
-        : await resolveEmailFromUsername(clean);
+      const targetEmail = clean.includes("@") ? clean : await resolveEmailFromUsername(clean);
 
       const { error } = await supabase.auth.resetPasswordForEmail(targetEmail, {
-        redirectTo:
-          typeof window !== "undefined"
-            ? `${window.location.origin}/auth/reset`
-            : undefined,
+        redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/reset` : undefined,
       });
       if (error) throw error;
       setOk("Password reset email sent.");
@@ -164,18 +146,16 @@ export default function AuthModal({
     }
   }
 
-  /* ---------------------------------- UI ---------------------------------- */
-
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-[var(--border)] bg-[color:var(--bg)]/95 shadow-2xl">
+      <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-surface/95 shadow-card">
         {/* header */}
-        <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
-          <h2 className="text-lg font-semibold text-[var(--text)]">{title}</h2>
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <h2 className="text-lg font-semibold">{title}</h2>
           <button
             type="button"
             onClick={() => onClose?.()}
-            className="rounded-md p-2 text-[color:var(--muted)] hover:bg-white/5 hover:text-[var(--text)]"
+            className="rounded-md p-2 text-muted hover:bg-surface2 hover:text-text"
             aria-label="Close"
           >
             ×
@@ -185,38 +165,34 @@ export default function AuthModal({
         <div className="px-6 pt-4 pb-6">
           {mode === "login" && (
             <form onSubmit={handleLogin} className="space-y-4">
-              <p className="text-[color:var(--muted)]">Welcome back.</p>
+              <p className="text-muted">Welcome back.</p>
 
               <div>
-                <label className="mb-1 block text-sm text-[color:var(--muted)]">
-                  Email (or Username)
-                </label>
+                <label className="mb-1 block text-sm text-muted">Email (or Username)</label>
                 <input
                   type="text"
                   autoComplete="username"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   placeholder="you@email.com / yourname"
-                  className="field"
+                  className="w-full rounded-xl border border-border bg-surface2 px-3 py-2 text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-sm text-[color:var(--muted)]">
-                  Password
-                </label>
+                <label className="mb-1 block text-sm text-muted">Password</label>
                 <input
                   type="password"
                   autoComplete="current-password"
                   value={pass}
                   onChange={(e) => setPass(e.target.value)}
-                  className="field"
+                  className="w-full rounded-xl border border-border bg-surface2 px-3 py-2 text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
                 />
                 <div className="mt-1 text-right">
                   <button
                     type="button"
                     onClick={() => switchTo("reset")}
-                    className="text-xs text-[color:var(--muted)] underline-offset-2 hover:text-[var(--text)] hover:underline"
+                    className="text-xs text-muted underline-offset-2 hover:text-text hover:underline"
                   >
                     Forgot password?
                   </button>
@@ -224,47 +200,31 @@ export default function AuthModal({
               </div>
 
               {err && (
-                <div
-                  className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300"
-                  role="alert"
-                  aria-live="polite"
-                >
+                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300" role="alert" aria-live="polite">
                   {err}
                 </div>
               )}
               {ok && (
-                <div
-                  className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300"
-                  role="status"
-                  aria-live="polite"
-                >
+                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300" role="status" aria-live="polite">
                   {ok}
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={busy}
-                className="btn-primary w-full py-3 disabled:opacity-60"
-              >
+              <button type="submit" disabled={busy} className="btn-accent w-full">
                 {busy ? "Logging in…" : "Log In"}
               </button>
 
               <button
                 type="button"
                 onClick={continueAsGuest}
-                className="btn-outline w-full py-3"
+                className="w-full rounded-xl border border-border bg-surface2 px-4 py-3 text-text hover:bg-surface"
               >
                 Continue as guest
               </button>
 
-              <p className="pt-1 text-center text-sm text-[color:var(--muted)]">
+              <p className="pt-1 text-center text-sm text-muted">
                 Don’t have an account?{" "}
-                <button
-                  type="button"
-                  onClick={() => switchTo("signup")}
-                  className="font-medium hover:text-[var(--accent)]"
-                >
+                <button type="button" onClick={() => switchTo("signup")} className="font-medium text-accent hover:text-accent-hover">
                   Sign Up
                 </button>
               </p>
@@ -273,81 +233,59 @@ export default function AuthModal({
 
           {mode === "signup" && (
             <form onSubmit={handleSignup} className="space-y-4">
-              <p className="text-[color:var(--muted)]">Let’s get you set up.</p>
+              <p className="text-muted">Let’s get you set up.</p>
 
               <div>
-                <label className="mb-1 block text-sm text-[color:var(--muted)]">
-                  Email
-                </label>
+                <label className="mb-1 block text-sm text-muted">Email</label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@email.com"
-                  className="field"
+                  className="w-full rounded-xl border border-border bg-surface2 px-3 py-2 text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-sm text-[color:var(--muted)]">
-                  Username
-                </label>
+                <label className="mb-1 block text-sm text-muted">Username</label>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="yourname"
-                  className="field"
+                  className="w-full rounded-xl border border-border bg-surface2 px-3 py-2 text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-sm text-[color:var(--muted)]">
-                  Password
-                </label>
+                <label className="mb-1 block text-sm text-muted">Password</label>
                 <input
                   type="password"
                   autoComplete="new-password"
                   value={pass}
                   onChange={(e) => setPass(e.target.value)}
-                  className="field"
+                  className="w-full rounded-xl border border-border bg-surface2 px-3 py-2 text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
                 />
               </div>
 
               {err && (
-                <div
-                  className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300"
-                  role="alert"
-                  aria-live="polite"
-                >
+                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300" role="alert" aria-live="polite">
                   {err}
                 </div>
               )}
               {ok && (
-                <div
-                  className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300"
-                  role="status"
-                  aria-live="polite"
-                >
+                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300" role="status" aria-live="polite">
                   {ok}
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={busy}
-                className="btn-primary w-full py-3 disabled:opacity-60"
-              >
+              <button type="submit" disabled={busy} className="btn-accent w-full">
                 {busy ? "Creating…" : "Sign Up"}
               </button>
 
-              <p className="pt-1 text-center text-sm text-[color:var(--muted)]">
+              <p className="pt-1 text-center text-sm text-muted">
                 Already have an account?{" "}
-                <button
-                  type="button"
-                  onClick={() => switchTo("login")}
-                  className="font-medium hover:text-[var(--accent)]"
-                >
+                <button type="button" onClick={() => switchTo("login")} className="font-medium text-accent hover:text-accent-hover">
                   Log In
                 </button>
               </p>
@@ -356,55 +294,35 @@ export default function AuthModal({
 
           {mode === "reset" && (
             <form onSubmit={handleReset} className="space-y-4">
-              <p className="text-[color:var(--muted)]">
-                Enter your email (or username) and we’ll send a reset link.
-              </p>
+              <p className="text-muted">Enter your email (or username) and we’ll send a reset link.</p>
               <div>
-                <label className="mb-1 block text-sm text-[color:var(--muted)]">
-                  Email or Username
-                </label>
+                <label className="mb-1 block text-sm text-muted">Email or Username</label>
                 <input
                   type="text"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   placeholder="you@email.com / yourname"
-                  className="field"
+                  className="w-full rounded-xl border border-border bg-surface2 px-3 py-2 text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
                 />
               </div>
 
               {err && (
-                <div
-                  className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300"
-                  role="alert"
-                  aria-live="polite"
-                >
+                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300" role="alert" aria-live="polite">
                   {err}
                 </div>
               )}
               {ok && (
-                <div
-                  className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300"
-                  role="status"
-                  aria-live="polite"
-                >
+                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300" role="status" aria-live="polite">
                   {ok}
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={busy}
-                className="btn-primary w-full py-3 disabled:opacity-60"
-              >
+              <button type="submit" disabled={busy} className="btn-accent w-full">
                 {busy ? "Sending…" : "Send reset link"}
               </button>
 
-              <p className="pt-1 text-center text-sm text-[color:var(--muted)]">
-                <button
-                  type="button"
-                  onClick={() => switchTo("login")}
-                  className="font-medium hover:text-[var(--accent)]"
-                >
+              <p className="pt-1 text-center text-sm text-muted">
+                <button type="button" onClick={() => switchTo("login")} className="font-medium text-accent hover:text-accent-hover">
                   Back to Log In
                 </button>
               </p>
@@ -415,5 +333,3 @@ export default function AuthModal({
     </div>
   );
 }
-
-
