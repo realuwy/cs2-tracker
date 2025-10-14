@@ -1,72 +1,65 @@
 import Link from "next/link";
 
+export const metadata = {
+  title: "About · CS2 Tracker",
+  description: "What CS2 Tracker is, how it works, and what’s coming next.",
+};
+
 export default function AboutPage() {
   return (
-    <main className="mx-auto max-w-4xl px-6 py-10 text-slate-200">
-      <h1 className="text-3xl font-bold tracking-tight">About CS2 Tracker</h1>
+    <div className="mx-auto max-w-3xl p-6 text-text">
+      {/* Top nav */}
+      <div className="mb-6 flex items-center justify-between">
+        <Link
+          href="/dashboard"
+          className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm hover:bg-surface2 hover:ring-1 hover:ring-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+        >
+          ← Back to Dashboard
+        </Link>
+        <Link
+          href="/privacy"
+          className="btn-accent px-3 py-1.5 text-sm"
+        >
+          Privacy →
+        </Link>
+      </div>
 
-      <p className="mt-3 text-slate-400">
-        CS2 Tracker helps you keep a clean, private list of your CS2 items and see rough
-        market values at a glance. It’s fast, minimal, and privacy-minded.
+      <h1 className="mb-3 text-3xl font-semibold">About CS2 Tracker</h1>
+      <p className="mb-6 text-muted">
+        CS2 Tracker helps you view, value, and manage your Counter-Strike 2 inventory with a clean, fast UI.
+        We use <span className="text-accent">accent</span> tokens and carbon surfaces for readability in dark mode.
       </p>
 
-      <div className="mt-8 space-y-8">
-        {/* Features */}
-        <section className="rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/70 p-6">
-          <h2 className="text-xl font-semibold">Key features</h2>
-          <ul className="mt-3 list-disc space-y-2 pl-5 text-slate-300">
-            <li>Dashboard table with item name + metadata pills (Wear, Pattern, Float).</li>
-            <li>Type-ahead add: search items by name and add quickly.</li>
-            <li>Pricing from Skinport/Steam where available with sensible sanity checks.</li>
-            <li>
-              Save data to your account{" "}
-              <span className="text-slate-400">(Supabase)</span> or use local browser storage as a guest.
-            </li>
-            <li>Inline edit panel: tweak quantity, wear, float, and pattern.</li>
-          </ul>
-        </section>
-
-        {/* Pricing notes */}
-        <section className="rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/70 p-6">
-          <h2 className="text-xl font-semibold">How pricing works</h2>
-          <p className="mt-3 text-slate-300">
-            Prices are approximate and for convenience only. Matching is based on
-            <span className="font-medium"> item name + wear</span>; Float and Pattern are informational.
-            Steam prices are checked against Skinport ranges to avoid outliers.
-          </p>
-        </section>
-
-        {/* Data model */}
-        <section className="rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/70 p-6">
-          <h2 className="text-xl font-semibold">Local-first design</h2>
-          <p className="mt-3 text-slate-300">
-            As a guest, your rows live in{" "}
-            <code className="rounded bg-slate-900/70 px-1.5 py-0.5">localStorage</code> under{" "}
-            <code className="rounded bg-slate-900/70 px-1.5 py-0.5">cs2:dashboard:rows</code>. Clearing browser data resets the app.
-            When signed in, your rows are synced to your account so they follow you between devices.
-          </p>
-        </section>
-
-        {/* Roadmap */}
-        <section className="rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/70 p-6">
-          <h2 className="text-xl font-semibold">Roadmap (short)</h2>
-          <ul className="mt-3 list-disc space-y-2 pl-5 text-slate-300">
-            <li>Filters &amp; sorting polish and mobile-first improvements.</li>
-            <li>Bulk edit and tagging.</li>
-            <li>Optional import/export of saved rows.</li>
-          </ul>
-        </section>
-
-        {/* CTA row */}
-        <div className="flex items-center justify-end">
-          <Link
-            href="/privacy"
-            className="rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-500"
-          >
-            Privacy
-          </Link>
-        </div>
+      <div className="rounded-2xl border border-border bg-surface p-5 shadow-card">
+        <h2 className="mb-2 text-xl font-semibold">What’s inside</h2>
+        <ul className="list-inside list-disc space-y-1 text-muted">
+          <li>Inventory table with wear/float/quantity rolled into concise cells</li>
+          <li>Neon-lime highlights for actions and important states</li>
+          <li>Keyboard-friendly focus rings and accessible contrast</li>
+        </ul>
       </div>
-    </main>
+
+      <div className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-card">
+        <h2 className="mb-2 text-xl font-semibold">Roadmap</h2>
+        <ul className="list-inside list-disc space-y-1 text-muted">
+          <li>Micro-glow hovers on interactive components</li>
+          <li>Theme toggle (neon ↔︎ neutral)</li>
+          <li>More price sources and filters</li>
+        </ul>
+      </div>
+
+      <p className="mt-6 text-sm text-muted">
+        Found a bug or have an idea?{" "}
+        <a
+          href="https://github.com/"
+          target="_blank"
+          rel="noreferrer"
+          className="underline decoration-accent/30 underline-offset-4 hover:decoration-accent text-accent hover:text-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 rounded"
+        >
+          Open an issue
+        </a>
+        .
+      </p>
+    </div>
   );
 }
