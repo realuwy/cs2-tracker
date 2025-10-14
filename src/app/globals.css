@@ -1,28 +1,52 @@
-/* src/app/globals.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Optional: app-wide tweaks that match your theme */
-html, body {
-  height: 100%;
+/* Base + globals for Nightsable lime theme */
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html, body {
+    @apply bg-bg text-text;
+    min-height: 100%;
+  }
+
+  ::selection {
+    background: theme(colors.accent.glow);
+    color: white;
+  }
+
+  a, button {
+    transition: color .2s, background-color .2s, border-color .2s, box-shadow .2s, transform .2s;
+  }
+
+  /* Subtle scrollbars (Chromium/Firefox) */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: theme(colors.border) transparent;
+  }
+  *::-webkit-scrollbar { height: 10px; width: 10px; }
+  *::-webkit-scrollbar-thumb { background: theme(colors.border); border-radius: 999px; }
 }
 
-body {
-  @apply bg-[#0b0b0f] text-slate-200 antialiased;
-}
+/* Reusable components */
+@layer components {
+  .btn-accent {
+    @apply relative inline-flex items-center justify-center
+           rounded-full px-5 py-2.5 font-semibold
+           text-black bg-accent
+           shadow-[0_0_0_1px_rgba(255,255,255,0.05)]
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40;
+  }
+  .btn-accent:hover { @apply bg-accent-hover; }
 
-/* Smooth scroll & focus ring niceties */
-:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.5); /* violet ring */
-}
-
-/* Tables default look a bit nicer on dark */
-table th {
-  @apply font-medium text-slate-300;
-}
-table td, table th {
-  @apply align-middle;
+  .card {
+    @apply rounded-2xl border border-border bg-surface shadow-card;
+  }
+  .chip {
+    @apply inline-flex items-center rounded-full bg-surface2/60 px-2 py-0.5 text-[11px] text-muted;
+  }
 }
 
