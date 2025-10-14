@@ -62,6 +62,10 @@ function DotsUserMenu({ user }: { user: User }) {
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const popRef = useRef<HTMLDivElement | null>(null);
+// Sign up
+window.dispatchEvent(new CustomEvent("open-auth", { detail: { mode: "signup" } }));
+// Log in
+window.dispatchEvent(new CustomEvent("open-auth", { detail: { mode: "login" } }));
 
   // Close on outside click
   useEffect(() => {
