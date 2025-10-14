@@ -3,6 +3,15 @@ import type { Metadata } from "next";
 import { inter, manrope } from "./fonts";
 import AppHeader from "@/components/AppHeader";
 import SiteFooter from "@/components/Footer";
+import AuthModalHost from "@/components/AuthModalHost";
+
+{/* ...inside <body> */}
+<div className="min-h-screen flex flex-col">
+  <AppHeader user={null} />
+  <AuthModalHost />   {/* <= mounts global auth modal handler */}
+  <main className="flex-1">{children}</main>
+  <SiteFooter />
+</div>
 
 export const metadata: Metadata = {
   title: "CS2 Tracker",
