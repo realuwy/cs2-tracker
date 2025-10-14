@@ -1,4 +1,4 @@
-"use client"; // Manual refresh (Skinport + Steam)
+"use client";
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { fetchInventory, InvItem } from "@/lib/api";
@@ -152,9 +152,7 @@ function sortReducer(state: SortState, action: SortAction): SortState {
 
 function Pill({ children }: { children: React.ReactNode }) {
   return (
-   <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] text-[var(--text)]/85"
-      style={{ background: "var(--accent-soft)", border: "1px solid var(--border)", borderColor: "color-mix(in oklab, var(--border) 80%, transparent)" }}>
-
+    <span className="inline-flex items-center rounded-full bg-surface2/70 px-2 py-0.5 text-[11px] text-muted">
       {children}
     </span>
   );
@@ -219,15 +217,14 @@ function EditRowDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="relative w-full max-w-md rounded-2xl border bg-[color:var(--surface)] p-6 text-[var(--text)] shadow-card"
-     style={{ borderColor: "var(--border)" }}>
+      <div className="relative w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-card">
         <h2 className="mb-4 text-center text-2xl font-bold">Edit Item</h2>
 
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm text-slate-400">Item</label>
+            <label className="mb-1 block text-sm text-muted">Item</label>
             <input
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+              className="w-full rounded-lg border border-border bg-surface2 px-3 py-2"
               value={name}
               onChange={(e) => setName(e.target.value)}
               list="item-suggestions"
@@ -236,9 +233,9 @@ function EditRowDialog({
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="mb-1 block text-sm text-slate-400">Wear</label>
+              <label className="mb-1 block text-sm text-muted">Wear</label>
               <select
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+                className="w-full rounded-lg border border-border bg-surface2 px-3 py-2"
                 value={wear}
                 onChange={(e) => setWear(e.target.value as WearCode)}
                 disabled={isNonWearCategory(name)}
@@ -251,22 +248,22 @@ function EditRowDialog({
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-400">Float</label>
+              <label className="mb-1 block text-sm text-muted">Float</label>
               <input
                 type="number"
                 step="0.00001"
                 min="0"
                 max="1"
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+                className="w-full rounded-lg border border-border bg-surface2 px-3 py-2"
                 value={flt}
                 onChange={(e) => setFlt(e.target.value)}
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-slate-400">Pattern</label>
+              <label className="mb-1 block text-sm text-muted">Pattern</label>
               <input
                 type="number"
-                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+                className="w-full rounded-lg border border-border bg-surface2 px-3 py-2"
                 value={pat}
                 onChange={(e) => setPat(e.target.value)}
               />
@@ -274,11 +271,11 @@ function EditRowDialog({
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-slate-400">Quantity</label>
+            <label className="mb-1 block text-sm text-muted">Quantity</label>
             <input
               type="number"
               min={1}
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+              className="w-full rounded-lg border border-border bg-surface2 px-3 py-2"
               value={qty}
               onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
             />
@@ -286,10 +283,10 @@ function EditRowDialog({
         </div>
 
         <div className="mt-6 flex justify-end gap-2">
-          <button className="rounded-lg bg-slate-800 px-4 py-2 hover:bg-slate-700" onClick={onClose}>
+          <button className="rounded-lg border border-border bg-surface2 px-4 py-2 hover:bg-surface" onClick={onClose}>
             Cancel
           </button>
-          <button className="rounded-lg bg-violet-600 px-4 py-2 text-white hover:bg-violet-500" onClick={apply}>
+          <button className="btn-accent px-4 py-2" onClick={apply}>
             Save
           </button>
         </div>
@@ -302,21 +299,21 @@ function EditRowDialog({
 
 function RowCard({ r }: { r: Row }) {
   return (
-    <div className="rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/60 p-3">
+    <div className="rounded-2xl border border-border bg-surface/60 p-3">
       <div className="flex items-start gap-3">
         {r.image ? (
           <img
             src={r.image}
             alt={r.name}
-            className="h-12 w-12 rounded object-contain bg-slate-800"
+            className="h-12 w-12 rounded object-contain bg-surface2"
             loading="lazy"
             decoding="async"
           />
         ) : (
-          <div className="h-12 w-12 rounded bg-slate-800" />
+          <div className="h-12 w-12 rounded bg-surface2" />
         )}
         <div className="min-w-0 flex-1">
-          <div className="truncate font-medium text-slate-100" title={r.market_hash_name}>
+          <div className="truncate font-medium" title={r.market_hash_name}>
             {r.nameNoWear}
           </div>
           <div className="mt-1 flex flex-wrap gap-1">
@@ -327,26 +324,26 @@ function RowCard({ r }: { r: Row }) {
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-slate-300">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-2">
-          <div className="text-xs text-slate-400">Qty</div>
+      <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+        <div className="rounded-xl border border-border bg-surface2/60 p-2">
+          <div className="text-xs text-muted">Qty</div>
           <div className="font-semibold">{r.quantity ?? 1}</div>
         </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-2 text-right">
-          <div className="text-xs text-slate-400">Skinport</div>
+        <div className="rounded-xl border border-border bg-surface2/60 p-2 text-right">
+          <div className="text-xs text-muted">Skinport</div>
           <div className="font-semibold">
             {typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}
           </div>
         </div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-2">
-          <div className="text-xs text-slate-400">Steam</div>
+        <div className="rounded-xl border border-border bg-surface2/60 p-2">
+          <div className="text-xs text-muted">Steam</div>
           <div className="font-semibold">
             {typeof r.steamAUD === "number" ? `A$${r.steamAUD.toFixed(2)}` : "—"}
           </div>
         </div>
         <div className="flex items-center justify-end gap-2">
           <button
-            className="btn-outline h-9 w-9 p-0"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-surface2 text-muted hover:bg-surface"
             title="Edit"
             onClick={() => (window as any).__dash_openEdit?.(r)}
           >
@@ -356,7 +353,7 @@ function RowCard({ r }: { r: Row }) {
             </svg>
           </button>
           <button
-            className="btn-outline h-9 w-9 p-0"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-surface2 text-muted hover:bg-surface"
             title="Delete"
             onClick={() => (window as any).__dash_deleteRow?.(r)}
           >
@@ -436,7 +433,7 @@ export default function DashboardPage() {
           nameNoWear: r.nameNoWear ? stripNone(r.nameNoWear) : r.nameNoWear,
           pattern: r.pattern && String(r.pattern).trim() !== "" ? r.pattern : undefined,
           float: r.float && String(r.float).trim() !== "" ? r.float : undefined,
-          image: (r as any).image == null ? "" : (r as any).image, // coerce legacy nulls
+          image: (r as any).image == null ? "" : (r as any).image,
           skinportAUD: isMissingNum(r.skinportAUD) ? undefined : Number(r.skinportAUD),
           steamAUD: isMissingNum(r.steamAUD) ? undefined : Number(r.steamAUD),
           quantity: Math.max(1, Number(r.quantity ?? 1)),
@@ -452,7 +449,6 @@ export default function DashboardPage() {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(server.rows));
           localStorage.setItem(STORAGE_TS_KEY, String(serverTs || Date.now()));
         } else {
-          // local newer or no server row -> push local up
           const payload = localRows ?? [];
           setRows(payload);
           localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -460,7 +456,6 @@ export default function DashboardPage() {
           if (payload) void upsertAccountRows(payload);
         }
       } else {
-        // guest
         setRows(localRows ?? []);
         if (localRows == null) {
           localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
@@ -860,221 +855,236 @@ export default function DashboardPage() {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [spMap, rows]);
 
-// Manual refresh (Skinport + Steam)
-async function handleManualRefresh() {
-  try {
-    setRefreshing(true);
-    await refreshSkinport();
-    await backfillSomeSteamPrices(12);
-  } finally {
-    setRefreshing(false);
+  // Manual refresh (Skinport + Steam)
+  async function handleManualRefresh() {
+    try {
+      setRefreshing(true);
+      await refreshSkinport();
+      await backfillSomeSteamPrices(12);
+    } finally {
+      setRefreshing(false);
+    }
   }
-}
 
-// Small helper to show times like "14:32"
-function formatTime(ts: number | null) {
-  return ts
-    ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-    : "—";
-}
+  // Small helper to show times like "14:32"
+  function formatTime(ts: number | null) {
+    return ts
+      ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      : "—";
+  }
 
-// Sort button chip used in the toolbar
-function SortChip({ k, label }: { k: SortKey; label: string }) {
-  const active = sort.key === k;
-  const arrow = active ? (sort.dir === "asc" ? "▲" : "▼") : "";
+  // Sort button chip used in the toolbar
+  function SortChip({ k, label }: { k: SortKey; label: string }) {
+    const active = sort.key === k;
+    const arrow = active ? (sort.dir === "asc" ? "▲" : "▼") : "";
+    return (
+      <button
+        onClick={() => dispatchSort({ type: "toggle", key: k })}
+        className={`rounded-full border px-2.5 py-1 text-xs transition ${
+          active
+            ? "border-accent text-accent bg-[color:var(--chip-active,transparent)]"
+            : "border-border text-muted hover:bg-surface2/60"
+        }`}
+      >
+        {label} {arrow}
+      </button>
+    );
+  }
+
+  /* ----------------------------- RENDER ----------------------------- */
   return (
-    <button
-      type="button"
-      onClick={() => dispatchSort({ type: "toggle", key: k })}
-      className={`rounded-full border px-2.5 py-1 text-xs transition ${
-        active
-          ? "border-violet-500 text-violet-400 bg-violet-500/10"
-          : "border-slate-700 text-slate-300 hover:bg-slate-800/60"
-      }`}
-    >
-      {label} {arrow}
-    </button>
-  );
-}
-return (
-  <div className="mx-auto max-w-6xl p-6">
-    {/* Top row: Left Manual Add / Right Stats */}
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-      {/* Manual add (panel) */}
-      <div className="rounded-2xl border bg-[color:var(--surface)] p-5 shadow-card"
-style={{ borderColor: "var(--border)" }}
->
-        <div className="mb-2 flex items-center gap-2">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-violet-400" />
-          <h3 className="text-base font-semibold text-slate-100">Search &amp; add item</h3>
-        </div>
-        <p className="mb-4 text-sm text-slate-400">
-          Type the base name (without wear). Choose wear, optional float/pattern, set quantity, then add.
-        </p>
+    <div className="mx-auto max-w-6xl p-6">
+      {/* Top row: Left Manual Add / Right Stats */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {/* Manual add (panel) */}
+        <div className="flex h-full flex-col rounded-2xl border border-border bg-surface/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
+          <div className="mb-2 flex items-center gap-2">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
+            <h3 className="text-base font-semibold">Search &amp; add item</h3>
+          </div>
+          <p className="mb-4 text-sm text-muted">
+            Type the base name (without wear). Choose wear, optional float/pattern, set quantity, then add.
+          </p>
 
-        <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-12">
-          <div className="md:col-span-5">
-            <label className="mb-1 block text-[11px] tracking-wide text-slate-400">Item</label>
-            <div className="relative">
-              <input
-                className="field h-12 px-3"
-                placeholder="AK-47 | Redline"
-                value={mName}
-                onChange={(e) => setMName(e.target.value)}
-                list="item-suggestions"
-              />
-              <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m21 21-4.35-4.35"></path><circle cx="11" cy="11" r="7"></circle></svg>
+          <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-12">
+            <div className="md:col-span-5">
+              <label className="mb-1 block text-[11px] tracking-wide text-muted">Item</label>
+              <div className="relative">
+                <input
+                  className="h-12 w-full rounded-xl border border-border bg-surface2 px-3 pr-9 text-sm placeholder:text-muted outline-none ring-0 focus:border-accent/60 focus:ring-2 focus:ring-accent/30 transition"
+                  placeholder="AK-47 | Redline"
+                  value={mName}
+                  onChange={(e) => setMName(e.target.value)}
+                  list="item-suggestions"
+                />
+                <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m21 21-4.35-4.35"></path><circle cx="11" cy="11" r="7"></circle></svg>
+              </div>
+              <datalist id="item-suggestions">
+                {autoNames.map((n) => (
+                  <option key={n} value={n} />
+                ))}
+              </datalist>
             </div>
-            <datalist id="item-suggestions">
-              {autoNames.map((n) => (
-                <option key={n} value={n} />
-              ))}
-            </datalist>
-          </div>
 
-          <div className="md:col-span-3">
-            <label className="mb-1 block text-[11px] tracking-wide text-slate-400">
-              Wear {isNonWearCategory(stripNone(mName || "")) && <span className="text-slate-500">(n/a)</span>}
-            </label>
-            <select
-              className={`field h-12 px-3 text-sm ${isNonWearCategory(stripNone(mName || "")) ? "opacity-50" : ""}`}
-              value={mWear}
-              onChange={(e) => setMWear(e.target.value as any)}
-              disabled={isNonWearCategory(stripNone(mName || ""))}
-            >
-              {WEAR_OPTIONS.map((w) => (
-                <option key={w.code} value={w.code}>
-                  {w.label}
-                </option>
-              ))}
-            </select>
-          </div>
+            <div className="md:col-span-3">
+              <label className="mb-1 block text-[11px] tracking-wide text-muted">
+                Wear {isNonWearCategory(stripNone(mName || "")) && <span className="text-muted">(n/a)</span>}
+              </label>
+              <select
+                className={`h-12 w-full appearance-none rounded-xl border border-border bg-surface2 px-3 text-sm outline-none focus:border-accent/60 focus:ring-2 focus:ring-accent/30 transition ${isNonWearCategory(stripNone(mName || "")) ? "opacity-50" : ""}`}
+                value={mWear}
+                onChange={(e) => setMWear(e.target.value as any)}
+                disabled={isNonWearCategory(stripNone(mName || ""))}
+              >
+                {WEAR_OPTIONS.map((w) => (
+                  <option key={w.code} value={w.code}>
+                    {w.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div className="md:col-span-2">
-            <label className="mb-1 block text-[11px] tracking-wide text-slate-400">Float (note)</label>
-            <input
-              className="h-12 w-full rounded-xl border border-slate-800 bg-slate-950/80 px-3 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-violet-600/60 focus:ring-2 focus:ring-violet-500/30 transition"
-              placeholder="0.1234"
-              value={mFloat}
-              onChange={(e) => setMFloat(e.target.value)}
-            />
-          </div>
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-[11px] tracking-wide text-muted">Float (note)</label>
+              <input
+                className="h-12 w-full rounded-xl border border-border bg-surface2 px-3 text-sm placeholder:text-muted outline-none focus:border-accent/60 focus:ring-2 focus:ring-accent/30 transition"
+                placeholder="0.1234"
+                value={mFloat}
+                onChange={(e) => setMFloat(e.target.value)}
+              />
+            </div>
 
-          <div className="md:col-span-2">
-            <label className="mb-1 block text-[11px] tracking-wide text-slate-400">Pattern (note)</label>
-            <input
-              className="h-12 w-full rounded-xl border border-slate-800 bg-slate-950/80 px-3 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-violet-600/60 focus:ring-2 focus:ring-violet-500/30 transition"
-              placeholder="123"
-              value={mPattern}
-              onChange={(e) => setMPattern(e.target.value)}
-            />
-          </div>
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-[11px] tracking-wide text-muted">Pattern (note)</label>
+              <input
+                className="h-12 w-full rounded-xl border border-border bg-surface2 px-3 text-sm placeholder:text-muted outline-none focus:border-accent/60 focus:ring-2 focus:ring-accent/30 transition"
+                placeholder="123"
+                value={mPattern}
+                onChange={(e) => setMPattern(e.target.value)}
+              />
+            </div>
 
-          <div className="md:col-span-12">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="w-44">
-                <label className="mb-1 block text-[11px] tracking-wide text-slate-400">Quantity</label>
-               <div className="flex h-12 items-stretch overflow-hidden rounded-xl border bg-[var(--surface2)]"
-     style={{ borderColor: "var(--border)" }}>
-                  <button
-                    type="button"
-                    onClick={() => setMQty((q) => Math.max(1, q - 1))}
-                    className="px-3 text-[var(--text)]/80 hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent)]/40"
-                    aria-label="Decrease quantity"
-                  >
-                    −
-                  </button>
-                  <div className="flex min-w-[3.25rem] flex-1 items-center justify-center text-sm text-slate-100">
-                    {mQty}
+            <div className="md:col-span-12">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="w-44">
+                  <label className="mb-1 block text-[11px] tracking-wide text-muted">Quantity</label>
+                  <div className="flex h-12 items-stretch overflow-hidden rounded-xl border border-border bg-surface2">
+                    <button
+                      type="button"
+                      onClick={() => setMQty((q) => Math.max(1, q - 1))}
+                      className="px-3 text-muted hover:bg-surface"
+                      aria-label="Decrease quantity"
+                    >
+                      −
+                    </button>
+                    <div className="flex min-w-[3.25rem] flex-1 items-center justify-center text-sm">
+                      {mQty}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setMQty((q) => q + 1)}
+                      className="px-3 text-muted hover:bg-surface"
+                      aria-label="Increase quantity"
+                    >
+                      +
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setMQty((q) => q + 1)}
-                    className="px-3 text-slate-300 hover:bg-slate-800/60"
-                    aria-label="Increase quantity"
-                  >
-                    +
-                  </button>
                 </div>
+
+                <button
+                  onClick={addManual}
+                  disabled={!mName.trim()}
+                  className="btn-accent h-12 flex-1 disabled:opacity-60"
+                >
+                  <span className="inline-flex w-full items-center justify-center gap-2 font-medium">
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" /></svg>
+                    Add
+                  </span>
+                </button>
               </div>
 
-              <button
-  type="button"
-  onClick={addManual}
-  disabled={!mName.trim()}
-  className="btn-primary h-12 flex-1 disabled:opacity-60"
->
-  <span className="inline-flex items-center gap-2">
-    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-    Add
-  </span>
-</button>
+              <p className="mt-2 text-xs text-muted">
+                Pricing uses only <span className="font-medium">Item name + Wear</span>. Float/Pattern are for display.
+              </p>
+            </div>
+          </div>
+        </div>
 
+        {/* Stats panel */}
+        <div className="relative rounded-2xl border border-border bg-surface/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-base font-semibold">Stats</h3>
+            <button
+              type="button"
+              title="Refresh prices now (Skinport & Steam)"
+              onClick={handleManualRefresh}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface2 hover:bg-surface focus:outline-none focus:ring-2 focus:ring-accent/30"
+              aria-label="Refresh prices"
+            >
+              <svg className={["h-4 w-4", refreshing ? "animate-spin" : ""].join(" ")} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12a9 9 0 1 1-3-6.7" />
+                <path d="M21 3v6h-6" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-border bg-surface2/60 p-3">
+              <div className="text-xs uppercase tracking-wide text-muted">Total items</div>
+              <div className="mt-1 text-2xl font-semibold">{totals.totalItems}</div>
             </div>
 
-            <p className="mt-2 text-xs text-slate-500">
-              Pricing uses only <span className="font-medium text-slate-300">Item name + Wear</span>. Float/Pattern are for display.
-            </p>
+            <div className="rounded-xl border border-border bg-surface2/60 p-3">
+              <div className="text-xs uppercase tracking-wide text-muted">Steam − Skinport</div>
+              <div className={`mt-1 text-2xl font-semibold ${totals.totalSteam - totals.totalSkinport >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                A${(totals.totalSteam - totals.totalSkinport).toFixed(2)}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border bg-surface2/60 p-3">
+              <div className="text-xs uppercase tracking-wide text-muted">Skinport total</div>
+              <div className="mt-1 text-xl font-medium">A${totals.totalSkinport.toFixed(2)}</div>
+              <div className="mt-1 text-xs text-muted">
+                {rows.filter((r) => typeof r.skinportAUD === "number").length}/{rows.length} priced • {formatTime(skinportUpdatedAt)}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border bg-surface2/60 p-3">
+              <div className="text-xs uppercase tracking-wide text-muted">Steam total</div>
+              <div className="mt-1 text-xl font-medium">A${totals.totalSteam.toFixed(2)}</div>
+              <div className="mt-1 text-xs text-muted">
+                {rows.filter((r) => typeof r.steamAUD === "number").length}/{rows.length} priced • {formatTime(steamUpdatedAt)}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Stats panel */}
-      <div className="relative rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-slate-100">Stats</h3>
+      {/* Import bar */}
+      <div className="mt-6 rounded-2xl border border-border bg-surface p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="flex-1">
+            <label className="mb-1 block text-xs text-muted">Steam ID64</label>
+            <input
+              className="h-11 w-full rounded-xl border border-border bg-surface2 px-3"
+              placeholder="7656119XXXXXXXXXX"
+              value={steamId}
+              onChange={(e) => setSteamId(e.target.value)}
+            />
+          </div>
           <button
-            type="button"
-            title="Refresh prices now (Skinport & Steam)"
-            onClick={handleManualRefresh}
-            className="btn-outline h-9 w-9 p-0"
-            aria-label="Refresh prices"
+            className="btn-accent h-11 px-5"
+            onClick={() => load(steamId)}
+            disabled={!steamId.trim() || loading}
           >
-            <svg className={["h-4 w-4", refreshing ? "animate-spin" : ""].join(" ")} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 12a9 9 0 1 1-3-6.7" />
-              <path d="M21 3v6h-6" />
-            </svg>
+            {loading ? "Importing…" : "Import inventory"}
           </button>
         </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-            <div className="text-xs uppercase tracking-wide text-slate-500">Total items</div>
-            <div className="mt-1 text-2xl font-semibold text-slate-100">{totals.totalItems}</div>
-          </div>
-
-          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-            <div className="text-xs uppercase tracking-wide text-slate-500">Steam − Skinport</div>
-            <div className={`mt-1 text-2xl font-semibold ${totals.totalSteam - totals.totalSkinport >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-              A${(totals.totalSteam - totals.totalSkinport).toFixed(2)}
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-            <div className="text-xs uppercase tracking-wide text-slate-500">Skinport total</div>
-            <div className="mt-1 text-xl font-medium text-slate-100">A${totals.totalSkinport.toFixed(2)}</div>
-            <div className="mt-1 text-xs text-slate-500">
-              {rows.filter((r) => typeof r.skinportAUD === "number").length}/{rows.length} priced • {formatTime(skinportUpdatedAt)}
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-            <div className="text-xs uppercase tracking-wide text-slate-500">Steam total</div>
-            <div className="mt-1 text-xl font-medium text-slate-100">A${totals.totalSteam.toFixed(2)}</div>
-            <div className="mt-1 text-xs text-slate-500">
-              {rows.filter((r) => typeof r.steamAUD === "number").length}/{rows.length} priced • {formatTime(steamUpdatedAt)}
-            </div>
-          </div>
-        </div>
       </div>
-    </div>
-
 
       {/* Sort toolbar */}
       <div className="mt-4 mb-2 flex flex-wrap items-center gap-2 text-sm">
-        <span className="mr-1 text-slate-400">Sort:</span>
+        <span className="mr-1 text-muted">Sort:</span>
         <SortChip k="item" label="Item" />
         <SortChip k="wear" label="Exterior" />
         <SortChip k="pattern" label="Pattern" />
@@ -1085,11 +1095,9 @@ style={{ borderColor: "var(--border)" }}
       </div>
 
       {/* DESKTOP/TABLET TABLE */}
-      <div className="hidden md:block overflow-x-auto rounded-2xl border shadow-card"
-     style={{ borderColor: "var(--border)" }}>
+      <div className="hidden md:block overflow-x-auto rounded-2xl border border-border touch-pan-x">
         <table className="min-w-[920px] w-full text-sm">
-          <thead className="bg-[color:var(--surface2)] text-[var(--text)]/85">
-
+          <thead className="bg-surface/60">
             <tr>
               <th className="px-4 py-2 text-left">Item</th>
               <th className="px-4 py-2 text-right">Qty</th>
@@ -1102,7 +1110,7 @@ style={{ borderColor: "var(--border)" }}
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={5} className="px-4 py-6 text-center text-muted">
                   No items yet. Use <span className="underline">Search &amp; add item</span> or import from Steam.
                 </td>
               </tr>
@@ -1110,8 +1118,7 @@ style={{ borderColor: "var(--border)" }}
               sorted.map((r) => {
                 const orig = origIndexMap.get(r)!;
                 return (
-                  <tr key={r.market_hash_name + "|" + orig} className="border-t"
-style={{ borderColor: "var(--border)" }}>
+                  <tr key={r.market_hash_name + "|" + orig} className="border-t border-border">
                     {/* ITEM */}
                     <td className="px-4 py-2">
                       <div className="flex items-start gap-3">
@@ -1125,7 +1132,7 @@ style={{ borderColor: "var(--border)" }}>
                               const el = e.currentTarget as HTMLImageElement;
                               if (el.src !== FALLBACK_DATA_URL) el.src = FALLBACK_DATA_URL;
                             }}
-                            className="h-10 w-10 rounded object-contain bg-slate-800"
+                            className="h-10 w-10 rounded object-contain bg-surface2"
                           />
                         ) : (
                           <img src={FALLBACK_DATA_URL} alt="" className="h-10 w-10 rounded object-contain" />
@@ -1151,7 +1158,7 @@ style={{ borderColor: "var(--border)" }}>
                       <div className="text-right leading-tight">
                         <div>{typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}</div>
                         {typeof r.skinportAUD === "number" && (r.quantity ?? 1) > 1 && (
-                          <div className="mt-0.5 text-[11px] text-slate-400">
+                          <div className="mt-0.5 text-[11px] text-muted">
                             ×{r.quantity ?? 1} = <span className="tabular-nums">A${(r.skinportAUD * (r.quantity ?? 1)).toFixed(2)}</span>
                           </div>
                         )}
@@ -1163,7 +1170,7 @@ style={{ borderColor: "var(--border)" }}>
                       <div className="text-right leading-tight">
                         <div>{typeof r.steamAUD === "number" ? `A$${r.steamAUD.toFixed(2)}` : "—"}</div>
                         {typeof r.steamAUD === "number" && (r.quantity ?? 1) > 1 && (
-                          <div className="mt-0.5 text-[11px] text-slate-400">
+                          <div className="mt-0.5 text-[11px] text-muted">
                             ×{r.quantity ?? 1} = <span className="tabular-nums">A${(r.steamAUD * (r.quantity ?? 1)).toFixed(2)}</span>
                           </div>
                         )}
@@ -1174,7 +1181,7 @@ style={{ borderColor: "var(--border)" }}>
                     <td className="px-4 py-2 text-right">
                       <div className="flex justify-end gap-2">
                         <button
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 hover:text-white"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-surface2 text-muted hover:bg-surface"
                           title="Edit"
                           onClick={() => {
                             setEditRow(r);
@@ -1188,7 +1195,7 @@ style={{ borderColor: "var(--border)" }}>
                         </button>
 
                         <button
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800/60 text-slate-300 hover:bg-slate-700 hover:text-white"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-surface2 text-muted hover:bg-surface"
                           title="Delete"
                           onClick={() => removeRow(orig)}
                         >
@@ -1212,9 +1219,7 @@ style={{ borderColor: "var(--border)" }}>
       {/* MOBILE CARD LIST */}
       <div className="space-y-3 md:hidden">
         {sorted.length === 0 ? (
-          <div className="rounded-2xl border bg-[color:var(--surface)] p-3"
-     style={{ borderColor: "var(--border)" }}>
-
+          <div className="rounded-2xl border border-border bg-surface/40 p-4 text-center text-muted">
             No items yet. Use <span className="underline">Search &amp; add item</span> or import from Steam.
           </div>
         ) : (
@@ -1239,18 +1244,17 @@ style={{ borderColor: "var(--border)" }}>
         aria-label="Back to top"
         onClick={scrollToTop}
         className={[
-          "fixed bottom-6 right-6 z-50 rounded-full bg-slate-800/90 text-slate-100 shadow-lg shadow-black/40",
-          "backdrop-blur px-4 h-12 inline-flex items-center gap-2",
-          "border border-slate-700 hover:bg-slate-700/80 transition-all duration-200",
+          "fixed bottom-6 right-6 z-50 rounded-full bg-surface/90 shadow-lg shadow-black/40",
+          "backdrop-blur px-4 h-12 inline-flex items-center gap-2 text-text",
+          "border border-border hover:bg-surface2 transition-all duration-200",
           showBackToTop ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-3 pointer-events-none",
         ].join(" ")}
       >
-         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="-mt-[1px]">
-        <path d="M6 14l6-6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      <span className="text-sm">Top</span>
-    </button>
-  </div>
-);
-// 👇 keep these two lines to properly close the component
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="-mt-[1px]">
+          <path d="M6 14l6-6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span className="text-sm">Top</span>
+      </button>
+    </div>
+  );
 }
