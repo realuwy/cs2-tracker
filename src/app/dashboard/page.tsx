@@ -928,149 +928,140 @@ return (
             </datalist>
           </div>
 
-    <div className="md:col-span-3">
-      <label className="mb-1 block text-[11px] tracking-wide text-slate-400">
-        Wear {isNonWearCategory(stripNone(mName || "")) && <span className="text-slate-500">(n/a)</span>}
-      </label>
-      <select
-        className={`h-12 w-full appearance-none rounded-xl border border-slate-800 bg-slate-950/80 px-3 text-sm text-slate-100 outline-none focus:border-violet-600/60 focus:ring-2 focus:ring-violet-500/30 transition ${isNonWearCategory(stripNone(mName || "")) ? "opacity-50" : ""}`}
-        value={mWear}
-        onChange={(e) => setMWear(e.target.value as any)}
-        disabled={isNonWearCategory(stripNone(mName || ""))}
-      >
-        {WEAR_OPTIONS.map((w) => (
-          <option key={w.code} value={w.code}>
-            {w.label}
-          </option>
-        ))}
-      </select>
-    </div>
-
-    <div className="md:col-span-2">
-      <label className="mb-1 block text-[11px] tracking-wide text-slate-400">
-        Float (note)
-      </label>
-      <input
-        className="h-12 w-full rounded-xl border border-slate-800 bg-slate-950/80 px-3 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-violet-600/60 focus:ring-2 focus:ring-violet-500/30 transition"
-        placeholder="0.1234"
-        value={mFloat}
-        onChange={(e) => setMFloat(e.target.value)}
-      />
-    </div>
-
-    <div className="md:col-span-2">
-      <label className="mb-1 block text-[11px] tracking-wide text-slate-400">
-        Pattern (note)
-      </label>
-      <input
-        className="h-12 w-full rounded-xl border border-slate-800 bg-slate-950/80 px-3 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-violet-600/60 focus:ring-2 focus:ring-violet-500/30 transition"
-        placeholder="123"
-        value={mPattern}
-        onChange={(e) => setMPattern(e.target.value)}
-      />
-    </div>
-
-    <div className="md:col-span-12">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="w-44">
-          <label className="mb-1 block text-[11px] tracking-wide text-slate-400">
-            Quantity
-          </label>
-          <div className="flex h-12 items-stretch overflow-hidden rounded-xl border border-slate-800 bg-slate-950/80">
-            <button
-              type="button"
-              onClick={() => setMQty((q) => Math.max(1, q - 1))}
-              className="px-3 text-slate-300 hover:bg-slate-800/60"
-              aria-label="Decrease quantity"
+          <div className="md:col-span-3">
+            <label className="mb-1 block text-[11px] tracking-wide text-slate-400">
+              Wear {isNonWearCategory(stripNone(mName || "")) && <span className="text-slate-500">(n/a)</span>}
+            </label>
+            <select
+              className={`h-12 w-full appearance-none rounded-xl border border-slate-800 bg-slate-950/80 px-3 text-sm text-slate-100 outline-none focus:border-violet-600/60 focus:ring-2 focus:ring-violet-500/30 transition ${isNonWearCategory(stripNone(mName || "")) ? "opacity-50" : ""}`}
+              value={mWear}
+              onChange={(e) => setMWear(e.target.value as any)}
+              disabled={isNonWearCategory(stripNone(mName || ""))}
             >
-              −
-            </button>
-            <div className="flex min-w-[3.25rem] flex-1 items-center justify-center text-sm text-slate-100">
-              {mQty}
+              {WEAR_OPTIONS.map((w) => (
+                <option key={w.code} value={w.code}>
+                  {w.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="mb-1 block text-[11px] tracking-wide text-slate-400">Float (note)</label>
+            <input
+              className="h-12 w-full rounded-xl border border-slate-800 bg-slate-950/80 px-3 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-violet-600/60 focus:ring-2 focus:ring-violet-500/30 transition"
+              placeholder="0.1234"
+              value={mFloat}
+              onChange={(e) => setMFloat(e.target.value)}
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="mb-1 block text-[11px] tracking-wide text-slate-400">Pattern (note)</label>
+            <input
+              className="h-12 w-full rounded-xl border border-slate-800 bg-slate-950/80 px-3 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-violet-600/60 focus:ring-2 focus:ring-violet-500/30 transition"
+              placeholder="123"
+              value={mPattern}
+              onChange={(e) => setMPattern(e.target.value)}
+            />
+          </div>
+
+          <div className="md:col-span-12">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="w-44">
+                <label className="mb-1 block text-[11px] tracking-wide text-slate-400">Quantity</label>
+                <div className="flex h-12 items-stretch overflow-hidden rounded-xl border border-slate-800 bg-slate-950/80">
+                  <button
+                    type="button"
+                    onClick={() => setMQty((q) => Math.max(1, q - 1))}
+                    className="px-3 text-slate-300 hover:bg-slate-800/60"
+                    aria-label="Decrease quantity"
+                  >
+                    −
+                  </button>
+                  <div className="flex min-w-[3.25rem] flex-1 items-center justify-center text-sm text-slate-100">
+                    {mQty}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setMQty((q) => q + 1)}
+                    className="px-3 text-slate-300 hover:bg-slate-800/60"
+                    aria-label="Increase quantity"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={addManual}
+                disabled={!mName.trim()}
+                className="group relative h-12 flex-1 overflow-hidden rounded-xl text-white transition disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+              >
+                <span className="absolute inset-0 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 group-hover:from-violet-500 group-hover:to-violet-400 transition" />
+                <span className="relative z-10 inline-flex w-full items-center justify-center gap-2 font-medium">
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" /></svg>
+                  Add
+                </span>
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setMQty((q) => q + 1)}
-              className="px-3 text-slate-300 hover:bg-slate-800/60"
-              aria-label="Increase quantity"
-            >
-              +
-            </button>
+
+            <p className="mt-2 text-xs text-slate-500">
+              Pricing uses only <span className="font-medium text-slate-300">Item name + Wear</span>. Float/Pattern are for display.
+            </p>
           </div>
         </div>
-
-        <button
-          onClick={addManual}
-          disabled={!mName.trim()}
-          className="group relative h-12 flex-1 overflow-hidden rounded-xl text-white transition disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
-        >
-          <span className="absolute inset-0 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 group-hover:from-violet-500 group-hover:to-violet-400 transition" />
-          <span className="relative z-10 inline-flex w-full items-center justify-center gap-2 font-medium">
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" /></svg>
-            Add
-          </span>
-        </button>
       </div>
 
-      <p className="mt-2 text-xs text-slate-500">
-        Pricing uses only <span className="font-medium text-slate-300">Item name + Wear</span>. Float/Pattern are for display.
-      </p>
-    </div>
-  </div>
-</div>
+      {/* Stats panel */}
+      <div className="relative rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-base font-semibold text-slate-100">Stats</h3>
+          <button
+            type="button"
+            title="Refresh prices now (Skinport & Steam)"
+            onClick={handleManualRefresh}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-800 bg-slate-950/80 text-slate-300 hover:bg-slate-800/70 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+            aria-label="Refresh prices"
+          >
+            <svg className={["h-4 w-4", refreshing ? "animate-spin" : ""].join(" ")} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12a9 9 0 1 1-3-6.7" />
+              <path d="M21 3v6h-6" />
+            </svg>
+          </button>
+        </div>
 
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+            <div className="text-xs uppercase tracking-wide text-slate-500">Total items</div>
+            <div className="mt-1 text-2xl font-semibold text-slate-100">{totals.totalItems}</div>
+          </div>
 
-        {/* Stats panel */}
-        {/* Stats panel */}
-<div className="relative rounded-2xl border border-slate-800/60 bg-[#0b0b0f]/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
-  <div className="mb-3 flex items-center justify-between">
-    <h3 className="text-base font-semibold text-slate-100">Stats</h3>
+          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+            <div className="text-xs uppercase tracking-wide text-slate-500">Steam − Skinport</div>
+            <div className={`mt-1 text-2xl font-semibold ${totals.totalSteam - totals.totalSkinport >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+              A${(totals.totalSteam - totals.totalSkinport).toFixed(2)}
+            </div>
+          </div>
 
-    <button
-      type="button"
-      title="Refresh prices now (Skinport & Steam)"
-      onClick={handleManualRefresh}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-800 bg-slate-950/80 text-slate-300 hover:bg-slate-800/70 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
-      aria-label="Refresh prices"
-    >
-      <svg className={["h-4 w-4", refreshing ? "animate-spin" : ""].join(" ")} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 12a9 9 0 1 1-3-6.7" />
-        <path d="M21 3v6h-6" />
-      </svg>
-    </button>
-  </div>
+          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+            <div className="text-xs uppercase tracking-wide text-slate-500">Skinport total</div>
+            <div className="mt-1 text-xl font-medium text-slate-100">A${totals.totalSkinport.toFixed(2)}</div>
+            <div className="mt-1 text-xs text-slate-500">
+              {rows.filter((r) => typeof r.skinportAUD === "number").length}/{rows.length} priced • {formatTime(skinportUpdatedAt)}
+            </div>
+          </div>
 
-  {/* 2 x 2 card grid */}
-  <div className="grid grid-cols-2 gap-3">
-    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-      <div className="text-xs uppercase tracking-wide text-slate-500">Total items</div>
-      <div className="mt-1 text-2xl font-semibold text-slate-100">{totals.totalItems}</div>
-    </div>
-
-    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-      <div className="text-xs uppercase tracking-wide text-slate-500">Steam − Skinport</div>
-      <div className={`mt-1 text-2xl font-semibold ${totals.totalSteam - totals.totalSkinport >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-        A${(totals.totalSteam - totals.totalSkinport).toFixed(2)}
+          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+            <div className="text-xs uppercase tracking-wide text-slate-500">Steam total</div>
+            <div className="mt-1 text-xl font-medium text-slate-100">A${totals.totalSteam.toFixed(2)}</div>
+            <div className="mt-1 text-xs text-slate-500">
+              {rows.filter((r) => typeof r.steamAUD === "number").length}/{rows.length} priced • {formatTime(steamUpdatedAt)}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-
-    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-      <div className="text-xs uppercase tracking-wide text-slate-500">Skinport total</div>
-      <div className="mt-1 text-xl font-medium text-slate-100">A${totals.totalSkinport.toFixed(2)}</div>
-      <div className="mt-1 text-xs text-slate-500">
-        {rows.filter((r) => typeof r.skinportAUD === "number").length}/{rows.length} priced • {formatTime(skinportUpdatedAt)}
-      </div>
-    </div>
-
-    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-      <div className="text-xs uppercase tracking-wide text-slate-500">Steam total</div>
-      <div className="mt-1 text-xl font-medium text-slate-100">A${totals.totalSteam.toFixed(2)}</div>
-      <div className="mt-1 text-xs text-slate-500">
-        {rows.filter((r) => typeof r.steamAUD === "number").length}/{rows.length} priced • {formatTime(steamUpdatedAt)}
-      </div>
-    </div>
-  </div>
-</div>
 
 
       {/* Sort toolbar */}
