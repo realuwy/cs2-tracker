@@ -12,10 +12,17 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${manrope.variable} font-sans bg-bg text-text`}>
+      <body
+        className={`${inter.variable} ${manrope.variable} font-sans bg-bg text-text`}
+      >
         <div className="min-h-screen flex flex-col">
-          <AppHeader />
+          {/* header */}
+          <AppHeader user={null} /> {/* pass { email, name } when auth is wired */}
+
+          {/* main content */}
           <main className="flex-1">{children}</main>
+
+          {/* footer */}
           <SiteFooter />
         </div>
       </body>
