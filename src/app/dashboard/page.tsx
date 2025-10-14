@@ -884,21 +884,18 @@ function SortChip({ k, label }: { k: SortKey; label: string }) {
   const arrow = active ? (sort.dir === "asc" ? "▲" : "▼") : "";
   return (
     <button
+      type="button"
       onClick={() => dispatchSort({ type: "toggle", key: k })}
       className={`rounded-full border px-2.5 py-1 text-xs transition ${
         active
-         active
-  ? "border-[var(--accent)] text-[var(--accent)] bg-[color:var(--accent-soft)]"
-  : "border-[var(--border)] text-[var(--text)]/85 hover:bg-white/5"
-
+          ? "border-violet-500 text-violet-400 bg-violet-500/10"
+          : "border-slate-700 text-slate-300 hover:bg-slate-800/60"
       }`}
     >
       {label} {arrow}
     </button>
   );
-} // ← closes SortChip ONLY
-
-// ⬇️ No extra brace here
+}
 return (
   <div className="mx-auto max-w-6xl p-6">
     {/* Top row: Left Manual Add / Right Stats */}
@@ -1255,4 +1252,3 @@ style={{ borderColor: "var(--border)" }}>
       </button>
     </div>
   );
-}
