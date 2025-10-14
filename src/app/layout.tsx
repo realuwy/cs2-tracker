@@ -1,10 +1,14 @@
+// src/app/layout.tsx
 import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { inter, manrope } from "./fonts";
 import AppHeader from "@/components/AppHeader";
 import SiteFooter from "@/components/Footer";
-import AuthModalHost from "@/components/AuthModalHost";
+import dynamic from "next/dynamic";
+
+// 👇 avoid server evaluating anything inside the auth tree
+const AuthModalHost = dynamic(() => import("@/components/AuthModalHost"), { ssr: false });
 
 export const metadata: Metadata = {
   title: "CS2 Tracker",
@@ -17,7 +21,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className={`${inter.variable} ${manrope.variable} font-sans bg-bg text-text`}>
         <div className="min-h-screen flex flex-col">
           <AppHeader user={null} />
-          <AuthModalHost /> {/* listens for open-auth / close-auth */}
+          <AuthModalHost /> {/* mounted only in the browser */}
           <main className="flex-1">{children}</main>
           <SiteFooter />
         </div>
