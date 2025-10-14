@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
 type Mode = "login" | "signup" | "reset";
@@ -24,7 +24,7 @@ export default function AuthModal({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
-
+const supabase = getSupabaseClient();
   useEffect(() => {
     setErr(null);
     setOk(null);
