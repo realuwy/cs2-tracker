@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { fetchInventory, InvItem } from "@/lib/api";
