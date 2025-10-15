@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import Logo from "@/components/Logo";
 
 type User = { name?: string | null; email?: string | null } | null;
 
@@ -9,11 +10,42 @@ export default function AppHeader({ user = null }: { user?: User }) {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
-        {/* Left: logo */}
-        <Link
-          href="/"
-          className="group inline-flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 rounded"
-        >
+       {/* Left: logo */}
+<Link
+  href="/"
+  className="group inline-flex items-center gap-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+  aria-label="CS2 Tracker home"
+>
+  {/* rising arrow mark */}
+  <svg
+    width="22"
+    height="22"
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+    className="text-accent drop-shadow-[0_0_10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]"
+  >
+    {/* bent line */}
+    <polyline
+      points="4,16 11,16 16,7"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    {/* arrow head */}
+    <polygon points="16,4 22,4 22,10" fill="currentColor" />
+  </svg>
+
+  <span className="inline-flex items-center gap-2">
+    <span className="text-sm font-semibold tracking-wide text-text">CS2 Tracker</span>
+    {/* optional alpha badge */}
+    <span className="rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent">
+      alpha
+    </span>
+  </span>
+</Link>
+
           {/* neon N */}
           <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"
                className="drop-shadow-[0_0_10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]">
