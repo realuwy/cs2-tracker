@@ -146,9 +146,23 @@ const supabase = getSupabaseClient();
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-surface/95 shadow-card">
+useEffect(() => {
+  const onEsc = (e: KeyboardEvent) => e.key === "Escape" && onClose?.();
+  window.addEventListener("keydown", onEsc);
+  return () => window.removeEventListener("keydown", onEsc);
+}, [onClose]);
+
+return (
+  <div
+    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+    role="dialog"
+    aria-modal="true"
+    onMouseDown={() => onClose?.()}              // click backdrop to close
+  >
+    <div
+      className="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-surface/95 shadow-card"
+      onMouseDown={(e) => e.stopPropagation()}   // prevent backdrop close when clicking inside
+    >
         {/* header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-lg font-semibold">{title}</h2>
