@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { fetchInventory, InvItem } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 import { fetchAccountRows, upsertAccountRows } from "@/lib/rows";
 
 /* ----------------------------- constants ----------------------------- */
@@ -378,6 +378,7 @@ export default function DashboardPage() {
   const [spMap, setSpMap] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [sort, dispatchSort] = useReducer(sortReducer, { key: "item", dir: "asc" });
+  const supabase = getSupabaseClient();
 
   // controls
   const [steamId, setSteamId] = useState("");
