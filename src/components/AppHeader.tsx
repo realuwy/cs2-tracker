@@ -15,12 +15,12 @@ export default function AppHeader({ user = null }: { user?: User }) {
   aria-label="CS2 Tracker home"
   className="group inline-flex items-center gap-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
 >
-  {/* PNG logo @22px (44x44 source) */}
+  {/* PNG logo @24px (44x44 source) */}
   <Image
     src="/logo-arrow.png"
     alt=""
-    width={22}
-    height={22}
+    width={24}
+    height={24}
     priority
     className="inline-block select-none drop-shadow-[0_0_10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]"
   />
