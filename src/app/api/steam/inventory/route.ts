@@ -4,6 +4,24 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+const UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36";
+const COMMON_HEADERS = {
+  "User-Agent": UA,
+  "Accept": "application/json,text/plain,*/*",
+  "Accept-Language": "en-US,en;q=0.9",
+  "Referer": "https://steamcommunity.com/",
+};
+
+type Item = {
+  id: string;
+  assetid: string;
+  classid: string;
+  name: string;
+  exterior: string;
+  icon: string;
+};
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -21,135 +39,144 @@ export async function GET(req: Request) {
       );
     }
 
-    // --- Primary: new inventory endpoint ---
+    // --- 1) New inventory endpoint (steamcommunity.com/inventory) ---
     const primaryUrl = `https://steamcommunity.com/inventory/${id}/730/2?l=english&count=5000`;
-    const commonHeaders = {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36",
-      "Accept": "application/json,text/plain,*/*",
-      "Accept-Language": "en-US,en;q=0.9",
-      "Referer": "https://steamcommunity.com/",
-    } as const;
-
-    let res = await fetch(primaryUrl, { cache: "no-store", headers: commonHeaders });
-
-    // Helper to map "new" format
-    const mapNew = async () => {
-      const data = await res.json();
-      const descMap = new Map<string, any>();
-      for (const d of data.descriptions ?? []) {
-        const icon =
-          d.icon_url_large
-            ? `https://community.cloudflare.steamstatic.com/economy/image/${d.icon_url_large}`
-            : d.icon_url
-            ? `https://community.cloudflare.steamstatic.com/economy/image/${d.icon_url}`
-            : "";
-        descMap.set(`${d.classid}_${d.instanceid ?? "0"}`, {
-          market_hash_name: d.market_hash_name,
-          name: d.name,
-          tags: d.tags ?? [],
-          icon,
-        });
-      }
-      const items = (data.assets ?? []).map((a: any) => {
-        const key = `${a.classid}_${a.instanceid ?? "0"}`;
-        const meta = descMap.get(key) || {};
-        const exterior =
-          (meta.tags || []).find((t: any) => t.category === "Exterior")?.name ||
-          (meta.market_hash_name || meta.name || "").match(
-            /\((Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)\)/
-          )?.[1] ||
-          "";
-        return {
-          id: `${a.classid}_${a.instanceid}_${a.assetid}`,
-          assetid: a.assetid,
-          classid: a.classid,
-          name: meta.market_hash_name || meta.name || "Unknown",
-          exterior,
-          icon: meta.icon || "",
-        };
-      });
-      return items;
-    };
+    let res = await fetch(primaryUrl, { cache: "no-store", headers: COMMON_HEADERS });
 
     if (res.ok) {
-      const items = await mapNew();
+      const items = await mapNew(await res.json());
       return NextResponse.json({ count: items.length, items }, { status: 200 });
     }
 
-    // If 400 + "null" -> try legacy endpoint
-    const text = await res.text().catch(() => "");
+    let text = await safeText(res);
     if (res.status === 400 && text.trim() === "null") {
-      // --- Legacy: JSON endpoint ---
-      const legacyUrl = `https://steamcommunity.com/profiles/${id}/inventory/json/730/2?l=english`;
-      const resLegacy = await fetch(legacyUrl, { cache: "no-store", headers: commonHeaders });
+      // friendly null case continues to fallback below
+    } else if (res.status !== 400) {
+      // If not the "null" case, try fallbacks too but keep details for final error
+    }
 
-      if (resLegacy.ok) {
-        const data = await resLegacy.json();
+    // --- 2) Legacy JSON endpoint (steamcommunity.com/profiles/.../inventory/json) ---
+    const legacyUrl = `https://steamcommunity.com/profiles/${id}/inventory/json/730/2?l=english`;
+    const resLegacy = await fetch(legacyUrl, { cache: "no-store", headers: COMMON_HEADERS });
 
-        // Legacy "success" check
-        if (data && data.success) {
-          const inv: Record<string, any> = data.rgInventory || {};
-          const desc: Record<string, any> = data.rgDescriptions || {};
-
-          const items = Object.values(inv).map((asset: any) => {
-            const key = `${asset.classid}_${asset.instanceid || "0"}`;
-            const meta = desc[key] || {};
-            const icon =
-              meta.icon_url_large
-                ? `https://community.cloudflare.steamstatic.com/economy/image/${meta.icon_url_large}`
-                : meta.icon_url
-                ? `https://community.cloudflare.steamstatic.com/economy/image/${meta.icon_url}`
-                : "";
-            const name = meta.market_hash_name || meta.name || "Unknown";
-            const exterior =
-              (meta.tags || []).find((t: any) => t.category === "Exterior")?.name ||
-              (name || "").match(
-                /\((Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)\)/
-              )?.[1] ||
-              "";
-            return {
-              id: `${asset.classid}_${asset.instanceid || "0"}_${asset.id}`,
-              assetid: asset.id,
-              classid: asset.classid,
-              name,
-              exterior,
-              icon,
-            };
-          });
-
-          return NextResponse.json({ count: items.length, items }, { status: 200 });
-        }
-
-        // Legacy returned but not success
-        return NextResponse.json(
-          {
-            error:
-              "Steam returned no inventory via legacy endpoint. Check that CS2 items exist and inventory is Public.",
-            status: 400,
-          },
-          { status: 400 }
-        );
+    if (resLegacy.ok) {
+      const data = await resLegacy.json();
+      if (data && data.success) {
+        const items = mapLegacy(data);
+        return NextResponse.json({ count: items.length, items }, { status: 200 });
       }
+    }
 
-      // Legacy request failed entirely
-      const legTxt = await resLegacy.text().catch(() => "");
+    // --- 3) Alternative host (inventory.steampowered.com) ---
+    // This often works when the other two do not.
+    // Example: https://inventory.steampowered.com/730/2/{steamid}?l=english&count=5000
+    const altUrl = `https://inventory.steampowered.com/730/2/${id}?l=english&count=5000`;
+    const resAlt = await fetch(altUrl, { cache: "no-store", headers: COMMON_HEADERS });
+
+    if (resAlt.ok) {
+      const items = await mapNew(await resAlt.json()); // same shape as "new"
+      return NextResponse.json({ count: items.length, items }, { status: 200 });
+    }
+
+    // If all 3 failed, return the friendliest message we can.
+    const legacyTxt = await safeText(resLegacy);
+    const altTxt = await safeText(resAlt);
+
+    // Special case for null body
+    if (res.status === 400 && text.trim() === "null") {
       return NextResponse.json(
         {
-          error: "Steam inventory error (legacy)",
-          status: resLegacy.status,
-          body: legTxt?.slice(0, 200) ?? "",
+          error:
+            "Steam returned no inventory for this account. Confirm the SteamID64 is correct, Inventory is Public, and CS2 items exist.",
+          hint:
+            "If everything looks correct, Steam may be blocking this request from the host. Try again later or import using another network.",
+          status: 400,
         },
-        { status: resLegacy.status }
+        { status: 400 }
       );
     }
 
-    // Other non-OK status from primary
     return NextResponse.json(
-      { error: "Steam inventory error", status: res.status, body: text?.slice(0, 200) ?? "" },
-      { status: res.status }
+      {
+        error: "Steam inventory error (all endpoints failed)",
+        primary: { status: res.status, body: text.slice(0, 200) },
+        legacy: { status: resLegacy.status, body: legacyTxt.slice(0, 200) },
+        alternate: { status: resAlt.status, body: altTxt.slice(0, 200) },
+      },
+      { status: 502 }
     );
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Unexpected error" }, { status: 500 });
   }
+}
+
+/* --------------------------- helpers --------------------------- */
+
+function safeText(r: Response): Promise<string> {
+  return r.text().catch(() => "");
+}
+
+// Map "new" format: { assets: [], descriptions: [] }
+function mapNew(data: any): Item[] {
+  const descMap = new Map<string, any>();
+  for (const d of data?.descriptions ?? []) {
+    const icon =
+      d.icon_url_large
+        ? `https://community.cloudflare.steamstatic.com/economy/image/${d.icon_url_large}`
+        : d.icon_url
+        ? `https://community.cloudflare.steamstatic.com/economy/image/${d.icon_url}`
+        : "";
+    descMap.set(`${d.classid}_${d.instanceid ?? "0"}`, {
+      market_hash_name: d.market_hash_name,
+      name: d.name,
+      tags: d.tags ?? [],
+      icon,
+    });
+  }
+  return (data?.assets ?? []).map((a: any) => {
+    const key = `${a.classid}_${a.instanceid ?? "0"}`;
+    const meta = descMap.get(key) || {};
+    const name = meta.market_hash_name || meta.name || "Unknown";
+    const exterior =
+      (meta.tags || []).find((t: any) => t.category === "Exterior")?.name ||
+      (name || "").match(/\((Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)\)/)?.[1] ||
+      "";
+    return {
+      id: `${a.classid}_${a.instanceid ?? "0"}_${a.assetid}`,
+      assetid: a.assetid,
+      classid: a.classid,
+      name,
+      exterior,
+      icon: meta.icon || "",
+    };
+  });
+}
+
+// Map legacy format: { success, rgInventory, rgDescriptions }
+function mapLegacy(data: any): Item[] {
+  const inv: Record<string, any> = data.rgInventory || {};
+  const desc: Record<string, any> = data.rgDescriptions || {};
+  return Object.values(inv).map((asset: any) => {
+    const key = `${asset.classid}_${asset.instanceid || "0"}`;
+    const meta = desc[key] || {};
+    const icon =
+      meta.icon_url_large
+        ? `https://community.cloudflare.steamstatic.com/economy/image/${meta.icon_url_large}`
+        : meta.icon_url
+        ? `https://community.cloudflare.steamstatic.com/economy/image/${meta.icon_url}`
+        : "";
+    const name = meta.market_hash_name || meta.name || "Unknown";
+    const exterior =
+      (meta.tags || []).find((t: any) => t.category === "Exterior")?.name ||
+      (name || "").match(/\((Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)\)/)?.[1] ||
+      "";
+    return {
+      id: `${asset.classid}_${asset.instanceid || "0"}_${asset.id}`,
+      assetid: asset.id,
+      classid: asset.classid,
+      name,
+      exterior,
+      icon,
+    };
+  });
 }
