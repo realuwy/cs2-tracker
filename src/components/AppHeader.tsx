@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 
 type User = { name?: string | null; email?: string | null } | null;
 
@@ -42,7 +43,14 @@ export default function AppHeader({ user = null }: { user?: User }) {
             </span>
           </span>
         </Link>
-
+<Image
+  src="/logo-arrow.png"
+  alt=""
+  width={22}
+  height={22}
+  priority
+  className="inline-block select-none drop-shadow-[0_0_10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]"
+/>
         {/* Center: primary nav */}
         <nav className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 md:block">
           <ul className="flex items-center gap-8 text-sm text-text">
