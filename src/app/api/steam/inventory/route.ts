@@ -1,7 +1,7 @@
 // src/app/api/steam/inventory/route.ts
 import { NextResponse } from "next/server";
 
-export const runtime = "nodejs";        // ensure Node runtime, not Edge
+export const runtime = "nodejs";        // ensure Node runtime (not Edge)
 export const dynamic = "force-dynamic"; // no static caching
 export const revalidate = 0;
 
@@ -14,11 +14,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Missing 'id' (SteamID64 or /profiles/<id> URL)" }, { status: 400 });
     }
 
-    // Allow /profiles/<steamid> URL
+    // Accept /profiles/<steamid> URLs
     const m = id.match(/steamcommunity\.com\/profiles\/(\d{17})/i);
     if (m) id = m[1];
 
-    // We don't resolve vanity names here
+    // We don’t resolve vanity names here
     if (!/^\d{17}$/.test(id)) {
       return NextResponse.json(
         { error: "Provide a SteamID64 or a /profiles/<id> URL (not a vanity /id/<name> URL)" },
@@ -28,7 +28,6 @@ export async function GET(req: Request) {
 
     const url = `https://steamcommunity.com/inventory/${id}/730/2?l=english&count=5000`;
 
-    // Steam sometimes rejects generic fetches—send real-ish headers
     const res = await fetch(url, {
       cache: "no-store",
       headers: {
@@ -40,9 +39,22 @@ export async function GET(req: Request) {
       },
     });
 
-    // Bubble the exact status to help debug (403 = private inventory, 429 = rate limit, 5xx = Steam issue)
+    // 👇 Friendlier error handling (your requested block)
     if (!res.ok) {
       const text = await res.text().catch(() => "");
+      // Steam sometimes returns 400 + "null" for private/empty/not-exposed inventories.
+      if (res.status === 400 && text.trim() === "null") {
+        return NextResponse.json(
+          {
+            error:
+              "Steam returned no inventory. Check that the SteamID64 is correct and the inventory is Public.",
+            hint:
+              "Use /profiles/<17-digit-id> or a 17-digit SteamID64. Vanity /id/<name> is not supported.",
+            status: 400,
+          },
+          { status: 400 }
+        );
+      }
       return NextResponse.json(
         { error: "Steam inventory error", status: res.status, body: text?.slice(0, 200) ?? "" },
         { status: res.status }
