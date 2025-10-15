@@ -1,4 +1,3 @@
-// src/lib/supabase.ts
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 let _client: SupabaseClient | null = null;
@@ -12,8 +11,8 @@ export function getSupabaseClient(): SupabaseClient {
   _client = createClient(url, anon, {
     auth: {
       autoRefreshToken: true,
-      persistSession: typeof window !== "undefined",              // SSR-safe
-      storage: typeof window !== "undefined" ? window.localStorage : undefined as any,
+      persistSession: typeof window !== "undefined",
+      storage: typeof window !== "undefined" ? window.localStorage : (undefined as any),
     },
   });
 
