@@ -1,8 +1,7 @@
 "use client";
-
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 
 type User = { name?: string | null; email?: string | null } | null;
 
@@ -12,26 +11,25 @@ export default function AppHeader({ user = null }: { user?: User }) {
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
         {/* Left: brand */}
         <Link
-          href="/"
-          aria-label="CS2 Tracker home"
-          className="group inline-flex items-center gap-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
-        >
-          {/* rising-arrow logo (sharp) */}
-          <Image
-  src="/logo-arrow.png"
-  alt=""
-  width={22}
-  height={22}
-  priority
-  className="inline-block select-none drop-shadow-[0_0_10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]"
-/>
-          <span className="inline-flex items-center gap-2">
-            <span className="text-sm font-semibold tracking-wide text-text">CS2 Tracker</span>
-            <span className="rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent">
-              alpha
-            </span>
-          </span>
-        </Link>
+  href="/"
+  aria-label="CS2 Tracker home"
+  className="group inline-flex items-center gap-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+>
+  {/* PNG logo @22px (44x44 source) */}
+  <Image
+    src="/logo-arrow.png"
+    alt=""
+    width={22}
+    height={22}
+    priority
+    className="inline-block select-none drop-shadow-[0_0_10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]"
+  />
+
+  <span className="inline-flex items-center gap-2">
+    <span className="text-sm font-semibold tracking-wide text-text">CS2 Tracker</span>
+    <span className="rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent">alpha</span>
+  </span>
+</Link>
 
         {/* Center: primary nav */}
         <nav className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 md:block">
