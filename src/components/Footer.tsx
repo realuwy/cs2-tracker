@@ -41,30 +41,69 @@ export default function Footer() {
 
         {/* Center links */}
         <nav className="absolute inset-x-0 mx-auto hidden w-fit items-center gap-6 md:flex">
-          <Link href="/about" className="text-muted transition-colors hover:text-accent">
+          <Link
+            href="/about"
+            className="rounded px-1 text-muted transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+          >
             About
           </Link>
-          <Link href="/privacy" className="text-muted transition-colors hover:text-accent">
+          <Link
+            href="/privacy"
+            className="rounded px-1 text-muted transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+          >
             Privacy
           </Link>
         </nav>
 
-        {/* Right: copyright */}
-        <div className="ml-auto text-right text-muted">© {year} CS2 Tracker</div>
+        {/* Right: X link + copyright */}
+        <div className="ml-auto flex items-center gap-3 text-muted">
+          <a
+            href="https://x.com/cs2_tracker"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded px-2 py-1 text-xs text-text/80 hover:text-text underline underline-offset-4 decoration-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+            aria-label="CS2 Tracker on X"
+            title="Follow on X"
+          >
+            Follow on X
+          </a>
+          <span>© {year} CS2 Tracker</span>
+        </div>
       </div>
 
       {/* Mobile */}
       <div className="px-4 pb-6 md:hidden">
         <div className="mt-2 flex justify-center gap-6">
-          <Link href="/about" className="text-muted transition-colors hover:text-accent">
+          <Link
+            href="/about"
+            className="rounded px-1 text-muted transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+          >
             About
           </Link>
-          <Link href="/privacy" className="text-muted transition-colors hover:text-accent">
+          <Link
+            href="/privacy"
+            className="rounded px-1 text-muted transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+          >
             Privacy
           </Link>
+        </div>
+
+        <div className="mt-3 flex items-center justify-center gap-3 text-muted">
+          <a
+            href="https://x.com/cs2_tracker"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded px-2 py-1 text-xs text-text/80 hover:text-text underline underline-offset-4 decoration-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+            aria-label="CS2 Tracker on X"
+            title="Follow on X"
+          >
+            Follow on X
+          </a>
+          <span>© {year} CS2 Tracker</span>
         </div>
       </div>
     </footer>
   );
 }
+
 
