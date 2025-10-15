@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Footer() {
   const year = new Date().getFullYear();
@@ -9,35 +10,26 @@ export default function Footer() {
       {/* Desktop */}
       <div className="relative mx-auto flex max-w-6xl items-center justify-between px-4 py-6 text-sm">
         {/* Left: brand */}
-        <Link
-          href="/"
-          aria-label="CS2 Tracker home"
-          className="flex items-center gap-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
-        >
-          {/* rising-arrow logo (sharp) */}
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            className="text-accent drop-shadow-[0_0_10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]"
-            shapeRendering="geometricPrecision"
-          >
-            <path
-              d="M3 16 H11 L16 8"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="4"
-              strokeLinecap="butt"
-              strokeLinejoin="miter"
-            />
-            <polygon points="16,4 22,8 16,12" fill="currentColor" />
-          </svg>
-          <span className="font-medium text-text">CS2 Tracker</span>
-          <span className="ml-2 rounded-full bg-accent/15 px-2 py-0.5 text-[10px] leading-none text-accent">
-            alpha
-          </span>
-        </Link>
+{/* brand + logo */}
+<Link
+  href="/"
+  aria-label="CS2 Tracker home"
+  className="flex items-center gap-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+>
+  {/* PNG logo (transparent), a hair bigger for balance */}
+  <Image
+    src="/logo-arrow.png"
+    alt=""
+    width={20}   // was an 18px SVG; 20px reads better
+    height={20}
+    className="inline-block translate-y-[1px] select-none drop-shadow-[0_0_8px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]"
+  />
+  <span className="font-medium text-text">CS2 Tracker</span>
+  <span className="ml-2 rounded-full bg-accent/15 px-2 py-0.5 text-[10px] leading-none text-accent">
+    alpha
+  </span>
+</Link>
+
 
         {/* Center links */}
         <nav className="absolute inset-x-0 mx-auto hidden w-fit items-center gap-6 md:flex">
