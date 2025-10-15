@@ -107,6 +107,13 @@ function DotsUserMenu({ user }: { user: User }) {
           </div>
 
           <div className="p-1">
+            {/* Mobile primary routes */}
+<div className="md:hidden">
+  <MenuItem href="/" label="Home" />
+  <MenuItem href="/dashboard" label="Dashboard" />
+  <div className="my-1 border-t border-border" />
+</div>
+
             {user ? (
               <>
                 <MenuItem href="/profile" label="Profile" />
