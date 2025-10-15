@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import Logo from "@/components/Logo";
 
 type User = { name?: string | null; email?: string | null } | null;
 
@@ -10,65 +9,45 @@ export default function AppHeader({ user = null }: { user?: User }) {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
-       {/* Left: logo */}
-<Link
-  href="/"
-  className="group inline-flex items-center gap-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
-  aria-label="CS2 Tracker home"
->
-  {/* rising arrow mark */}
-  <svg
-    width="22"
-    height="22"
-    viewBox="0 0 24 24"
-    aria-hidden="true"
-    className="text-accent drop-shadow-[0_0_10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]"
-  >
-    {/* bent line */}
-    <polyline
-      points="4,16 11,16 16,7"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    {/* arrow head */}
-    <polygon points="16,4 22,4 22,10" fill="currentColor" />
-  </svg>
-
-  <span className="inline-flex items-center gap-2">
-    <span className="text-sm font-semibold tracking-wide text-text">CS2 Tracker</span>
-    {/* optional alpha badge */}
-    <span className="rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent">
-      alpha
-    </span>
-  </span>
-</Link>
-
-          {/* neon N */}
-          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"
-               className="drop-shadow-[0_0_10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]">
-            <path d="M3 5h5l8 10h5v4h-6L7 9H3V5z" fill="currentColor" className="text-accent" />
+        {/* Left: brand */}
+        <Link
+          href="/"
+          aria-label="CS2 Tracker home"
+          className="group inline-flex items-center gap-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+        >
+          {/* rising-arrow logo */}
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            className="text-accent drop-shadow-[0_0_10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]"
+          >
+            <polyline
+              points="4,16 11,16 16,7"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <polygon points="16,4 22,4 22,10" fill="currentColor" />
           </svg>
-          <span className="text-sm font-semibold tracking-wide text-text">CS2 Tracker</span>
+          <span className="inline-flex items-center gap-2">
+            <span className="text-sm font-semibold tracking-wide text-text">CS2 Tracker</span>
+            <span className="rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent">
+              alpha
+            </span>
+          </span>
         </Link>
 
         {/* Center: primary nav */}
         <nav className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 md:block">
           <ul className="flex items-center gap-8 text-sm text-text">
-            <li>
-              <NavLink href="/">Home</NavLink>
-            </li>
-            <li>
-              <NavLink href="/dashboard">Dashboard</NavLink>
-            </li>
-            <li>
-              <NavLink href="/about">About</NavLink>
-            </li>
-            <li>
-              <NavLink href="/privacy">Privacy</NavLink>
-            </li>
+            <li><NavLink href="/">Home</NavLink></li>
+            <li><NavLink href="/dashboard">Dashboard</NavLink></li>
+            <li><NavLink href="/about">About</NavLink></li>
+            <li><NavLink href="/privacy">Privacy</NavLink></li>
           </ul>
         </nav>
 
@@ -83,7 +62,7 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
   return (
     <Link
       href={href}
-      className="rounded px-1 py-0.5 text-text/80 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 hover:underline hover:decoration-accent/30 hover:underline-offset-4"
+      className="rounded px-1 py-0.5 text-text/80 hover:text-text hover:underline hover:decoration-accent/30 hover:underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
     >
       {children}
     </Link>
@@ -95,7 +74,7 @@ function DotsUserMenu({ user }: { user: User }) {
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const popRef = useRef<HTMLDivElement | null>(null);
 
-  // Close on outside click / ESC
+  // Close on outside click / Esc
   useEffect(() => {
     if (!open) return;
     const onClick = (e: MouseEvent) => {
@@ -178,7 +157,6 @@ function DotsUserMenu({ user }: { user: User }) {
   );
 }
 
-
 function MenuItem({ href, label }: { href: string; label: string }) {
   return (
     <Link
@@ -192,13 +170,7 @@ function MenuItem({ href, label }: { href: string; label: string }) {
   );
 }
 
-function MenuButton({
-  label,
-  onClick,
-}: {
-  label: string;
-  onClick: () => void;
-}) {
+function MenuButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -212,7 +184,6 @@ function MenuButton({
 }
 
 function DotsIcon() {
-  // 2x2 dots like your screenshot
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" className="text-text">
       <circle cx="8" cy="8" r="1.5" fill="currentColor" />
@@ -222,4 +193,5 @@ function DotsIcon() {
     </svg>
   );
 }
+
 
