@@ -17,33 +17,7 @@ export default function AppHeader({ user = null }: { user?: User }) {
           className="group inline-flex items-center gap-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
         >
           {/* rising-arrow logo (sharp) */}
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            className="text-accent drop-shadow-[0_0_10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]"
-            shapeRendering="geometricPrecision"
-          >
-            <path
-              d="M3 16 H11 L16 8"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="4"
-              strokeLinecap="butt"
-              strokeLinejoin="miter"
-            />
-            <polygon points="16,4 22,8 16,12" fill="currentColor" />
-          </svg>
-
-          <span className="inline-flex items-center gap-2">
-            <span className="text-sm font-semibold tracking-wide text-text">CS2 Tracker</span>
-            <span className="rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent">
-              alpha
-            </span>
-          </span>
-        </Link>
-<Image
+          <Image
   src="/logo-arrow.png"
   alt=""
   width={22}
@@ -51,6 +25,14 @@ export default function AppHeader({ user = null }: { user?: User }) {
   priority
   className="inline-block select-none drop-shadow-[0_0_10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]"
 />
+          <span className="inline-flex items-center gap-2">
+            <span className="text-sm font-semibold tracking-wide text-text">CS2 Tracker</span>
+            <span className="rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent">
+              alpha
+            </span>
+          </span>
+        </Link>
+
         {/* Center: primary nav */}
         <nav className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 md:block">
           <ul className="flex items-center gap-8 text-sm text-text">
