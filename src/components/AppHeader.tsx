@@ -62,12 +62,8 @@ function DotsUserMenu({ user }: { user: User }) {
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const popRef = useRef<HTMLDivElement | null>(null);
-// Sign up
-window.dispatchEvent(new CustomEvent("open-auth", { detail: { mode: "signup" } }));
-// Log in
-window.dispatchEvent(new CustomEvent("open-auth", { detail: { mode: "login" } }));
 
-  // Close on outside click
+  // Close on outside click / ESC
   useEffect(() => {
     if (!open) return;
     const onClick = (e: MouseEvent) => {
@@ -75,9 +71,7 @@ window.dispatchEvent(new CustomEvent("open-auth", { detail: { mode: "login" } })
       const t = e.target as Node;
       if (!popRef.current.contains(t) && !btnRef.current.contains(t)) setOpen(false);
     };
-    const onEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
+    const onEsc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     window.addEventListener("click", onClick);
     window.addEventListener("keydown", onEsc);
     return () => {
@@ -93,7 +87,7 @@ window.dispatchEvent(new CustomEvent("open-auth", { detail: { mode: "login" } })
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(v => !v)}
         className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface shadow-card hover:bg-surface2 hover:ring-1 hover:ring-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
       >
         <DotsIcon />
@@ -108,9 +102,7 @@ window.dispatchEvent(new CustomEvent("open-auth", { detail: { mode: "login" } })
           className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border border-border bg-surface shadow-card"
         >
           <div className="border-b border-border px-3 py-2">
-            <p className="truncate text-xs text-muted">
-              {user?.email ?? "Guest"}
-            </p>
+            <p className="truncate text-xs text-muted">{user?.email ?? "Guest"}</p>
           </div>
 
           <div className="p-1">
@@ -121,8 +113,7 @@ window.dispatchEvent(new CustomEvent("open-auth", { detail: { mode: "login" } })
                 <MenuButton
                   label="Sign out"
                   onClick={() => {
-                    // TODO: wire real sign-out
-                    window.dispatchEvent(new CustomEvent("signout"));
+                    window.dispatchEvent(new CustomEvent("cs2:close-auth"));
                     setOpen(false);
                   }}
                 />
@@ -132,14 +123,14 @@ window.dispatchEvent(new CustomEvent("open-auth", { detail: { mode: "login" } })
                 <MenuButton
                   label="Sign up"
                   onClick={() => {
-                    window.dispatchEvent(new CustomEvent("open-auth", { detail: { mode: "signup" } }));
+                    window.dispatchEvent(new CustomEvent("cs2:open-auth", { detail: { mode: "signup" } }));
                     setOpen(false);
                   }}
                 />
                 <MenuButton
                   label="Log in"
                   onClick={() => {
-                    window.dispatchEvent(new CustomEvent("open-auth", { detail: { mode: "login" } }));
+                    window.dispatchEvent(new CustomEvent("cs2:open-auth", { detail: { mode: "login" } }));
                     setOpen(false);
                   }}
                 />
@@ -154,6 +145,7 @@ window.dispatchEvent(new CustomEvent("open-auth", { detail: { mode: "login" } })
     </div>
   );
 }
+
 
 function MenuItem({ href, label }: { href: string; label: string }) {
   return (
