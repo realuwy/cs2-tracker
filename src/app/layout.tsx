@@ -3,11 +3,11 @@ import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { inter, manrope } from "./fonts";
-import AppHeader from "@/components/AppHeader";
-import SiteFooter from "@/components/Footer";
 import dynamic from "next/dynamic";
+import SiteFooter from "@/components/Footer";
 
-// 👇 avoid server evaluating anything inside the auth tree
+// ✅ browser-only for header and auth host
+const AppHeader = dynamic(() => import("@/components/AppHeader"), { ssr: false });
 const AuthModalHost = dynamic(() => import("@/components/AuthModalHost"), { ssr: false });
 
 export const metadata: Metadata = {
@@ -29,4 +29,3 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     </html>
   );
 }
-
