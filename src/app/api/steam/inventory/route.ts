@@ -4,7 +4,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-/** --- Config / env --- */
+/* ---------- Config / env ---------- */
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36";
 const COMMON_HEADERS = {
@@ -16,10 +16,10 @@ const COMMON_HEADERS = {
 
 const WEB_API = "https://api.steampowered.com";
 const KEY = process.env.STEAM_WEB_API_KEY || ""; // server-only
-const PROXY = process.env.STEAM_PROXY_URL || ""; // your CF worker (fallback)
+const PROXY = process.env.STEAM_PROXY_URL || ""; // Cloudflare Worker fallback
 const CACHE_TTL_SEC = 300;
 
-/** --- Types --- */
+/* ---------- Types ---------- */
 type Item = {
   id: string;
   assetid: string;
@@ -33,11 +33,12 @@ type ParsedSteamUrl =
   | { kind: "profiles"; id64: string }
   | { kind: "id"; vanity: string };
 
-/** --- API handler --- */
+/* ---------- Handler ---------- */
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const raw = (searchParams.get("id") || "").trim();
+
     if (!raw) {
       return bad(
         400,
@@ -45,7 +46,7 @@ export async function GET(req: Request) {
       );
     }
 
-    // Only accept the two canonical shapes
+    // Accept only the two canonical shapes
     const parsed = parseSteamUrl(raw);
     if (!parsed) {
       return bad(
@@ -54,13 +55,13 @@ export async function GET(req: Request) {
       );
     }
 
-    // Resolve to a 17-digit SteamID64
+    // Resolve to 17-digit SteamID64 (vanity -> via Web API)
     const id64 = await toSteamID64(parsed);
     if (!id64) {
       return bad(400, "Couldn't resolve that profile. Check the URL or try again later.");
     }
 
-    // Small edge cache (if available)
+    // Tiny cache (if edge cache is available)
     const cacheKey = new Request(`${new URL(req.url).origin}/api/steam/inventory?id=${id64}`, { method: "GET" });
     // @ts-ignore
     if (typeof caches !== "undefined") {
@@ -69,139 +70,114 @@ export async function GET(req: Request) {
       if (hit) return hit;
     }
 
-    /** 1) Prefer official Web API (server key; users don't need keys) */
+    /* 1) Prefer official Web API (users don't need keys — server-only) */
     if (KEY) {
-      const apiUrl =
-        `${WEB_API}/IEconService/GetInventoryItemsWithDescriptions/v1/` +
-        `?key=${encodeURIComponent(KEY)}&steamid=${encodeURIComponent(id64)}` +
-        `&appid=730&contextid=2&language=en&count=5000`;
+      try {
+        const apiUrl =
+          `${WEB_API}/IEconService/GetInventoryItemsWithDescriptions/v1/` +
+          `?key=${encodeURIComponent(KEY)}&steamid=${encodeURIComponent(id64)}` +
+          `&appid=730&contextid=2&language=en&count=5000`;
 
-      const r = await fetch(apiUrl, { cache: "no-store" });
-      const t = await r.text().catch(() => "");
-      const j = safeJson(t);
+        const r = await fetch(apiUrl, { cache: "no-store" });
+        const t = await r.text().catch(() => "");
+        const j = safeJson(t);
 
-      if (r.ok && j?.result?.items && j?.result?.descriptions) {
-        const items = normalizeWebAPI(j.result.items, j.result.descriptions);
-        const res = NextResponse.json({ count: items.length, items }, {
-          status: 200,
-          headers: { "cache-control": `public, max-age=${CACHE_TTL_SEC}` },
-        });
-        // @ts-ignore
-        if (typeof caches !== "undefined") {
-          // @ts-ignore
-          await caches.default.put(cacheKey, res.clone());
+        if (r.ok && j?.result?.items && j?.result?.descriptions) {
+          const items = normalizeWebAPI(j.result.items, j.result.descriptions);
+          return cacheAndSend(cacheKey, items);
         }
-        return res;
+        // If non-OK or unexpected shape, fall through to next strategies
+      } catch {
+        // swallow network error and continue
       }
-      // fall through to proxy/direct fallbacks
     }
 
-    /** 2) Fallback: Cloudflare Worker proxy (normalized community endpoints) */
+    /* 2) Fallback: Cloudflare Worker proxy (normalized community endpoints) */
     if (PROXY) {
-      const pr = await fetch(`${PROXY}?id=${encodeURIComponent(id64)}`, { cache: "no-store" });
-      const pt = await pr.text().catch(() => "");
-      const pj = safeJson(pt);
-      if (pr.ok && pj && Array.isArray(pj.items)) {
-        const res = NextResponse.json(
-          { count: Number(pj.count) || pj.items.length, items: pj.items },
-          { status: 200, headers: { "cache-control": `public, max-age=${CACHE_TTL_SEC}` } }
-        );
-        // @ts-ignore
-        if (typeof caches !== "undefined") {
-          // @ts-ignore
-          await caches.default.put(cacheKey, res.clone());
+      try {
+        const pr = await fetch(`${PROXY}?id=${encodeURIComponent(id64)}`, { cache: "no-store" });
+        const pt = await pr.text().catch(() => "");
+        const pj = safeJson(pt);
+        if (pr.ok && pj && Array.isArray(pj.items)) {
+          const items: Item[] = pj.items;
+          return cacheAndSend(cacheKey, items);
         }
-        return res;
+        // If Worker returned an error, fall through to direct endpoints
+      } catch {
+        // swallow network error and continue
       }
-      // continue to direct fallbacks if Worker also fails
     }
 
-    /** 3) Direct community fallbacks (your originals) */
+    /* 3) Direct community fallbacks (as last resort) */
 
     // New inventory endpoint
-    const primaryUrl = `https://steamcommunity.com/inventory/${id64}/730/2?l=english&count=5000`;
-    let res = await fetch(primaryUrl, { cache: "no-store", headers: COMMON_HEADERS });
-
-    if (res.ok) {
-      const items = await mapNew(await res.json());
-      const out = NextResponse.json({ count: items.length, items }, {
-        status: 200,
-        headers: { "cache-control": `public, max-age=${CACHE_TTL_SEC}` },
-      });
-      // @ts-ignore
-      if (typeof caches !== "undefined") {
-        // @ts-ignore
-        await caches.default.put(cacheKey, out.clone());
+    try {
+      const primaryUrl = `https://steamcommunity.com/inventory/${id64}/730/2?l=english&count=5000`;
+      const res = await fetch(primaryUrl, { cache: "no-store", headers: COMMON_HEADERS });
+      if (res.ok) {
+        const items = await mapNew(await res.json());
+        return cacheAndSend(cacheKey, items);
       }
-      return out;
-    }
 
-    const text = await safeText(res);
-
-    // Legacy endpoint
-    const legacyUrl = `https://steamcommunity.com/profiles/${id64}/inventory/json/730/2?l=english`;
-    const resLegacy = await fetch(legacyUrl, { cache: "no-store", headers: COMMON_HEADERS });
-
-    if (resLegacy.ok) {
-      const data = await resLegacy.json().catch(() => null);
-      if (data && data.success) {
-        const items = mapLegacy(data);
-        const out = NextResponse.json({ count: items.length, items }, {
-          status: 200,
-          headers: { "cache-control": `public, max-age=${CACHE_TTL_SEC}` },
-        });
-        // @ts-ignore
-        if (typeof caches !== "undefined") {
-          // @ts-ignore
-          await caches.default.put(cacheKey, out.clone());
+      const text = await safeText(res);
+      // Legacy endpoint
+      try {
+        const legacyUrl = `https://steamcommunity.com/profiles/${id64}/inventory/json/730/2?l=english`;
+        const resLegacy = await fetch(legacyUrl, { cache: "no-store", headers: COMMON_HEADERS });
+        if (resLegacy.ok) {
+          const data = await resLegacy.json().catch(() => null);
+          if (data && data.success) {
+            const items = mapLegacy(data);
+            return cacheAndSend(cacheKey, items);
+          }
         }
-        return out;
+
+        // Alternate host
+        try {
+          const altUrl = `https://inventory.steampowered.com/730/2/${id64}?l=english&count=5000`;
+          const resAlt = await fetch(altUrl, { cache: "no-store", headers: COMMON_HEADERS });
+          if (resAlt.ok) {
+            const items = await mapNew(await resAlt.json());
+            return cacheAndSend(cacheKey, items);
+          }
+
+          // All failed → friendly error (preserve some context)
+          const legacyTxt = await safeText(resLegacy);
+          const altTxt = await safeText(resAlt);
+
+          if (res.status === 400 && text.trim() === "null") {
+            return bad(
+              400,
+              "Steam returned no inventory for this account. Confirm Inventory is Public and CS2 items exist. Try again later."
+            );
+          }
+
+          return NextResponse.json(
+            {
+              error: "Steam inventory error (all endpoints failed)",
+              primary: { status: res.status, body: text.slice(0, 200) },
+              legacy: { status: resLegacy.status, body: legacyTxt.slice(0, 200) },
+              alternate: { status: resAlt.status, body: altTxt.slice(0, 200) },
+            },
+            { status: 502 }
+          );
+        } catch {
+          return bad(502, "Steam inventory error (alternate endpoint failed)");
+        }
+      } catch {
+        return bad(502, "Steam inventory error (legacy endpoint failed)");
       }
+    } catch {
+      // If we couldn't even hit the primary endpoint, bubble a generic error
+      return bad(502, "Steam inventory error (network)");
     }
-
-    // Alternate host
-    const altUrl = `https://inventory.steampowered.com/730/2/${id64}?l=english&count=5000`;
-    const resAlt = await fetch(altUrl, { cache: "no-store", headers: COMMON_HEADERS });
-
-    if (resAlt.ok) {
-      const items = await mapNew(await resAlt.json());
-      const out = NextResponse.json({ count: items.length, items }, {
-        status: 200,
-        headers: { "cache-control": `public, max-age=${CACHE_TTL_SEC}` },
-      });
-      // @ts-ignore
-      if (typeof caches !== "undefined") {
-        // @ts-ignore
-        await caches.default.put(cacheKey, out.clone());
-      }
-      return out;
-    }
-
-    const legacyTxt = await safeText(resLegacy);
-    const altTxt = await safeText(resAlt);
-
-    if (res.status === 400 && text.trim() === "null") {
-      return bad(
-        400,
-        "Steam returned no inventory for this account. Confirm Inventory is Public and CS2 items exist. If it still fails, try again later."
-      );
-    }
-
-    return NextResponse.json(
-      {
-        error: "Steam inventory error (all endpoints failed)",
-        primary: { status: res.status, body: text.slice(0, 200) },
-        legacy: { status: resLegacy.status, body: legacyTxt.slice(0, 200) },
-        alternate: { status: resAlt.status, body: altTxt.slice(0, 200) },
-      },
-      { status: 502 }
-    );
   } catch (e: any) {
+    // This is only hit if something outside of fetch fails (e.g., URL parsing)
     return bad(500, e?.message || "Unexpected error");
   }
 }
 
-/* --------------------------- helpers (TOP-LEVEL) --------------------------- */
+/* ---------- helpers (top-level) ---------- */
 
 function bad(status: number, msg: string) {
   return NextResponse.json({ error: msg }, { status });
@@ -212,13 +188,39 @@ function safeText(r: Response): Promise<string> {
 }
 
 function safeJson(t: string) {
-  try { return JSON.parse(t); } catch { return null; }
+  try {
+    return JSON.parse(t);
+  } catch {
+    return null;
+  }
+}
+
+function cacheHeaders() {
+  return { "cache-control": `public, max-age=${CACHE_TTL_SEC}` };
+}
+
+async function cacheAndSend(cacheKey: Request, items: Item[]) {
+  const res = NextResponse.json({ count: items.length, items }, { status: 200, headers: cacheHeaders() });
+  // @ts-ignore
+  if (typeof caches !== "undefined") {
+    try {
+      // @ts-ignore
+      await caches.default.put(cacheKey, res.clone());
+    } catch {
+      /* ignore cache put errors */
+    }
+  }
+  return res;
 }
 
 /** Accept only the two canonical shapes */
 function parseSteamUrl(input: string): ParsedSteamUrl | null {
   let u: URL;
-  try { u = new URL(input); } catch { return null; }
+  try {
+    u = new URL(input);
+  } catch {
+    return null;
+  }
   const host = u.hostname.replace(/^www\./, "").toLowerCase();
   if (host !== "steamcommunity.com") return null;
 
@@ -236,13 +238,17 @@ function parseSteamUrl(input: string): ParsedSteamUrl | null {
 /** Vanity → SteamID64 (requires server key) */
 async function toSteamID64(parsed: ParsedSteamUrl): Promise<string | null> {
   if (parsed.kind === "profiles") return parsed.id64;
-  if (!KEY) return null;
+  if (!KEY) return null; // cannot resolve without server key
   const url =
     `${WEB_API}/ISteamUser/ResolveVanityURL/v1/` +
     `?key=${encodeURIComponent(KEY)}&vanityurl=${encodeURIComponent(parsed.vanity)}&url_type=1`;
-  const r = await fetch(url, { cache: "no-store" });
-  const j = safeJson(await r.text().catch(() => ""));
-  if (j?.response?.success === 1 && j?.response?.steamid) return String(j.response.steamid);
+  try {
+    const r = await fetch(url, { cache: "no-store" });
+    const j = safeJson(await r.text().catch(() => ""));
+    if (j?.response?.success === 1 && j?.response?.steamid) return String(j.response.steamid);
+  } catch {
+    // fall through
+  }
   return null;
 }
 
@@ -326,7 +332,6 @@ function normalizeWebAPI(items: any[], descriptions: any[]): Item[] {
     const name = d?.market_hash_name || d?.market_name || d?.name || "Unknown";
     const icon = d?.icon_url || d?.icon_url_large || "";
     const wear = extractWearFromName(name);
-    const inspect = findInspect(d);
 
     return {
       id: String(it.assetid || it.id || ""),
@@ -339,7 +344,7 @@ function normalizeWebAPI(items: any[], descriptions: any[]): Item[] {
   });
 }
 
-/** Helpers for wear/name parsing */
+/** Wear helpers */
 function stripWear(n: string) {
   return n.replace(/\s*\((FN|MW|FT|WW|BS)\)\s*$/i, "").trim();
 }
@@ -347,7 +352,6 @@ function extractWearFromName(n: string) {
   const m = n.match(/\((FN|MW|FT|WW|BS|Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)\)\s*$/i);
   if (!m) return "";
   const val = m[1].toUpperCase();
-  // Normalize long form to short
   if (val.startsWith("FACTORY")) return "FN";
   if (val.startsWith("MINIMAL")) return "MW";
   if (val.startsWith("FIELD")) return "FT";
@@ -366,16 +370,5 @@ function wearToExterior(w: string, name: string) {
     };
     return map[w] || stripWear(name);
   }
-  // fallback: try long form in name
-  return (
-    (name.match(/\((Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)\)/)?.[1] as string) || ""
-  );
-}
-
-/** Inspect link finder (not returned in Item, but you can extend if needed) */
-function findInspect(d: any) {
-  const actions = Array.isArray(d?.actions) ? d.actions : [];
-  const owner = Array.isArray(d?.owner_actions) ? d.owner_actions : [];
-  const act = [...actions, ...owner].find((a: any) => /Inspect in Game/i.test(a?.name || ""));
-  return act?.link || "";
+  return (name.match(/\((Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)\)/)?.[1] as string) || "";
 }
