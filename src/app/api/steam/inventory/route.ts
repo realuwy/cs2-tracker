@@ -35,31 +35,32 @@ type ParsedSteamUrl =
 
 /* ---------- Handler ---------- */
 export async function GET(req: Request) {
+  const started = Date.now();
+  const trace: any[] = [];
   try {
     const { searchParams } = new URL(req.url);
     const raw = (searchParams.get("id") || "").trim();
+    const debug = searchParams.get("debug") === "1";
 
     if (!raw) {
-      return bad(
-        400,
-        "Paste a Steam profile URL: https://steamcommunity.com/id/<vanity>/ or https://steamcommunity.com/profiles/<steamid64>"
-      );
+      return out(400, "Paste a Steam profile URL: https://steamcommunity.com/id/<vanity>/ or https://steamcommunity.com/profiles/<steamid64>", trace, started, debug);
     }
 
     // Accept only the two canonical shapes
     const parsed = parseSteamUrl(raw);
     if (!parsed) {
-      return bad(
-        400,
-        "Only accepted: https://steamcommunity.com/id/<vanity>/ or https://steamcommunity.com/profiles/<steamid64>"
-      );
+      return out(400, "Only accepted: https://steamcommunity.com/id/<vanity>/ or https://steamcommunity.com/profiles/<steamid64>", trace, started, debug);
     }
 
     // Resolve to 17-digit SteamID64 (vanity -> via Web API)
-    const id64 = await toSteamID64(parsed);
+    const id64 = await toSteamID64(parsed).catch((e) => {
+      trace.push({ step: "resolveVanity", error: String(e) });
+      return null;
+    });
     if (!id64) {
-      return bad(400, "Couldn't resolve that profile. Check the URL or try again later.");
+      return out(400, "Couldn't resolve that profile. Check the URL or try again later.", trace, started, debug);
     }
+    trace.push({ step: "resolved", id64 });
 
     // Tiny cache (if edge cache is available)
     const cacheKey = new Request(`${new URL(req.url).origin}/api/steam/inventory?id=${id64}`, { method: "GET" });
@@ -82,14 +83,17 @@ export async function GET(req: Request) {
         const t = await r.text().catch(() => "");
         const j = safeJson(t);
 
+        trace.push({ step: "webapi", status: r.status, ok: r.ok, hasItems: !!j?.result?.items, hasDesc: !!j?.result?.descriptions });
+
         if (r.ok && j?.result?.items && j?.result?.descriptions) {
           const items = normalizeWebAPI(j.result.items, j.result.descriptions);
-          return cacheAndSend(cacheKey, items);
+          return cacheAndSend(cacheKey, items, trace, started, debug);
         }
-        // If non-OK or unexpected shape, fall through to next strategies
-      } catch {
-        // swallow network error and continue
+      } catch (e) {
+        trace.push({ step: "webapi", error: String(e) });
       }
+    } else {
+      trace.push({ step: "webapi", skipped: "no KEY" });
     }
 
     /* 2) Fallback: Cloudflare Worker proxy (normalized community endpoints) */
@@ -98,14 +102,16 @@ export async function GET(req: Request) {
         const pr = await fetch(`${PROXY}?id=${encodeURIComponent(id64)}`, { cache: "no-store" });
         const pt = await pr.text().catch(() => "");
         const pj = safeJson(pt);
+        trace.push({ step: "worker", status: pr.status, ok: pr.ok, hasItems: Array.isArray(pj?.items) });
         if (pr.ok && pj && Array.isArray(pj.items)) {
           const items: Item[] = pj.items;
-          return cacheAndSend(cacheKey, items);
+          return cacheAndSend(cacheKey, items, trace, started, debug);
         }
-        // If Worker returned an error, fall through to direct endpoints
-      } catch {
-        // swallow network error and continue
+      } catch (e) {
+        trace.push({ step: "worker", error: String(e) });
       }
+    } else {
+      trace.push({ step: "worker", skipped: "no PROXY" });
     }
 
     /* 3) Direct community fallbacks (as last resort) */
@@ -114,21 +120,26 @@ export async function GET(req: Request) {
     try {
       const primaryUrl = `https://steamcommunity.com/inventory/${id64}/730/2?l=english&count=5000`;
       const res = await fetch(primaryUrl, { cache: "no-store", headers: COMMON_HEADERS });
+      trace.push({ step: "community-new", status: res.status, ok: res.ok });
+
       if (res.ok) {
         const items = await mapNew(await res.json());
-        return cacheAndSend(cacheKey, items);
+        return cacheAndSend(cacheKey, items, trace, started, debug);
       }
 
       const text = await safeText(res);
+
       // Legacy endpoint
       try {
         const legacyUrl = `https://steamcommunity.com/profiles/${id64}/inventory/json/730/2?l=english`;
         const resLegacy = await fetch(legacyUrl, { cache: "no-store", headers: COMMON_HEADERS });
+        trace.push({ step: "community-legacy", status: resLegacy.status, ok: resLegacy.ok });
+
         if (resLegacy.ok) {
           const data = await resLegacy.json().catch(() => null);
           if (data && data.success) {
             const items = mapLegacy(data);
-            return cacheAndSend(cacheKey, items);
+            return cacheAndSend(cacheKey, items, trace, started, debug);
           }
         }
 
@@ -136,20 +147,18 @@ export async function GET(req: Request) {
         try {
           const altUrl = `https://inventory.steampowered.com/730/2/${id64}?l=english&count=5000`;
           const resAlt = await fetch(altUrl, { cache: "no-store", headers: COMMON_HEADERS });
+          trace.push({ step: "community-alt", status: resAlt.status, ok: resAlt.ok });
+
           if (resAlt.ok) {
             const items = await mapNew(await resAlt.json());
-            return cacheAndSend(cacheKey, items);
+            return cacheAndSend(cacheKey, items, trace, started, debug);
           }
 
-          // All failed → friendly error (preserve some context)
           const legacyTxt = await safeText(resLegacy);
           const altTxt = await safeText(resAlt);
 
           if (res.status === 400 && text.trim() === "null") {
-            return bad(
-              400,
-              "Steam returned no inventory for this account. Confirm Inventory is Public and CS2 items exist. Try again later."
-            );
+            return out(400, "Steam returned no inventory for this account. Confirm Inventory is Public and CS2 items exist. Try again later.", trace, started, debug);
           }
 
           return NextResponse.json(
@@ -158,26 +167,34 @@ export async function GET(req: Request) {
               primary: { status: res.status, body: text.slice(0, 200) },
               legacy: { status: resLegacy.status, body: legacyTxt.slice(0, 200) },
               alternate: { status: resAlt.status, body: altTxt.slice(0, 200) },
+              trace,
+              tookMs: Date.now() - started,
             },
             { status: 502 }
           );
-        } catch {
-          return bad(502, "Steam inventory error (alternate endpoint failed)");
+        } catch (e) {
+          trace.push({ step: "community-alt", error: String(e) });
+          return out(502, "Steam inventory error (alternate endpoint failed)", trace, started, debug);
         }
-      } catch {
-        return bad(502, "Steam inventory error (legacy endpoint failed)");
+      } catch (e) {
+        trace.push({ step: "community-legacy", error: String(e) });
+        return out(502, "Steam inventory error (legacy endpoint failed)", trace, started, debug);
       }
-    } catch {
-      // If we couldn't even hit the primary endpoint, bubble a generic error
-      return bad(502, "Steam inventory error (network)");
+    } catch (e) {
+      trace.push({ step: "community-new", error: String(e) });
+      return out(502, "Steam inventory error (network)", trace, started, debug);
     }
   } catch (e: any) {
-    // This is only hit if something outside of fetch fails (e.g., URL parsing)
-    return bad(500, e?.message || "Unexpected error");
+    return out(500, e?.message || "Unexpected error", trace, started, true);
   }
 }
 
 /* ---------- helpers (top-level) ---------- */
+
+function out(status: number, msg: string, trace: any[], started: number, debug: boolean) {
+  const body = debug ? { error: msg, trace, tookMs: Date.now() - started } : { error: msg };
+  return NextResponse.json(body, { status });
+}
 
 function bad(status: number, msg: string) {
   return NextResponse.json({ error: msg }, { status });
@@ -188,27 +205,24 @@ function safeText(r: Response): Promise<string> {
 }
 
 function safeJson(t: string) {
-  try {
-    return JSON.parse(t);
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(t); } catch { return null; }
 }
 
 function cacheHeaders() {
   return { "cache-control": `public, max-age=${CACHE_TTL_SEC}` };
 }
 
-async function cacheAndSend(cacheKey: Request, items: Item[]) {
-  const res = NextResponse.json({ count: items.length, items }, { status: 200, headers: cacheHeaders() });
+async function cacheAndSend(cacheKey: Request, items: Item[], trace?: any[], started?: number, debug?: boolean) {
+  const res = NextResponse.json(
+    debug ? { count: items.length, items, trace, tookMs: (started ? Date.now() - started : undefined) } : { count: items.length, items },
+    { status: 200, headers: cacheHeaders() }
+  );
   // @ts-ignore
   if (typeof caches !== "undefined") {
     try {
       // @ts-ignore
       await caches.default.put(cacheKey, res.clone());
-    } catch {
-      /* ignore cache put errors */
-    }
+    } catch { /* ignore cache put errors */ }
   }
   return res;
 }
@@ -216,11 +230,7 @@ async function cacheAndSend(cacheKey: Request, items: Item[]) {
 /** Accept only the two canonical shapes */
 function parseSteamUrl(input: string): ParsedSteamUrl | null {
   let u: URL;
-  try {
-    u = new URL(input);
-  } catch {
-    return null;
-  }
+  try { u = new URL(input); } catch { return null; }
   const host = u.hostname.replace(/^www\./, "").toLowerCase();
   if (host !== "steamcommunity.com") return null;
 
@@ -245,11 +255,10 @@ async function toSteamID64(parsed: ParsedSteamUrl): Promise<string | null> {
   try {
     const r = await fetch(url, { cache: "no-store" });
     const j = safeJson(await r.text().catch(() => ""));
-    if (j?.response?.success === 1 && j?.response?.steamid) return String(j.response.steamid);
+    return (j?.response?.success === 1 && j?.response?.steamid) ? String(j.response.steamid) : null;
   } catch {
-    // fall through
+    return null;
   }
-  return null;
 }
 
 /** Map NEW format: { assets:[], descriptions:[] } */
