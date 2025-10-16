@@ -6,7 +6,7 @@ import { InvItem } from "@/lib/api"; // keep InvItem for Row typing
 import { getSupabaseClient } from "@/lib/supabase";
 import { fetchAccountRows, upsertAccountRows } from "@/lib/rows";
 import UploadInventory from "@/components/UploadInventory";
-
+import ImportWizard from "@/components/ImportWizard";
 /* ----------------------------- constants ----------------------------- */
 
 const STORAGE_KEY = "cs2:dashboard:rows";
@@ -864,7 +864,23 @@ export default function DashboardPage() {
       delete (window as any).__dash_deleteRow;
     };
   }, [origIndexMap]);
+ 
+  export default function DashboardPage() {
+  // ...existing state & handlers...
 
+  function handleParsed(json: any) {
+    // your existing ingestion code here:
+    // normalize -> setItems([...]) -> toast("Imported X items")
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* ... your header / account menu ... */}
+      <ImportWizard onParsed={handleParsed} />
+      {/* ... your table / grid ... */}
+    </div>
+  );
+}
   /* ----- AUTOCOMPLETE OPTIONS (from Skinport map + existing rows) ----- */
   const autoNames = useMemo(() => {
     const set = new Set<string>();
