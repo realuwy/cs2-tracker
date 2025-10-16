@@ -856,26 +856,27 @@ export default function DashboardPage() {
     );
   }
 
-  /** Receive parsed items from the ImportWizard */
-  function handleParsed(data: ParsedInventory) {
-
+/** Receive parsed items from the ImportWizard */
+function handleParsed(data: any) {
+  // accept whatever the wizard sends and pull out an array
   const items: any[] =
-    (data as any).items ??
-    (data as any).rows ??
-    (data as any).inventory ??
-    (Array.isArray(data) ? (data as any) : []);
+    (data && (data.items || data.rows || data.inventory)) ??
+    (Array.isArray(data) ? data : []);
 
   const mapped = mapUploadedToRows(items, spMap);
 
+  // keep manual rows, replace any previous steam-imported rows
   setRows((prev) => [
     ...prev.filter((r) => r.source === "manual"),
     ...mapped,
   ]);
 
+  // optional: keep the raw import in localStorage (used by your first-load hook)
   try {
     localStorage.setItem("cs2_items", JSON.stringify(items));
   } catch {}
 }
+
 
   // ----------------------------- RENDER -----------------------------
   return (
