@@ -6,6 +6,7 @@ import { fetchInventory, InvItem } from "@/lib/api";
 import { getSupabaseClient } from "@/lib/supabase";
 import { fetchAccountRows, upsertAccountRows } from "@/lib/rows";
 import UploadInventory from "@/components/UploadInventory";
+export default function DashboardPage() {
 
 /* ----------------------------- constants ----------------------------- */
 
@@ -414,7 +415,13 @@ export default function DashboardPage() {
     })();
     return () => unsub?.();
   }, []);
-
+    
+  useEffect(() => {
+  try {
+    const raw = localStorage.getItem("cs2_items");
+    if (raw) setRows(JSON.parse(raw));
+  } catch {}
+}, []);
   /* ---- restore rows (local + account sync) ---- */
   useEffect(() => {
     (async () => {
@@ -1089,26 +1096,18 @@ useEffect(() => {
           </div>
         </div>
       </div>
-
+ 
 {/* Import bar (no-server version) */}
-      useEffect(() => {
-  try {
-    const raw = localStorage.getItem("cs2_items");
-    if (raw) setRows(JSON.parse(raw));
-  } catch {}
-}, []);
-
-  {/* Import bar (no-server version) */}
-    <div className="mt-6 rounded-2xl border border-border bg-surface p-4">
-      <label className="mb-2 block text-xs text-muted">
-        Import your inventory JSON (exported from the Steam bookmarklet)
-      </label>
-      <UploadInventory
-        onItems={(items) => {
-          setRows(items); // or your merge logic
-        }}
-      />
-    </div>
+<div className="mt-6 rounded-2xl border border-border bg-surface p-4">
+  <label className="mb-2 block text-xs text-muted">
+    Import your inventory JSON (exported from the Steam bookmarklet)
+  </label>
+  <UploadInventory
+    onItems={(items) => {
+      setRows(items); // your table/grid state setter
+    }}
+  />
+</div>
 
 
       {/* Sort toolbar */}
