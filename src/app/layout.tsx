@@ -4,7 +4,31 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { inter, manrope } from "./fonts";
 import dynamic from "next/dynamic";
-import SiteFooter from "@/components/Footer";
+import SiteFooter from "@/components/Footer";// app/layout.tsx (or your root layout)
+import { Analytics } from '@vercel/analytics/react'
+import { SpeedInsights } from '@vercel/speed-insights/next'
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        {children}
+        <Analytics />
+      </body>
+    </html>
+  )
+}
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        {children}
+        <Analytics />
+        <SpeedInsights />
+      </body>
+    </html>
+  )
+}
 
 // ✅ browser-only for header and auth host
 const AppHeader = dynamic(() => import("@/components/AppHeader"), { ssr: false });
