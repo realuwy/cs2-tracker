@@ -2,54 +2,43 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { inter, manrope } from "./fonts";
 import dynamic from "next/dynamic";
-import SiteFooter from "@/components/Footer";// app/layout.tsx (or your root layout)
-import { Analytics } from '@vercel/analytics/react'
-import { SpeedInsights } from '@vercel/speed-insights/next'
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <body>
-        {children}
-        <Analytics />
-      </body>
-    </html>
-  )
-}
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <body>
-        {children}
-        <Analytics />
-        <SpeedInsights />
-      </body>
-    </html>
-  )
-}
+// If you already define fonts elsewhere, keep that. Otherwise this works:
+import { Inter, Manrope } from "next/font/google";
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
 
-// ✅ browser-only for header and auth host
+// Browser-only components (no SSR)
 const AppHeader = dynamic(() => import("@/components/AppHeader"), { ssr: false });
 const AuthModalHost = dynamic(() => import("@/components/AuthModalHost"), { ssr: false });
+import SiteFooter from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "CS2 Tracker",
   description: "Track your CS2 skins with live prices",
 };
 
+// SINGLE RootLayout export
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${manrope.variable} font-sans bg-bg text-text`}>
         <div className="min-h-screen flex flex-col">
           <AppHeader user={null} />
-          <AuthModalHost /> {/* mounted only in the browser */}
+          {/* Mounted only in the browser */}
+          <AuthModalHost />
           <main className="flex-1">{children}</main>
           <SiteFooter />
         </div>
+
+        {/* Vercel Analytics & Speed Insights */}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
 }
+
