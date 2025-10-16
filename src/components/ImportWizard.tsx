@@ -173,7 +173,7 @@ export default function ImportWizard({
             <summary className="cursor-pointer text-zinc-300">Troubleshooting</summary>
             <ul className="mt-2 list-inside list-disc space-y-1">
               <li>Inventory must be set to <span className="text-zinc-100">Public</span>.</li>
-              <li>If you use a vanity URL (like <code>/id/uwais</code>), the button will auto-resolve it.</li>
+              <li>If you use a vanity URL (like <code>/id/tom</code>), the button will auto-resolve it.</li>
               <li>Some browsers hide the bookmarks bar—enable it (Ctrl/Cmd+Shift+B).</li>
             </ul>
           </details>
