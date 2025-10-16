@@ -66,6 +66,49 @@ function isNonWearCategory(nameNoWear: string): boolean {
     s
   );
 }
+function mapUploadedToRows(items: any[], spMap: Record<string, number>): Row[] {
+  return (items || []).map((it: any) => {
+    const rawName = String(it.name ?? it.market_hash_name ?? "Unknown");
+    const parsed = parseNameForWear(stripNone(rawName));
+    const nameNoWear = stripNone(parsed.nameNoWear);
+    // Prefer explicit exterior from upload; otherwise fall back to parsed wear.
+    const wear: WearCode =
+      (LABEL_TO_CODE[String(it.exterior || "").toLowerCase()] as WearCode) ??
+      ((parsed.wear as WearCode) || "");
+
+    const market_hash_name = stripNone(toMarketHash(nameNoWear, wear));
+    const spAUD = spMap[market_hash_name] ?? spMap[stripNone(market_hash_name)];
+    const priceAUD = typeof spAUD === "number" ? spAUD : undefined;
+
+    // Uploaded icon is already full economy URL in our UploadInventory, but handle both cases
+    const icon = String(it.icon || "");
+    const image = icon.startsWith("http")
+      ? icon
+      : icon
+      ? `https://steamcommunity-a.akamaihd.net/economy/image/${icon}`
+      : "";
+
+    return {
+      // InvItem core
+      market_hash_name,
+      name: market_hash_name,
+      nameNoWear,
+      wear,
+      image,
+      inspectLink: "",
+      quantity: Number(it.quantity ?? 1),
+
+      // pricing
+      skinportAUD: spAUD,
+      steamAUD: undefined,
+      priceAUD,
+      totalAUD: priceAUD ? priceAUD * Number(it.quantity ?? 1) : undefined,
+
+      // meta
+      source: "steam",
+    } as Row;
+  });
+}
 
 const WEAR_TO_RANK: Record<string, number> = { FN: 0, MW: 1, FT: 2, WW: 3, BS: 4 };
 const wearRank = (code?: string) => (code ? WEAR_TO_RANK[code] ?? 99 : 99);
@@ -1044,10 +1087,16 @@ export default function DashboardPage() {
           Import your inventory JSON (exported from the Steam bookmarklet)
         </label>
         <UploadInventory
-          onItems={(items) => {
-            setRows(items);
-          }}
-        />
+  onItems={(items) => {
+    const mapped = mapUploadedToRows(items, spMap);
+    // keep manual rows, replace any previous steam-imported rows
+    setRows((prev) => [
+      ...prev.filter((r) => r.source === "manual"),
+      ...mapped,
+    ]);
+  }}
+/>
+
       </div>
 
       {/* Sort toolbar */}
