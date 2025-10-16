@@ -866,19 +866,7 @@ export default function DashboardPage() {
   }, [origIndexMap]);
  
 
-  function handleParsed(json: any) {
-    // your existing ingestion code here:
-    // normalize -> setItems([...]) -> toast("Imported X items")
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* ... your header / account menu ... */}
-      <ImportWizard onParsed={handleParsed} />
-      {/* ... your table / grid ... */}
-    </div>
-  );
-}
+ 
   /* ----- AUTOCOMPLETE OPTIONS (from Skinport map + existing rows) ----- */
   const autoNames = useMemo(() => {
     const set = new Set<string>();
