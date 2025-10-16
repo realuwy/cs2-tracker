@@ -5,6 +5,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { fetchInventory, InvItem } from "@/lib/api";
 import { getSupabaseClient } from "@/lib/supabase";
 import { fetchAccountRows, upsertAccountRows } from "@/lib/rows";
+import UploadInventory from "@/components/UploadInventory";
 
 /* ----------------------------- constants ----------------------------- */
 
@@ -1097,17 +1098,17 @@ useEffect(() => {
   } catch {}
 }, []);
 
-<div className="mt-6 rounded-2xl border border-border bg-surface p-4">
-  <label className="mb-2 block text-xs text-muted">
-    Import your inventory JSON (exported from Steam bookmarklet)
-  </label>
-  <UploadInventory
-    onItems={(items) => {
-      console.log("Imported", items.length, "items");
-      setRows(items); // or merge into your existing state
-    }}
-  />
-</div>
+  {/* Import bar (no-server version) */}
+    <div className="mt-6 rounded-2xl border border-border bg-surface p-4">
+      <label className="mb-2 block text-xs text-muted">
+        Import your inventory JSON (exported from the Steam bookmarklet)
+      </label>
+      <UploadInventory
+        onItems={(items) => {
+          setRows(items); // or your merge logic
+        }}
+      />
+    </div>
 
 
       {/* Sort toolbar */}
