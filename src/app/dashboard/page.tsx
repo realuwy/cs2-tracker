@@ -7,6 +7,8 @@ import { getSupabaseClient } from "@/lib/supabase";
 import { fetchAccountRows, upsertAccountRows } from "@/lib/rows";
 import UploadInventory from "@/components/UploadInventory";
 import ImportWizard from "@/components/ImportWizard";
+import type { ParsedInventory } from "@/types/steam";
+import { parseSteamInventory } from "@/lib/steam-parse";
 
 /* ----------------------------- constants ----------------------------- */
 
@@ -911,20 +913,38 @@ export default function DashboardPage() {
     );
   }
 
-  /** Receive parsed items from the ImportWizard (type-agnostic) */
-  function handleParsed(data: any) {
-    const items: any[] =
-      (data && (data.items || data.rows || data.inventory)) ??
-      (Array.isArray(data) ? data : []);
-    const mapped = mapUploadedToRows(items, spMap);
-    setRows((prev) => [
-      ...prev.filter((r) => r.source === "manual"),
-      ...mapped,
-    ]);
-    try {
-      localStorage.setItem("cs2_items", JSON.stringify(items));
-    } catch {}
+/** Receive parsed items from ImportWizard or raw Steam JSON */
+function handleParsed(data: any) {
+  let items: any[] = [];
+
+  // Case 1: already has items/rows/inventory array
+  if (data && (data.items || data.rows || data.inventory)) {
+    items = data.items || data.rows || data.inventory;
   }
+  // Case 2: direct array
+  else if (Array.isArray(data)) {
+    items = data;
+  }
+  // Case 3: raw Steam JSON (with assets + descriptions)
+  else if (data && data.assets && data.descriptions) {
+    try {
+      const parsed = parseSteamInventory(data);
+      items = parsed.items;
+    } catch (err) {
+      console.error("Steam JSON parse failed", err);
+    }
+  }
+
+  const mapped = mapUploadedToRows(items, spMap);
+  setRows((prev) => [
+    ...prev.filter((r) => r.source === "manual"),
+    ...mapped,
+  ]);
+
+  try {
+    localStorage.setItem("cs2_items", JSON.stringify(items));
+  } catch {}
+}
 
   return (
     <div className="mx-auto max-w-6xl p-6 space-y-6">
