@@ -857,16 +857,25 @@ export default function DashboardPage() {
   }
 
   /** Receive parsed items from the ImportWizard */
-  function handleParsed(items: any[]) {
-    const mapped = mapUploadedToRows(items, spMap);
-    setRows((prev) => [
-      ...prev.filter((r) => r.source === "manual"),
-      ...mapped,
-    ]);
-    try {
-      localStorage.setItem("cs2_items", JSON.stringify(items)); // store raw wizard output; optional
-    } catch {}
-  }
+  function handleParsed(data: ParsedInventory) {
+
+  const items: any[] =
+    (data as any).items ??
+    (data as any).rows ??
+    (data as any).inventory ??
+    (Array.isArray(data) ? (data as any) : []);
+
+  const mapped = mapUploadedToRows(items, spMap);
+
+  setRows((prev) => [
+    ...prev.filter((r) => r.source === "manual"),
+    ...mapped,
+  ]);
+
+  try {
+    localStorage.setItem("cs2_items", JSON.stringify(items));
+  } catch {}
+}
 
   // ----------------------------- RENDER -----------------------------
   return (
