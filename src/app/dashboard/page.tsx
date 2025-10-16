@@ -921,7 +921,7 @@ useEffect(() => {
     );
   }
 
-  /* ----------------------------- RENDER ----------------------------- */
+  // ----------------------------- RENDER ----------------------------- 
   return (
     <div className="mx-auto max-w-6xl p-6">
       {/* Top row: Left Manual Add / Right Stats */}
