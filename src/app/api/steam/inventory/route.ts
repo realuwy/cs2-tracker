@@ -237,6 +237,51 @@ function mapLegacy(data: any): Item[] {
       name,
       exterior,
       icon,
+      function normalizeWebAPI(items: any[], descriptions: any[]) {
+  const dmap = new Map<string, any>();
+  for (const d of descriptions) {
+    dmap.set(`${d.classid}_${d.instanceid || "0"}`, d);
+  }
+
+  return items.map((it: any) => {
+    const key = `${it.classid}_${it.instanceid || "0"}`;
+    const d = dmap.get(key) || {};
+    const name = d?.market_hash_name || d?.market_name || d?.name || "Unknown";
+    const icon = d?.icon_url || d?.icon_url_large || "";
+    const wear = extractWearFromName(name);
+    const inspect = findInspect(d);
+    return {
+      id: String(it.assetid || it.id || ""),
+      assetid: String(it.assetid || ""),
+      classid: String(it.classid || ""),
+      name,
+      market_hash_name: d?.market_hash_name || "",
+      nameNoWear: stripWear(name),
+      wear,
+      icon: icon ? `https://steamcommunity-a.akamaihd.net/economy/image/${icon}` : "",
+      inspectLink: inspect,
+      tradable: !!d?.tradable,
+      type: d?.type || "",
+    };
+  });
+}
+
+function stripWear(n: string) {
+  return n.replace(/\s*\((FN|MW|FT|WW|BS)\)\s*$/i, "").trim();
+}
+
+function extractWearFromName(n: string) {
+  const m = n.match(/\((FN|MW|FT|WW|BS)\)\s*$/i);
+  return m ? m[1].toUpperCase() : "";
+}
+
+function findInspect(d: any) {
+  const actions = Array.isArray(d?.actions) ? d.actions : [];
+  const owner = Array.isArray(d?.owner_actions) ? d.owner_actions : [];
+  const act = [...actions, ...owner].find((a: any) => /Inspect in Game/i.test(a?.name || ""));
+  return act?.link || "";
+}
+
     };
   });
 }
