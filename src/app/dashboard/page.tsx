@@ -1089,27 +1089,26 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* Import bar */}
-      <div className="mt-6 rounded-2xl border border-border bg-surface p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="flex-1">
-            <label className="mb-1 block text-xs text-muted">Steam ID64</label>
-            <input
-              className="h-11 w-full rounded-xl border border-border bg-surface2 px-3"
-              placeholder="7656119XXXXXXXXXX"
-              value={steamId}
-              onChange={(e) => setSteamId(e.target.value)}
-            />
-          </div>
-          <button
-            className="btn-accent h-11 px-5"
-            onClick={() => load(steamId)}
-            disabled={!steamId.trim() || loading}
-          >
-            {loading ? "Importing…" : "Import inventory"}
-          </button>
-        </div>
-      </div>
+{/* Import bar (no-server version) */}
+      useEffect(() => {
+  try {
+    const raw = localStorage.getItem("cs2_items");
+    if (raw) setRows(JSON.parse(raw));
+  } catch {}
+}, []);
+
+<div className="mt-6 rounded-2xl border border-border bg-surface p-4">
+  <label className="mb-2 block text-xs text-muted">
+    Import your inventory JSON (exported from Steam bookmarklet)
+  </label>
+  <UploadInventory
+    onItems={(items) => {
+      console.log("Imported", items.length, "items");
+      setRows(items); // or merge into your existing state
+    }}
+  />
+</div>
+
 
       {/* Sort toolbar */}
       <div className="mt-4 mb-2 flex flex-wrap items-center gap-2 text-sm">
