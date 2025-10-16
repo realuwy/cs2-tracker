@@ -2,11 +2,10 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { fetchInventory, InvItem } from "@/lib/api";
+import { InvItem } from "@/lib/api"; // keep InvItem for Row typing
 import { getSupabaseClient } from "@/lib/supabase";
 import { fetchAccountRows, upsertAccountRows } from "@/lib/rows";
 import UploadInventory from "@/components/UploadInventory";
-export default function DashboardPage() {
 
 /* ----------------------------- constants ----------------------------- */
 
@@ -383,7 +382,6 @@ export default function DashboardPage() {
   const supabase = getSupabaseClient();
 
   // controls
-  const [steamId, setSteamId] = useState("");
   const [mName, setMName] = useState("");
   const [mWear, setMWear] = useState<WearCode>("");
   const [mFloat, setMFloat] = useState("");
@@ -415,13 +413,15 @@ export default function DashboardPage() {
     })();
     return () => unsub?.();
   }, []);
-    
+
+  // Load any uploaded (bookmarklet) items into the table on first load
   useEffect(() => {
-  try {
-    const raw = localStorage.getItem("cs2_items");
-    if (raw) setRows(JSON.parse(raw));
-  } catch {}
-}, []);
+    try {
+      const raw = localStorage.getItem("cs2_items");
+      if (raw) setRows(JSON.parse(raw));
+    } catch {}
+  }, []);
+
   /* ---- restore rows (local + account sync) ---- */
   useEffect(() => {
     (async () => {
@@ -475,34 +475,25 @@ export default function DashboardPage() {
     })();
   }, [authed]);
 
-/* ---- persist rows (local + upsert when authed) ---- */
-const saveTimer = useRef<number | null>(null);
-
-useEffect(() => {
-  // SSR guard: only run on the client
-  if (typeof window === "undefined") return;
-
-  // debounce saves
-  if (saveTimer.current) window.clearTimeout(saveTimer.current);
-
-  saveTimer.current = window.setTimeout(async () => {
-    try {
-      const now = Date.now();
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
-      window.localStorage.setItem(STORAGE_TS_KEY, String(now));
-      if (authed) {
-        await upsertAccountRows(rows);
-      }
-    } catch {
-      // optional: console.warn("persist failed", e)
-    }
-  }, 250);
-
-  return () => {
+  /* ---- persist rows (local + upsert when authed) ---- */
+  const saveTimer = useRef<number | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
-  };
-}, [rows, authed]);
-
+    saveTimer.current = window.setTimeout(async () => {
+      try {
+        const now = Date.now();
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+        window.localStorage.setItem(STORAGE_TS_KEY, String(now));
+        if (authed) {
+          await upsertAccountRows(rows);
+        }
+      } catch {}
+    }, 250);
+    return () => {
+      if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    };
+  }, [rows, authed]);
 
   /* ---- Skinport map + images ---- */
   async function refreshSkinport() {
@@ -610,9 +601,7 @@ useEffect(() => {
               })
             );
           }
-        } catch {
-          // ignore
-        }
+        } catch {}
       }
     })();
 
@@ -621,62 +610,23 @@ useEffect(() => {
     };
   }, [rows]);
 
-  /* ---- optional default import ---- */
+  /* ---- back to top visibility ---- */
   useEffect(() => {
-    const def = process.env.NEXT_PUBLIC_DEFAULT_STEAM_ID64;
-    if (def) void load(def);
+    if (typeof window === "undefined") return; // SSR guard
+    const onScroll = () => setShowBackToTop(window.scrollY > 600);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-/* ---- back to top visibility ---- */
-useEffect(() => {
-  if (typeof window === "undefined") return; // SSR guard
+  /* ---- smooth scroll to top ---- */
+  const scrollToTop = () => {
+    if (typeof window === "undefined") return;
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
+  };
 
-  const onScroll = () => setShowBackToTop(window.scrollY > 600);
-
-  onScroll(); // set initial state
-  window.addEventListener("scroll", onScroll, { passive: true });
-  return () => window.removeEventListener("scroll", onScroll);
-}, []);
-
-/* ---- smooth scroll to top ---- */
-const scrollToTop = () => {
-  if (typeof window === "undefined") return; // SSR guard
-
-  const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
-};
-
-
-  /* ---- import & manual add ---- */
-  async function load(id?: string) {
-    if (!id) return;
-    setLoading(true);
-    try {
-      const inv = await fetchInventory(id);
-      const mapped: Row[] = inv.items.map((it) => {
-        const mhnRaw = it.market_hash_name || toMarketHash(it.nameNoWear, it.wear as WearCode);
-        const mhn = stripNone(mhnRaw);
-        const spAUD = spMap[mhn] ?? spMap[stripNone(mhn)];
-        const qty = it.quantity ?? 1;
-        const priceAUD = typeof spAUD === "number" ? spAUD : undefined;
-        return {
-          ...it,
-          market_hash_name: mhn,
-          name: stripNone(it.name || mhn),
-          nameNoWear: stripNone(it.nameNoWear || mhn),
-          skinportAUD: spAUD,
-          priceAUD,
-          totalAUD: priceAUD ? priceAUD * qty : undefined,
-          source: "steam",
-          image: (it as any).image ?? "",
-        };
-      });
-      setRows((prev) => [...prev.filter((r) => r.source === "manual"), ...mapped]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
+  /* ---- manual add ---- */
   function addManual() {
     if (!mName.trim()) return;
     const parsed = parseNameForWear(mName.trim());
@@ -729,9 +679,8 @@ const scrollToTop = () => {
     );
   }
 
-  /* ---- Steam backfill ---- */
+  /* ---- Steam backfill (prices by name) ---- */
   const pricesFetchingRef = useRef(false);
-
   async function backfillSomeSteamPrices(max = 8) {
     if (pricesFetchingRef.current) return;
     pricesFetchingRef.current = true;
@@ -790,31 +739,23 @@ const scrollToTop = () => {
       pricesFetchingRef.current = false;
     }
   }
-
   useEffect(() => {
     backfillSomeSteamPrices(12);
   }, []);
 
-/** Auto-refresh every 15 minutes (4/hour) */
-useEffect(() => {
-  if (typeof window === "undefined") return; // SSR guard
-
-  const tick = async () => {
-    try {
-      await refreshSkinport();
-      await backfillSomeSteamPrices(12);
-    } catch {
-      /* noop */
-    }
-  };
-
-  // run once on mount (client)
-  tick();
-
-  const id = window.setInterval(tick, 15 * 60 * 1000);
-  return () => window.clearInterval(id);
-}, []);
-
+  /** Auto-refresh every 15 minutes (4/hour) */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const tick = async () => {
+      try {
+        await refreshSkinport();
+        await backfillSomeSteamPrices(12);
+      } catch {}
+    };
+    tick();
+    const id = window.setInterval(tick, 15 * 60 * 1000);
+    return () => window.clearInterval(id);
+  }, []);
 
   /* ---- sorting + totals ---- */
   const [sorted, totals] = useMemo(() => {
@@ -928,7 +869,7 @@ useEffect(() => {
     );
   }
 
-  // ----------------------------- RENDER ----------------------------- 
+  // ----------------------------- RENDER -----------------------------
   return (
     <div className="mx-auto max-w-6xl p-6">
       {/* Top row: Left Manual Add / Right Stats */}
@@ -1096,19 +1037,18 @@ useEffect(() => {
           </div>
         </div>
       </div>
- 
-{/* Import bar (no-server version) */}
-<div className="mt-6 rounded-2xl border border-border bg-surface p-4">
-  <label className="mb-2 block text-xs text-muted">
-    Import your inventory JSON (exported from the Steam bookmarklet)
-  </label>
-  <UploadInventory
-    onItems={(items) => {
-      setRows(items); // your table/grid state setter
-    }}
-  />
-</div>
 
+      {/* Import bar (no-server version) */}
+      <div className="mt-6 rounded-2xl border border-border bg-surface p-4">
+        <label className="mb-2 block text-xs text-muted">
+          Import your inventory JSON (exported from the Steam bookmarklet)
+        </label>
+        <UploadInventory
+          onItems={(items) => {
+            setRows(items);
+          }}
+        />
+      </div>
 
       {/* Sort toolbar */}
       <div className="mt-4 mb-2 flex flex-wrap items-center gap-2 text-sm">
