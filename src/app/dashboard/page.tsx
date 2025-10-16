@@ -2,11 +2,12 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { InvItem } from "@/lib/api"; // keep InvItem for Row typing
+import { InvItem } from "@/lib/api";
 import { getSupabaseClient } from "@/lib/supabase";
 import { fetchAccountRows, upsertAccountRows } from "@/lib/rows";
 import UploadInventory from "@/components/UploadInventory";
 import ImportWizard from "@/components/ImportWizard";
+
 /* ----------------------------- constants ----------------------------- */
 
 const STORAGE_KEY = "cs2:dashboard:rows";
@@ -66,6 +67,14 @@ function isNonWearCategory(nameNoWear: string): boolean {
     s
   );
 }
+
+function toMarketHash(nameNoWear: string, wear?: WearCode) {
+  if (!wear) return nameNoWear;
+  if (!["FN", "MW", "FT", "WW", "BS"].includes(wear)) return nameNoWear;
+  const lbl = wearLabel(wear);
+  return lbl ? `${nameNoWear} (${lbl})` : nameNoWear;
+}
+
 function mapUploadedToRows(items: any[], spMap: Record<string, number>): Row[] {
   return (items || []).map((it: any) => {
     const rawName = String(it.name ?? it.market_hash_name ?? "Unknown");
@@ -110,6 +119,19 @@ function mapUploadedToRows(items: any[], spMap: Record<string, number>): Row[] {
   });
 }
 
+// Steam must be within [0.5x..3x] of Skinport and not insane
+function sanitizeSteam(aud: number | undefined, skinport?: number): number | undefined {
+  if (aud === undefined || !isFinite(aud) || aud <= 0) return undefined;
+  if (aud > 20000) return undefined;
+  if (typeof skinport === "number" && skinport > 0) {
+    const lo = skinport * 0.5,
+      hi = skinport * 3;
+    if (aud < lo || aud > hi) return undefined;
+    if (skinport < 50 && aud > 100) return undefined;
+  }
+  return aud;
+}
+
 const WEAR_TO_RANK: Record<string, number> = { FN: 0, MW: 1, FT: 2, WW: 3, BS: 4 };
 const wearRank = (code?: string) => (code ? WEAR_TO_RANK[code] ?? 99 : 99);
 
@@ -148,26 +170,6 @@ const cmpWear = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
   if (bm) return -1;
   return (ra === rb ? 0 : ra < rb ? -1 : 1) * dir;
 };
-
-function toMarketHash(nameNoWear: string, wear?: WearCode) {
-  if (!wear) return nameNoWear;
-  if (!["FN", "MW", "FT", "WW", "BS"].includes(wear)) return nameNoWear;
-  const lbl = wearLabel(wear);
-  return lbl ? `${nameNoWear} (${lbl})` : nameNoWear;
-}
-
-// Steam must be within [0.5x..3x] of Skinport and not insane
-function sanitizeSteam(aud: number | undefined, skinport?: number): number | undefined {
-  if (aud === undefined || !isFinite(aud) || aud <= 0) return undefined;
-  if (aud > 20000) return undefined;
-  if (typeof skinport === "number" && skinport > 0) {
-    const lo = skinport * 0.5,
-      hi = skinport * 3;
-    if (aud < lo || aud > hi) return undefined;
-    if (skinport < 50 && aud > 100) return undefined;
-  }
-  return aud;
-}
 
 /* ----------------------------- types ----------------------------- */
 
@@ -420,7 +422,6 @@ function RowCard({ r }: { r: Row }) {
 export default function DashboardPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [spMap, setSpMap] = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(false);
   const [sort, dispatchSort] = useReducer(sortReducer, { key: "item", dir: "asc" });
   const supabase = getSupabaseClient();
 
@@ -457,12 +458,18 @@ export default function DashboardPage() {
     return () => unsub?.();
   }, []);
 
-  // Load any uploaded (bookmarklet) items into the table on first load
+  // Load any uploaded (bookmarklet) items into the table on first load (optional)
   useEffect(() => {
     try {
       const raw = localStorage.getItem("cs2_items");
-      if (raw) setRows(JSON.parse(raw));
+      if (raw) {
+        const items = JSON.parse(raw);
+        // If this is raw "wizard output", map it; if it's already rows, accept as-is
+        const looksLikeRows = Array.isArray(items) && items[0] && items[0].market_hash_name;
+        setRows(looksLikeRows ? items : mapUploadedToRows(items, spMap));
+      }
     } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* ---- restore rows (local + account sync) ---- */
@@ -784,6 +791,7 @@ export default function DashboardPage() {
   }
   useEffect(() => {
     backfillSomeSteamPrices(12);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** Auto-refresh every 15 minutes (4/hour) */
@@ -798,75 +806,9 @@ export default function DashboardPage() {
     tick();
     const id = window.setInterval(tick, 15 * 60 * 1000);
     return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ---- sorting + totals ---- */
-  const [sorted, totals] = useMemo(() => {
-    const copy = [...rows];
-    const dir: 1 | -1 = sort.dir === "asc" ? 1 : -1;
-
-    copy.sort((a, b) => {
-      let c = 0;
-      switch (sort.key) {
-        case "item":
-          c = cmpStr(a.nameNoWear, b.nameNoWear, dir);
-          break;
-        case "wear":
-          c = cmpWear(a.wear as string, b.wear as string, dir);
-          break;
-        case "pattern":
-          c = cmpNum(a.pattern, b.pattern, dir);
-          break;
-        case "float":
-          c = cmpNum(a.float, b.float, dir);
-          break;
-        case "qty":
-          c = cmpNum(a.quantity, b.quantity, dir);
-          break;
-        case "skinport":
-          c = cmpNum(a.skinportAUD, b.skinportAUD, dir);
-          break;
-        case "steam":
-          c = cmpNum(a.steamAUD, b.steamAUD, dir);
-          break;
-      }
-      if (c === 0) c = cmpStr(a.nameNoWear, b.nameNoWear, 1);
-      return c;
-    });
-
-    const totalItems = copy.reduce((acc, r) => acc + (r.quantity ?? 1), 0);
-    const totalSkinport = copy.reduce(
-      (s, r) => s + (r.skinportAUD ?? 0) * (r.quantity ?? 1),
-      0
-    );
-    const totalSteam = copy.reduce((s, r) => s + (r.steamAUD ?? 0) * (r.quantity ?? 1), 0);
-    return [copy, { totalItems, totalSkinport, totalSteam }] as const;
-  }, [rows, sort]);
-
-  const origIndexMap = useMemo(() => {
-    const m = new Map<Row, number>();
-    rows.forEach((r, i) => m.set(r, i));
-    return m;
-  }, [rows]);
-
-  // expose handlers for RowCard buttons (mobile)
-  useEffect(() => {
-    (window as any).__dash_openEdit = (row: Row) => {
-      setEditRow(row);
-      setEditOpen(true);
-    };
-    (window as any).__dash_deleteRow = (row: Row) => {
-      const orig = origIndexMap.get(row);
-      if (orig != null) removeRow(orig);
-    };
-    return () => {
-      delete (window as any).__dash_openEdit;
-      delete (window as any).__dash_deleteRow;
-    };
-  }, [origIndexMap]);
- 
-
- 
   /* ----- AUTOCOMPLETE OPTIONS (from Skinport map + existing rows) ----- */
   const autoNames = useMemo(() => {
     const set = new Set<string>();
@@ -914,11 +856,29 @@ export default function DashboardPage() {
     );
   }
 
+  /** Receive parsed items from the ImportWizard */
+  function handleParsed(items: any[]) {
+    const mapped = mapUploadedToRows(items, spMap);
+    setRows((prev) => [
+      ...prev.filter((r) => r.source === "manual"),
+      ...mapped,
+    ]);
+    try {
+      localStorage.setItem("cs2_items", JSON.stringify(items)); // store raw wizard output; optional
+    } catch {}
+  }
+
   // ----------------------------- RENDER -----------------------------
   return (
     <div className="mx-auto max-w-6xl p-6">
+      {/* Import helper (guided wizard) */}
+      <div className="rounded-2xl border border-border bg-surface/60 p-4">
+        <h3 className="mb-2 text-base font-semibold">Import from Steam (guided)</h3>
+        <ImportWizard onParsed={handleParsed} />
+      </div>
+
       {/* Top row: Left Manual Add / Right Stats */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* Manual add (panel) */}
         <div className="flex h-full flex-col rounded-2xl border border-border bg-surface/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
           <div className="mb-2 flex items-center gap-2">
@@ -1083,22 +1043,23 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Import bar (no-server version) */}
+      {/* Import bar (local JSON) */}
       <div className="mt-6 rounded-2xl border border-border bg-surface p-4">
         <label className="mb-2 block text-xs text-muted">
           Import your inventory JSON (exported from the Steam bookmarklet)
         </label>
         <UploadInventory
-  onItems={(items) => {
-    const mapped = mapUploadedToRows(items, spMap);
-    // keep manual rows, replace any previous steam-imported rows
-    setRows((prev) => [
-      ...prev.filter((r) => r.source === "manual"),
-      ...mapped,
-    ]);
-  }}
-/>
-
+          onItems={(items) => {
+            const mapped = mapUploadedToRows(items, spMap);
+            setRows((prev) => [
+              ...prev.filter((r) => r.source === "manual"),
+              ...mapped,
+            ]);
+            try {
+              localStorage.setItem("cs2_items", JSON.stringify(items)); // store raw upload; optional
+            } catch {}
+          }}
+        />
       </div>
 
       {/* Sort toolbar */}
@@ -1135,7 +1096,7 @@ export default function DashboardPage() {
               </tr>
             ) : (
               sorted.map((r) => {
-                const orig = origIndexMap.get(r)!;
+                const orig = rows.indexOf(r); // stable key from original array index
                 return (
                   <tr key={r.market_hash_name + "|" + orig} className="border-t border-border">
                     {/* ITEM */}
@@ -1216,7 +1177,7 @@ export default function DashboardPage() {
                         <button
                           className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-surface2 text-muted hover:bg-surface"
                           title="Delete"
-                          onClick={() => removeRow(orig)}
+                          onClick={() => removeRow(rows.indexOf(r))}
                         >
                           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M3 6h18" />
@@ -1237,12 +1198,15 @@ export default function DashboardPage() {
 
       {/* MOBILE CARD LIST */}
       <div className="space-y-3 md:hidden">
-        {sorted.length === 0 ? (
+        {rows.length === 0 ? (
           <div className="rounded-2xl border border-border bg-surface/40 p-4 text-center text-muted">
             No items yet. Use <span className="underline">Search &amp; add item</span> or import from Steam.
           </div>
         ) : (
-          sorted.map((r) => <RowCard key={r.market_hash_name + "|card"} r={r} />)
+          rows
+            .slice() // keep original order for mobile
+            .sort((a, b) => a.nameNoWear.localeCompare(b.nameNoWear))
+            .map((r, i) => <RowCard key={r.market_hash_name + "|card|" + i} r={r} />)
         )}
       </div>
 
@@ -1277,3 +1241,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
