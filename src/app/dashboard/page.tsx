@@ -865,8 +865,6 @@ export default function DashboardPage() {
     };
   }, [origIndexMap]);
  
-  export default function DashboardPage() {
-  // ...existing state & handlers...
 
   function handleParsed(json: any) {
     // your existing ingestion code here:
