@@ -950,34 +950,32 @@ function handleParsed(data: any) {
 }
 
 
-  return (
-    <div className="mx-auto max-w-6xl p-6 space-y-6">
-      {/* Guided import (wizard) */}
-     <div className="space-y-6">
-   {/* Import (guided) */}
-   <div className="rounded-2xl border border-border bg-surface/60 p-4">
-     <h3 className="mb-2 text-base font-semibold">Import from Steam (guided)</h3>
-     <p className="mb-4 text-sm text-muted">
-       Upload the JSON you exported (bookmarklet or Steam API). You can also paste JSON inside the wizard.
-     </p>
-     <ImportWizard onParsed={handleParsed} />
-     <p className="mt-3 text-xs text-muted">
-       Tip: If Steam shows a “Fetch failed: 400” popup, open your browser console, copy the JSON from the response,
-       and paste it into the wizard’s <em>Paste JSON</em> tab.
-    </p>
-  </div>
+return (
+  <div className="mx-auto max-w-6xl p-6 space-y-6">
+    {/* Import from Steam (guided) */}
+    <div className="rounded-2xl border border-border bg-surface/60 p-4">
+      <h3 className="mb-2 text-base font-semibold">Import from Steam (guided)</h3>
+      <p className="mb-4 text-sm text-muted">
+        Upload the JSON you exported (bookmarklet or Steam API). You can also paste JSON inside the wizard.
+      </p>
+      <ImportWizard onParsed={handleParsed} />
+      <p className="mt-3 text-xs text-muted">
+        Tip: If Steam shows a “Fetch failed: 400” popup, open your browser console, copy the JSON from the response,
+        and paste it into the wizard’s <em>Paste JSON</em> tab.
+      </p>
+    </div>
 
-      {/* Top row: Left Manual Add / Right Stats */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* Manual add (panel) */}
-        <div className="flex h-full flex-col rounded-2xl border border-border bg-surface/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
-          <div className="mb-2 flex items-center gap-2">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
-            <h3 className="text-base font-semibold">Search &amp; add item</h3>
-          </div>
-          <p className="mb-4 text-sm text-muted">
-            Type the base name (without wear). Choose wear, optional float/pattern, set quantity, then add.
-          </p>
+    {/* Top row: Left Manual Add / Right Stats */}
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      {/* Manual add (panel) */}
+      <div className="flex h-full flex-col rounded-2xl border border-border bg-surface/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
+          <h3 className="text-base font-semibold">Search &amp; add item</h3>
+        </div>
+        <p className="mb-4 text-sm text-muted">
+          Type the base name (without wear). Choose wear, optional float/pattern, set quantity, then add.
+        </p>
 
           <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-12">
             <div className="md:col-span-5">
