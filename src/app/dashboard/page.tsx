@@ -1008,7 +1008,7 @@ return (
     </Tooltip>
   </div>
 
-  <ImportWizard onParsed={handleParsed} />
+  <ImportWizard onParsed={handleParsed} density="compact" />
 </div>
 
 
