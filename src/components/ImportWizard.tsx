@@ -1,142 +1,152 @@
-// src/components/ImportWizard.tsx
 "use client";
 
 import { useRef, useState } from "react";
 
+/** Minimal, single-card import wizard with Upload / Paste tabs + compact help tooltip. */
 type Props = {
-  /** Gets the parsed object (array of items, {items: [...]}, or raw Steam JSON). */
   onParsed: (data: any) => void;
+  density?: "normal" | "compact";
 };
 
-export default function ImportWizard({ onParsed }: Props) {
-  const [tab, setTab] = useState<"upload" | "paste">("upload");
-  const [text, setText] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement | null>(null);
+export default function ImportWizard({ onParsed, density = "compact" }: Props) {
+  const [tab, setTab] = useState<"file" | "paste">("file");
+  const [jsonText, setJsonText] = useState("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
-  async function handleFilePick(f: File) {
-    setError(null);
+  async function parseAndSend(raw: any) {
     try {
-      const content = await f.text();
-      const json = safeParseJSON(content);
-      if (!json) throw new Error("Could not parse JSON file.");
-      onParsed(json);
-    } catch (e: any) {
-      setError(e?.message || "Failed to import file.");
-    } finally {
-      if (fileRef.current) fileRef.current.value = "";
+      // Accept: raw Steam dump ({assets,descriptions}), arrays, or objects with items/rows/inventory
+      const data =
+        typeof raw === "string" ? JSON.parse(raw) : raw;
+      onParsed(data);
+      if (tab === "paste") setJsonText("");
+    } catch (e) {
+      alert("Invalid JSON. Please check and try again.");
+      console.error(e);
     }
   }
 
-  function handlePasteImport() {
-    setError(null);
-    try {
-      // Accept plain array, {items}, {rows}, {inventory}, or raw Steam JSON.
-      const json = safeParseJSON(text);
-      if (!json) throw new Error("Invalid JSON (couldn’t parse).");
-      onParsed(json);
-    } catch (e: any) {
-      setError(e?.message || "Failed to parse pasted JSON.");
-    }
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const text = await f.text();
+    await parseAndSend(text);
+    // reset input so same file can be selected again if needed
+    if (inputRef.current) inputRef.current.value = "";
   }
+
+  const compact = density === "compact";
 
   return (
     <div className="rounded-2xl border border-border bg-surface/60 p-4">
+      {/* Header: title + controls */}
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-base font-semibold">Import from Steam</h3>
+        <h3 className="text-base font-semibold">Import</h3>
 
-        <div className="inline-flex overflow-hidden rounded-lg border border-border">
-          <button
-            type="button"
-            className={[
-              "px-3 py-1 text-sm",
-              tab === "upload" ? "bg-surface2 text-text" : "text-muted hover:bg-surface/60",
-            ].join(" ")}
-            onClick={() => setTab("upload")}
-          >
-            Upload file
-          </button>
-          <button
-            type="button"
-            className={[
-              "px-3 py-1 text-sm border-l border-border",
-              tab === "paste" ? "bg-surface2 text-text" : "text-muted hover:bg-surface/60",
-            ].join(" ")}
-            onClick={() => setTab("paste")}
-          >
-            Paste JSON
-          </button>
+        <div className="flex items-center gap-2">
+          {/* Segmented control */}
+          <div className="inline-flex overflow-hidden rounded-lg border border-border">
+            <button
+              type="button"
+              onClick={() => setTab("file")}
+              className={[
+                "px-3 py-1.5 text-sm",
+                tab === "file" ? "bg-surface2 text-text" : "text-muted hover:bg-surface/60",
+              ].join(" ")}
+            >
+              Upload
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("paste")}
+              className={[
+                "px-3 py-1.5 text-sm",
+                tab === "paste" ? "bg-surface2 text-text" : "text-muted hover:bg-surface/60",
+              ].join(" ")}
+            >
+              Paste JSON
+            </button>
+          </div>
+
+          {/* Help tooltip */}
+          <div className="relative">
+            <button
+              type="button"
+              aria-label="Import help"
+              className="h-8 w-8 rounded-lg border border-border bg-surface2 text-muted hover:bg-surface"
+              onMouseEnter={(e) => {
+                (e.currentTarget.nextSibling as HTMLDivElement)?.classList.remove("opacity-0", "pointer-events-none", "translate-y-1");
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget.nextSibling as HTMLDivElement)?.classList.add("opacity-0", "pointer-events-none", "translate-y-1");
+              }}
+            >
+              {/* i icon */}
+              <svg viewBox="0 0 24 24" className="mx-auto h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 8h.01M11 12h2v4h-2z" />
+              </svg>
+            </button>
+            <div className="absolute right-0 z-20 mt-2 w-[22rem] rounded-xl border border-border bg-surface p-3 text-sm leading-5 shadow-xl transition-all duration-150 opacity-0 pointer-events-none translate-y-1">
+              <div className="mb-1 font-medium">Import tips</div>
+              <ul className="list-disc pl-5 text-muted">
+                <li>Upload your Steam bookmarklet export or Steam API dump.</li>
+                <li>If you see <span className="font-medium">“Fetch failed: 400”</span> on Steam, open the browser console, copy the JSON from the response, then use <span className="italic">Paste JSON</span>.</li>
+                <li>We accept raw Steam <code>{`{ assets, descriptions }`}</code>, arrays, or objects with <code>items</code>/<code>rows</code>/<code>inventory</code>.</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
 
-      {tab === "upload" ? (
+      {/* Body */}
+      {tab === "file" ? (
         <div className="space-y-2">
-          <p className="text-sm text-muted">
-            Upload the JSON you exported (via bookmarklet or Steam API dump). We’ll parse the items and add them to your table.
-          </p>
-
+          {!compact && (
+            <p className="text-sm text-muted">
+              Upload your JSON export. We’ll parse the items and add them to your table.
+            </p>
+          )}
           <input
-            ref={fileRef}
+            ref={inputRef}
             type="file"
             accept="application/json,.json"
-            className="block w-full rounded-lg border border-border bg-surface2 p-2 text-sm"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void handleFilePick(f);
-            }}
+            className="w-full rounded-xl border border-border bg-surface2 px-3 py-2"
+            onChange={handleFileChange}
           />
         </div>
       ) : (
-        <div className="space-y-2">
-          <p className="text-sm text-muted">
-            Paste your inventory JSON here. Supports raw Steam <code>assets/descriptions</code>, arrays, or objects with{" "}
-            <code>items</code>/<code>rows</code>/<code>inventory</code>.
-          </p>
+        <div className="space-y-3">
+          {!compact && (
+            <p className="text-sm text-muted">
+              Paste your inventory JSON. Supports raw Steam dumps or arrays.
+            </p>
+          )}
           <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            spellCheck={false}
-            placeholder='{"assets":[...],"descriptions":[...]}  or  {"items":[...]}  or  [{"name":"..."}]'
-            className="h-40 w-full resize-y rounded-lg border border-border bg-surface2 p-3 font-mono text-xs"
+            value={jsonText}
+            onChange={(e) => setJsonText(e.target.value)}
+            className="min-h-[160px] w-full rounded-xl border border-border bg-surface2 p-3 font-mono text-sm"
+            placeholder={`{ "assets": [...], "descriptions": [...] }  \n— or —\n{ "items": [...] }  \n— or —\n[ { "name": "..." } ]`}
           />
           <div className="flex items-center justify-end gap-2">
             <button
               type="button"
-              onClick={() => setText("")}
-              className="rounded-lg border border-border bg-surface2 px-3 py-1.5 text-sm hover:bg-surface"
+              className="rounded-lg border border-border bg-surface2 px-3 py-2 text-sm hover:bg-surface"
+              onClick={() => setJsonText("")}
             >
               Clear
             </button>
             <button
               type="button"
-              onClick={handlePasteImport}
-              disabled={!text.trim()}
-              className="btn-accent px-4 py-1.5 text-sm disabled:opacity-60"
+              className="btn-accent px-4 py-2 text-sm"
+              onClick={() => parseAndSend(jsonText)}
+              disabled={!jsonText.trim()}
             >
               Parse &amp; Import
             </button>
           </div>
         </div>
       )}
-
-      {error && (
-        <div className="mt-3 rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
-          {error}
-        </div>
-      )}
-
-      <div className="mt-3 text-xs text-muted">
-        Tip: If Steam shows a <strong>“Fetch failed: 400”</strong> popup, copy the JSON from your console or API response
-        and use the <em>Paste JSON</em> tab.
-      </div>
     </div>
   );
-}
-
-function safeParseJSON(s: string): any | null {
-  try {
-    return JSON.parse(s);
-  } catch {
-    return null;
-  }
 }
