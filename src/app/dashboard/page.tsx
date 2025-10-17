@@ -5,7 +5,6 @@ import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { InvItem } from "@/lib/api"; // keep InvItem for Row typing
 import { getSupabaseClient } from "@/lib/supabase";
 import { fetchAccountRows, upsertAccountRows } from "@/lib/rows";
-import UploadInventory from "@/components/UploadInventory";
 import ImportWizard from "@/components/ImportWizard";
 import type { ParsedInventory } from "@/types/steam";
 import { parseSteamInventory } from "@/lib/steam-parse";
@@ -917,42 +916,56 @@ export default function DashboardPage() {
 function handleParsed(data: any) {
   let items: any[] = [];
 
-  // Case 1: already has items/rows/inventory array
-  if (data && (data.items || data.rows || data.inventory)) {
-    items = data.items || data.rows || data.inventory;
-  }
-  // Case 2: direct array
-  else if (Array.isArray(data)) {
-    items = data;
-  }
-  // Case 3: raw Steam JSON (with assets + descriptions)
-  else if (data && data.assets && data.descriptions) {
-    try {
-      const parsed = parseSteamInventory(data);
-      items = parsed.items;
-    } catch (err) {
-      console.error("Steam JSON parse failed", err);
+  try {
+    if (data && (data.items || data.rows || data.inventory)) {
+      items = data.items || data.rows || data.inventory;
+    } else if (Array.isArray(data)) {
+      items = data;
+    } else if (data && data.assets && data.descriptions) {
+      const parsed = parseSteamInventory(data); // make sure it's imported
+      items = parsed.items || [];
     }
+  } catch (err) {
+    console.error("Steam JSON parse failed", err);
+    items = [];
   }
 
-  const mapped = mapUploadedToRows(items, spMap);
+  // Guard: nothing to add
+  if (!Array.isArray(items) || items.length === 0) return;
+
+  // Optional: strip obviously bad entries
+  const clean = items.filter(Boolean);
+
+  const mapped = mapUploadedToRows(clean, spMap);
+  if (mapped.length === 0) return;
+
   setRows((prev) => [
     ...prev.filter((r) => r.source === "manual"),
     ...mapped,
   ]);
 
   try {
-    localStorage.setItem("cs2_items", JSON.stringify(items));
+    localStorage.setItem("cs2_items", JSON.stringify(clean));
   } catch {}
 }
+
 
   return (
     <div className="mx-auto max-w-6xl p-6 space-y-6">
       {/* Guided import (wizard) */}
-      <div className="rounded-2xl border border-border bg-surface/60 p-4">
-        <h3 className="mb-2 text-base font-semibold">Import from Steam (guided)</h3>
-        <ImportWizard onParsed={handleParsed} />
-      </div>
+     <div className="space-y-6">
+   {/* Import (guided) */}
+   <div className="rounded-2xl border border-border bg-surface/60 p-4">
+     <h3 className="mb-2 text-base font-semibold">Import from Steam (guided)</h3>
+     <p className="mb-4 text-sm text-muted">
+       Upload the JSON you exported (bookmarklet or Steam API). You can also paste JSON inside the wizard.
+     </p>
+     <ImportWizard onParsed={handleParsed} />
+     <p className="mt-3 text-xs text-muted">
+       Tip: If Steam shows a “Fetch failed: 400” popup, open your browser console, copy the JSON from the response,
+       and paste it into the wizard’s <em>Paste JSON</em> tab.
+    </p>
+  </div>
 
       {/* Top row: Left Manual Add / Right Stats */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -1118,27 +1131,6 @@ function handleParsed(data: any) {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Import bar (no-server version) */}
-      <div className="rounded-2xl border border-border bg-surface/60 p-4">
-        <h3 className="mb-2 text-base font-semibold">Import JSON (bookmarklet export)</h3>
-        <label className="mb-2 block text-xs text-muted">
-          Import your inventory JSON (exported from the Steam bookmarklet)
-        </label>
-        <UploadInventory
-          onItems={(items) => {
-            const mapped = mapUploadedToRows(items, spMap);
-            // keep manual rows, replace any previous steam-imported rows
-            setRows((prev) => [
-              ...prev.filter((r) => r.source === "manual"),
-              ...mapped,
-            ]);
-            try {
-              localStorage.setItem("cs2_items", JSON.stringify(items));
-            } catch {}
-          }}
-        />
       </div>
 
       {/* Sort toolbar */}
