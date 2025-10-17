@@ -68,6 +68,25 @@ function isNonWearCategory(nameNoWear: string): boolean {
     s
   );
 }
+function Tooltip({
+  label,
+  children,
+}: {
+  label: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="relative inline-block group">
+      {children}
+      <div
+        role="tooltip"
+        className="pointer-events-none absolute right-0 z-50 mt-2 w-64 rounded-xl border border-border bg-surface/95 p-3 text-[12px] leading-relaxed text-muted shadow-lg opacity-0 translate-y-1 transition group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:opacity-100"
+      >
+        {label}
+      </div>
+    </div>
+  );
+}
 
 function mapUploadedToRows(items: any[], spMap: Record<string, number>): Row[] {
   return (items || []).map((it: any) => {
@@ -952,18 +971,45 @@ function handleParsed(data: any) {
 
 return (
   <div className="mx-auto max-w-6xl p-6 space-y-6">
-    {/* Import from Steam (guided) */}
-    <div className="rounded-2xl border border-border bg-surface/60 p-4">
-      <h3 className="mb-2 text-base font-semibold">Import from Steam (guided)</h3>
-      <p className="mb-4 text-sm text-muted">
-        Upload the JSON you exported (bookmarklet or Steam API). You can also paste JSON inside the wizard.
-      </p>
-      <ImportWizard onParsed={handleParsed} />
-      <p className="mt-3 text-xs text-muted">
-        Tip: If Steam shows a “Fetch failed: 400” popup, open your browser console, copy the JSON from the response,
-        and paste it into the wizard’s <em>Paste JSON</em> tab.
-      </p>
-    </div>
+  {/* Import from Steam (guided) */}
+<div className="rounded-2xl border border-border bg-surface/60 p-4">
+  <div className="mb-3 flex items-center justify-between">
+    <h3 className="text-base font-semibold">Import from Steam</h3>
+
+    <Tooltip
+      label={
+        <div className="space-y-2">
+          <p className="text-text">How it works</p>
+          <ul className="list-disc pl-4">
+            <li>Upload the JSON you exported (bookmarklet or Steam API).</li>
+            <li>You can also paste raw JSON in the wizard’s <em>Paste JSON</em> tab.</li>
+            <li>
+              If you see <span className="font-medium">“Fetch failed: 400”</span> in Steam,
+              open your browser console, copy the JSON from the response, then paste it.
+            </li>
+          </ul>
+        </div>
+      }
+    >
+      <button
+        type="button"
+        aria-label="Import help"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface2 text-muted hover:text-text hover:bg-surface focus:outline-none focus:ring-2 focus:ring-accent/30"
+      >
+        {/* info icon */}
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 16v-4" />
+          <path d="M12 8h.01" />
+        </svg>
+      </button>
+    </Tooltip>
+  </div>
+
+  {/* The wizard stays exactly the same; it provides Upload & Paste tabs internally */}
+  <ImportWizard onParsed={handleParsed} />
+</div>
+
 
     {/* Top row: Left Manual Add / Right Stats */}
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
