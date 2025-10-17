@@ -971,7 +971,7 @@ function handleParsed(data: any) {
 
 return (
   <div className="mx-auto max-w-6xl p-6 space-y-6">
-  {/* Import from Steam (guided) */}
+{/* Import from Steam */}
 <div className="rounded-2xl border border-border bg-surface/60 p-4">
   <div className="mb-3 flex items-center justify-between">
     <h3 className="text-base font-semibold">Import from Steam</h3>
@@ -979,13 +979,16 @@ return (
     <Tooltip
       label={
         <div className="space-y-2">
-          <p className="text-text">How it works</p>
+          <p className="text-text">How to import</p>
           <ul className="list-disc pl-4">
-            <li>Upload the JSON you exported (bookmarklet or Steam API).</li>
-            <li>You can also paste raw JSON in the wizard’s <em>Paste JSON</em> tab.</li>
+            <li>Upload the JSON exported via bookmarklet or Steam API.</li>
+            <li>You can also paste the raw JSON in the <em>Paste JSON</em> tab.</li>
             <li>
-              If you see <span className="font-medium">“Fetch failed: 400”</span> in Steam,
-              open your browser console, copy the JSON from the response, then paste it.
+              If you see <span className="font-medium">“Fetch failed: 400”</span>,
+              open DevTools → Network → Copy response JSON → Paste here.
+            </li>
+            <li>
+              Both file upload and paste automatically add items to your table.
             </li>
           </ul>
         </div>
@@ -996,7 +999,6 @@ return (
         aria-label="Import help"
         className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-surface2 text-muted hover:text-text hover:bg-surface focus:outline-none focus:ring-2 focus:ring-accent/30"
       >
-        {/* info icon */}
         <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
           <circle cx="12" cy="12" r="10" />
           <path d="M12 16v-4" />
@@ -1006,9 +1008,9 @@ return (
     </Tooltip>
   </div>
 
-  {/* The wizard stays exactly the same; it provides Upload & Paste tabs internally */}
   <ImportWizard onParsed={handleParsed} />
 </div>
+
 
 
     {/* Top row: Left Manual Add / Right Stats */}
