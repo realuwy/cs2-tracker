@@ -27,7 +27,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${manrope.variable} font-sans bg-bg text-text`}>
         <div className="min-h-screen flex flex-col">
-          <AppHeader user={null} />
+         <AppHeader />
           {/* Mounted only in the browser */}
           <AuthModalHost />
           <main className="flex-1">{children}</main>
