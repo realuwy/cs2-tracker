@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import AuthModal from "@/components/auth-modal";
+import Faq from "@/components/Faq";
 
 export default function HomePage() {
   const [showModal, setShowModal] = useState(false);
@@ -68,7 +69,9 @@ export default function HomePage() {
           </p>
         </div>
       </section>
-
+<div className="mt-16 md:mt-24" />
+<Faq />
+<div className="mt-16" />
       {showModal && <AuthModal onClose={() => setShowModal(false)} />}
     </main>
   );
