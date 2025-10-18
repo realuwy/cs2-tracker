@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import SignOutButton from "@/components/SignOutButton";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import AccountMenu from "@/components/AccountMenu";
 
 type User = { name?: string | null; email?: string | null } | null;
 
@@ -194,9 +195,15 @@ export default function AppHeader({ user = null }: { user?: User }) {
 </nav>
 
 
-        {/* Right: dots menu */}
-        <DotsUserMenu authed={Boolean(authed)} />
-      </div>
+       <div className="flex items-center gap-2">
+  {/* Desktop account menu */}
+  <AccountMenu authed={Boolean(authed)} />
+
+  {/* Mobile dots menu (kept for small screens) */}
+  <div className="md:hidden">
+    <DotsUserMenu authed={Boolean(authed)} />
+  </div>
+</div>
     </header>
   );
 }
