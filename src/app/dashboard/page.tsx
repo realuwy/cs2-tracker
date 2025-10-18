@@ -1246,64 +1246,71 @@ function handleParsed(data: any) {
   skinportUpdatedAt: number | null;
 }) {
   return (
-   <div className="relative rounded-2xl border border-border bg-surface/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
-  <div className="mb-3 flex items-center justify-between">
-    <h3 className="text-base font-semibold">Stats</h3>
-    <button
-      type="button"
-      title="Refresh prices now (Skinport & Steam)"
-      onClick={handleManualRefresh}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface2 hover:bg-surface focus:outline-none focus:ring-2 focus:ring-accent/30"
-      aria-label="Refresh prices"
-    >
-      <svg
-        className={["h-4 w-4", refreshing ? "animate-spin" : ""].join(" ")}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M21 12a9 9 0 1 1-3-6.7" />
-        <path d="M21 3v6h-6" />
-      </svg>
-    </button>
+  {/* Top row: Left Manual Add / Right Stats */}
+<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+  {/* Manual add (panel) */}
+  <div className="flex h-full flex-col rounded-2xl border border-border bg-surface/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
+    {/* …manual panel inputs… */}
   </div>
 
-  <div className="grid grid-cols-2 gap-3">
-    <div className="rounded-xl border border-border bg-surface2/60 p-3">
-      <div className="text-xs uppercase tracking-wide text-muted">Total items</div>
-      <div className="mt-1 text-2xl font-semibold">{totals.totalItems}</div>
+  {/* Stats panel (inline, NOT a function) */}
+  <div className="relative rounded-2xl border border-border bg-surface/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
+    <div className="mb-3 flex items-center justify-between">
+      <h3 className="text-base font-semibold">Stats</h3>
+      <button
+        type="button"
+        title="Refresh prices now (Skinport & Steam)"
+        onClick={handleManualRefresh}
+        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface2 hover:bg-surface focus:outline-none focus:ring-2 focus:ring-accent/30"
+        aria-label="Refresh prices"
+      >
+        <svg
+          className={["h-4 w-4", refreshing ? "animate-spin" : ""].join(" ")}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M21 12a9 9 0 1 1-3-6.7" />
+          <path d="M21 3v6h-6" />
+        </svg>
+      </button>
     </div>
 
-    <div className="rounded-xl border border-border bg-surface2/60 p-3">
-      <div className="text-xs uppercase tracking-wide text-muted">Steam − Skinport</div>
-      <div className={`mt-1 text-2xl font-semibold ${totals.totalSteam - totals.totalSkinport >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-        A${(totals.totalSteam - totals.totalSkinport).toFixed(2)}
+    <div className="grid grid-cols-2 gap-3">
+      <div className="rounded-xl border border-border bg-surface2/60 p-3">
+        <div className="text-xs uppercase tracking-wide text-muted">Total items</div>
+        <div className="mt-1 text-2xl font-semibold">{totals.totalItems}</div>
       </div>
-    </div>
 
-    <div className="rounded-xl border border-border bg-surface2/60 p-3">
-      <div className="text-xs uppercase tracking-wide text-muted">Skinport total</div>
-      <div className="mt-1 text-xl font-medium">A${totals.totalSkinport.toFixed(2)}</div>
-      <div className="mt-1 text-xs text-muted">
-        {rows.filter((r) => typeof r.skinportAUD === "number").length}/{rows.length} priced • {formatTime(skinportUpdatedAt)}
+      <div className="rounded-xl border border-border bg-surface2/60 p-3">
+        <div className="text-xs uppercase tracking-wide text-muted">Steam − Skinport</div>
+        <div className={`mt-1 text-2xl font-semibold ${totals.totalSteam - totals.totalSkinport >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+          A${(totals.totalSteam - totals.totalSkinport).toFixed(2)}
+        </div>
       </div>
-    </div>
 
-    <div className="rounded-xl border border-border bg-surface2/60 p-3">
-      <div className="text-xs uppercase tracking-wide text-muted">Steam total</div>
-      <div className="mt-1 text-xl font-medium">A${totals.totalSteam.toFixed(2)}</div>
-      <div className="mt-1 text-xs text-muted">
-        {rows.filter((r) => typeof r.steamAUD === "number").length}/{rows.length} priced • {formatTime(steamUpdatedAt)}
+      <div className="rounded-xl border border-border bg-surface2/60 p-3">
+        <div className="text-xs uppercase tracking-wide text-muted">Skinport total</div>
+        <div className="mt-1 text-xl font-medium">A${totals.totalSkinport.toFixed(2)}</div>
+        <div className="mt-1 text-xs text-muted">
+          {rows.filter((r) => typeof r.skinportAUD === "number").length}/{rows.length} priced • {formatTime(skinportUpdatedAt)}
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border bg-surface2/60 p-3">
+        <div className="text-xs uppercase tracking-wide text-muted">Steam total</div>
+        <div className="mt-1 text-xl font-medium">A${totals.totalSteam.toFixed(2)}</div>
+        <div className="mt-1 text-xs text-muted">
+          {rows.filter((r) => typeof r.steamAUD === "number").length}/{rows.length} priced • {formatTime(steamUpdatedAt)}
+        </div>
       </div>
     </div>
   </div>
 </div>
-      </div>
 
-    </div>
   );
 }
          
