@@ -922,16 +922,13 @@ export default function DashboardPage() {
 
  // #region [DERIVED] 
 const autoNames = useMemo(() => {
-  // Collect base names (no wear)
   const bases = new Set<string>();
 
-  // From Skinport map (many entries include wear)
   Object.keys(spMap).forEach((k) => {
     const { nameNoWear } = parseNameForWear(stripNone(k));
     bases.add(nameNoWear);
   });
 
-  // From current rows
   rows.forEach((r) => {
     if (r.nameNoWear) bases.add(r.nameNoWear);
     else if (r.market_hash_name) {
@@ -942,6 +939,7 @@ const autoNames = useMemo(() => {
 
   return Array.from(bases).sort((a, b) => a.localeCompare(b));
 }, [spMap, rows]);
+
 // #endregion
 
 
