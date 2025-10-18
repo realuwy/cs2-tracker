@@ -76,15 +76,15 @@ function DotsUserMenu({ authed }: { authed: boolean }) {
 
   return (
     <div className="relative" ref={ref}>
-      <button
-        type="button"
-        aria-label="User menu"
-        aria-expanded={isOpen}
-        onClick={() => setIsOpen(v => !v)}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-text hover:bg-surface2 focus:outline-none focus:ring-2 focus:ring-accent/30"
-      >
-        <DotsIcon /> {/* 2×2 dots, fill=currentColor */}
-      </button>
+     <button
+  type="button"
+  aria-label="User menu"
+  aria-expanded={isOpen}
+  onClick={() => setIsOpen(v => !v)}
+  className="inline-flex md:hidden h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-text hover:bg-surface2 focus:outline-none focus:ring-2 focus:ring-accent/30"
+>
+  <DotsIcon />
+</button>
 
       {isOpen && (
         <div
@@ -184,14 +184,15 @@ export default function AppHeader({ user = null }: { user?: User }) {
         </Link>
 
         {/* Center: nav */}
-        <nav className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 md:block">
-          <ul className="flex items-center gap-8 text-sm text-text">
-            <li><NavLink href="/">Home</NavLink></li>
-            <li><NavLink href="/dashboard">Dashboard</NavLink></li>
-            <li><NavLink href="/about">About</NavLink></li>
-            <li><NavLink href="/privacy">Privacy</NavLink></li>
-          </ul>
-        </nav>
+       <nav className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 md:block">
+  <ul className="flex items-center gap-8 text-sm text-text">
+    <li><NavLink href="/">Home</NavLink></li>
+    <li><NavLink href="/dashboard">Dashboard</NavLink></li>
+    <li><NavLink href="/about">About</NavLink></li>
+    <li><NavLink href="/privacy">Privacy</NavLink></li>
+  </ul>
+</nav>
+
 
         {/* Right: dots menu */}
         <DotsUserMenu authed={Boolean(authed)} />
