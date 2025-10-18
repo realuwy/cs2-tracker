@@ -920,65 +920,30 @@ export default function DashboardPage() {
   }, []);
   // #endregion
 
-  // #region [DERIVED] Sorting + totals + index map + autocomplete
-  const [sorted, totals] = useMemo(() => {
-    const copy = [...rows];
-    const dir: 1 | -1 = sort.dir === "asc" ? 1 : -1;
+ // #region [DERIVED] 
+const autoNames = useMemo(() => {
+  // Collect base names (no wear)
+  const bases = new Set<string>();
 
-    copy.sort((a, b) => {
-      let c = 0;
-      switch (sort.key) {
-        case "item":
-          c = cmpStr(a.nameNoWear, b.nameNoWear, dir);
-          break;
-        case "wear":
-          c = cmpWear(a.wear as string, b.wear as string, dir);
-          break;
-        case "pattern":
-          c = cmpNum(a.pattern, b.pattern, dir);
-          break;
-        case "float":
-          c = cmpNum(a.float, b.float, dir);
-          break;
-        case "qty":
-          c = cmpNum(a.quantity, b.quantity, dir);
-          break;
-        case "skinport":
-          c = cmpNum(a.skinportAUD, b.skinportAUD, dir);
-          break;
-        case "steam":
-          c = cmpNum(a.steamAUD, b.steamAUD, dir);
-          break;
-      }
-      if (c === 0) c = cmpStr(a.nameNoWear, b.nameNoWear, 1);
-      return c;
-    });
+  // From Skinport map (many entries include wear)
+  Object.keys(spMap).forEach((k) => {
+    const { nameNoWear } = parseNameForWear(stripNone(k));
+    bases.add(nameNoWear);
+  });
 
-    const totalItems = copy.reduce((acc, r) => acc + (r.quantity ?? 1), 0);
-    const totalSkinport = copy.reduce(
-      (s, r) => s + (r.skinportAUD ?? 0) * (r.quantity ?? 1),
-      0
-    );
-    const totalSteam = copy.reduce((s, r) => s + (r.steamAUD ?? 0) * (r.quantity ?? 1), 0);
-    return [copy, { totalItems, totalSkinport, totalSteam }] as const;
-  }, [rows, sort]);
+  // From current rows
+  rows.forEach((r) => {
+    if (r.nameNoWear) bases.add(r.nameNoWear);
+    else if (r.market_hash_name) {
+      const { nameNoWear } = parseNameForWear(stripNone(r.market_hash_name));
+      bases.add(nameNoWear);
+    }
+  });
 
-  const origIndexMap = useMemo(() => {
-    const m = new Map<Row, number>();
-    rows.forEach((r, i) => m.set(r, i));
-    return m;
-  }, [rows]);
+  return Array.from(bases).sort((a, b) => a.localeCompare(b));
+}, [spMap, rows]);
+// #endregion
 
-  const autoNames = useMemo(() => {
-    const set = new Set<string>();
-    Object.keys(spMap).forEach((k) => set.add(k));
-    rows.forEach((r) => {
-      if (r.market_hash_name) set.add(r.market_hash_name);
-      if (r.nameNoWear) set.add(r.nameNoWear);
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [spMap, rows]);
-  // #endregion
 
   // #region [HANDLERS] Manual refresh + misc helpers
   async function handleManualRefresh() {
