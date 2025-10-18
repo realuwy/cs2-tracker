@@ -17,21 +17,18 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
   );
 }
 
-function DotsIcon({ className = "h-9 w-9" }) {
+function DotsIcon({ className = "h-5 w-5" }) {
+  // 2×2 grid of dots
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <circle cx="7" cy="7" r="1.6" />
-      <circle cx="12" cy="7" r="1.6" />
-      <circle cx="17" cy="7" r="1.6" />
-      <circle cx="7" cy="12" r="1.6" />
-      <circle cx="12" cy="12" r="1.6" />
-      <circle cx="17" cy="12" r="1.6" />
-      <circle cx="7" cy="17" r="1.6" />
-      <circle cx="12" cy="17" r="1.6" />
-      <circle cx="17" cy="17" r="1.6" />
+      <circle cx="9"  cy="9"  r="1.8" />
+      <circle cx="15" cy="9"  r="1.8" />
+      <circle cx="9"  cy="15" r="1.8" />
+      <circle cx="15" cy="15" r="1.8" />
     </svg>
   );
 }
+
 
 function MenuItem({
   children,
@@ -52,9 +49,16 @@ function MenuItem({
     );
   }
   return (
-    <button type="button" className={base} onClick={onClick}>
-      {children}
-    </button>
+   <button
+  type="button"
+  aria-label="User menu"
+  aria-expanded={open}
+  onClick={() => setOpen(v => !v)}
+  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-text/90 hover:bg-surface2 focus:outline-none focus:ring-2 focus:ring-accent/30"
+>
+  <DotsIcon className="h-4 w-4" />
+</button>
+
   );
 }
 
