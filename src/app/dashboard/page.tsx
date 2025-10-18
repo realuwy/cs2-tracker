@@ -805,7 +805,7 @@ export default function DashboardPage() {
       totalAUD: priceAUD ? priceAUD * mQty : undefined,
       source: "manual",
     };
-    setRows((r) => [newRow, ...r]);
+   setRows((r) => mergeRows([newRow, ...r]));
     setMName("");
     setMWear("");
     setMFloat("");
