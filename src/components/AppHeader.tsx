@@ -2,6 +2,43 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import SignOutButton from "@/components/SignOutButton";
+import { getSupabaseClient } from "@/lib/supabase";
+import { useEffect, useState } from "react";
+
+function Header() {
+  const supabase = getSupabaseClient();
+  const [authed, setAuthed] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setAuthed(data.session?.user?.id ?? null));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, sess) => setAuthed(sess?.user?.id ?? null));
+    return () => sub.subscription.unsubscribe();
+  }, [supabase]);
+
+  return (
+    <header className="flex items-center justify-between px-4 py-3">
+      <a href="/" className="font-semibold">CS2 Tracker</a>
+      <nav className="flex items-center gap-3">
+        {authed ? (
+          <>
+            <a href="/dashboard" className="text-sm underline">Dashboard</a>
+            <SignOutButton />
+          </>
+        ) : (
+          <>
+            <a href="/login" className="rounded-lg border border-border bg-surface2 px-3 py-2 hover:bg-surface">
+              Sign In
+            </a>
+            <a href="/login" className="btn-accent px-3 py-2">Sign Up</a>
+          </>
+        )}
+      </nav>
+    </header>
+  );
+}
+
+export default Header;
 
 type User = { name?: string | null; email?: string | null } | null;
 
