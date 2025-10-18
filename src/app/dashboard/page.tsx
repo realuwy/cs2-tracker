@@ -312,7 +312,7 @@ function EditRowDialog({
   onSave: (next: Row) => void;
   spMap: Record<string, number>;
 }) {
-  const [name, setMName] = useState(row?.nameNoWear ?? "");
+  const [name, setName] = useState(row?.nameNoWear ?? "");
   const [wear, setWear] = useState<WearCode>((row?.wear as WearCode) ?? "");
   const [flt, setFlt] = useState<string>(row?.float ?? "");
   const [pat, setPat] = useState<string>(row?.pattern ?? "");
@@ -369,7 +369,7 @@ function EditRowDialog({
  onChange={(e) => {
   const v = e.target.value;
   const parsed = parseNameForWear(v);
-  setMName(parsed.nameNoWear);          
+  setName(parsed.nameNoWear);          
   if (parsed.wear) setMWear(parsed.wear); 
 }}
 
