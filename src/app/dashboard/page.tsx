@@ -531,7 +531,7 @@ export default function DashboardPage() {
 
   // controls
   const [mName, setMName] = useState("");
-  const [mWear, setMWear] = useState<WearCode>("");
+ const [mWear, setMWear] = useState<WearCode>("");
   const [mFloat, setMFloat] = useState("");
   const [mPattern, setMPattern] = useState("");
   const [mQty, setMQty] = useState(1);
