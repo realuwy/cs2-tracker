@@ -18,13 +18,13 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
 }
 
 function DotsIcon({ className = "h-4 w-4" }) {
-  // 2×2 grid of dots
+  // 2×2 grid of dots, now using currentColor so they inherit the button's text color
   return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <circle cx="9"  cy="9"  r="1.8" />
-      <circle cx="15" cy="9"  r="1.8" />
-      <circle cx="9"  cy="15" r="1.8" />
-      <circle cx="15" cy="15" r="1.8" />
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true" fill="currentColor">
+      <circle cx="9"  cy="9"  r="2" />
+      <circle cx="15" cy="9"  r="2" />
+      <circle cx="9"  cy="15" r="2" />
+      <circle cx="15" cy="15" r="2" />
     </svg>
   );
 }
