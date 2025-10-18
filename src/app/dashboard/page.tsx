@@ -1007,15 +1007,26 @@ export default function DashboardPage() {
     return m;
   }, [rows]);
 
-  const autoNames = useMemo(() => {
-    const set = new Set<string>();
-    Object.keys(spMap).forEach((k) => set.add(k));
-    rows.forEach((r) => {
-      if (r.market_hash_name) set.add(r.market_hash_name);
-      if (r.nameNoWear) set.add(r.nameNoWear);
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [spMap, rows]);
+ // #region [DERIVED]
+
+
+const autoBaseNames = useMemo(() => {
+  const WEAR_TAIL =
+    /\s+\((Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)\)\s*$/i;
+  const stripWearAndNone = (s: string) => stripNone(s).replace(WEAR_TAIL, "");
+
+  const set = new Set<string>();
+
+  Object.keys(spMap).forEach((k) => set.add(stripWearAndNone(k)));
+
+  rows.forEach((r) => {
+    if (r.market_hash_name) set.add(stripWearAndNone(r.market_hash_name));
+    if (r.nameNoWear) set.add(stripWearAndNone(r.nameNoWear));
+  });
+
+  return Array.from(set).sort((a, b) => a.localeCompare(b));
+}, [spMap, rows]);
+
   // #endregion
 
   // #region [HANDLERS] Manual refresh + misc helpers
@@ -1134,7 +1145,7 @@ export default function DashboardPage() {
                 </svg>
               </div>
               <datalist id="item-suggestions">
-                {autoNames.map((n) => (
+                {autoBaseNames.map((n) => (
                   <option key={n} value={n} />
                 ))}
               </datalist>
