@@ -78,14 +78,14 @@ function DotsUserMenu({ authed }: { authed: boolean }) {
   return (
     <div className="relative" ref={ref}>
       <button
-        type="button"
-        aria-label="User menu"
-        aria-expanded={isOpen}
-        onClick={() => setIsOpen((v) => !v)}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-text/90 hover:bg-surface2 focus:outline-none focus:ring-2 focus:ring-accent/30"
-      >
-        <DotsIcon />
-      </button>
+  type="button"
+  aria-label="User menu"
+  aria-expanded={isOpen}
+  onClick={() => setIsOpen(v => !v)}
+  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-text hover:bg-surface2 focus:outline-none focus:ring-2 focus:ring-accent/30"
+>
+  <DotsIcon />
+</button>
 
       {isOpen && (
         <div
