@@ -59,7 +59,6 @@ function DotsUserMenu({ authed }: { authed: boolean }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
 
-  // click-outside + Esc close
   useEffect(() => {
     function onDoc(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
@@ -78,26 +77,37 @@ function DotsUserMenu({ authed }: { authed: boolean }) {
   return (
     <div className="relative" ref={ref}>
       <button
-  type="button"
-  aria-label="User menu"
-  aria-expanded={isOpen}
-  onClick={() => setIsOpen(v => !v)}
-  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-text hover:bg-surface2 focus:outline-none focus:ring-2 focus:ring-accent/30"
->
-  <DotsIcon />
-</button>
+        type="button"
+        aria-label="User menu"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen(v => !v)}
+        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-text hover:bg-surface2 focus:outline-none focus:ring-2 focus:ring-accent/30"
+      >
+        <DotsIcon /> {/* 2×2 dots, fill=currentColor */}
+      </button>
 
       {isOpen && (
         <div
           role="menu"
-          className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-surface/95 p-2 shadow-lg backdrop-blur"
+          className="
+            absolute right-0 mt-2 w-64 rounded-xl border border-border
+            bg-surface/95 p-2 shadow-lg backdrop-blur
+            sm:w-72
+          "
         >
+          {/* Primary nav — always available (mobile relies on this) */}
+          <div className="px-2 pb-1 text-[11px] uppercase tracking-wide text-muted">Navigation</div>
+          <MenuItem href="/" onClick={() => setIsOpen(false)}>Home</MenuItem>
+          <MenuItem href="/dashboard" onClick={() => setIsOpen(false)}>Dashboard</MenuItem>
+          <MenuItem href="/about" onClick={() => setIsOpen(false)}>About</MenuItem>
+          <MenuItem href="/privacy" onClick={() => setIsOpen(false)}>Privacy</MenuItem>
+
+          <div className="my-2 h-px bg-border/60" />
+
+          {/* Auth section */}
           {authed ? (
             <>
-              <MenuItem href="/dashboard" onClick={() => setIsOpen(false)}>
-                Dashboard
-              </MenuItem>
-              <div className="my-1 h-px bg-border/60" />
+              <div className="px-2 pb-1 text-[11px] uppercase tracking-wide text-muted">Account</div>
               <MenuItem
                 onClick={async () => {
                   setIsOpen(false);
@@ -112,18 +122,12 @@ function DotsUserMenu({ authed }: { authed: boolean }) {
             </>
           ) : (
             <>
-              <MenuItem href="/login" onClick={() => setIsOpen(false)}>
-                Sign In
-              </MenuItem>
-              <MenuItem href="/login" onClick={() => setIsOpen(false)}>
-                Sign Up
-              </MenuItem>
-              <div className="my-1 h-px bg-border/60" />
+              <div className="px-2 pb-1 text-[11px] uppercase tracking-wide text-muted">Account</div>
+              <MenuItem href="/login" onClick={() => setIsOpen(false)}>Sign In</MenuItem>
+              <MenuItem href="/login" onClick={() => setIsOpen(false)}>Sign Up</MenuItem>
               <MenuItem
                 onClick={() => {
-                  try {
-                    localStorage.setItem("cs2:guest", "1");
-                  } catch {}
+                  try { localStorage.setItem("cs2:guest", "1"); } catch {}
                   setIsOpen(false);
                   router.push("/dashboard");
                 }}
@@ -137,6 +141,7 @@ function DotsUserMenu({ authed }: { authed: boolean }) {
     </div>
   );
 }
+
 
 export default function AppHeader({ user = null }: { user?: User }) {
   const supabase = getSupabaseClient();
