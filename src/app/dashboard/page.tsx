@@ -21,6 +21,7 @@ export const dynamic = "force-dynamic";
 ============================================================================= */
 
 // #region [IMPORTS]
+import type React from "react";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { InvItem } from "@/lib/api"; // keep InvItem for Row typing
 import { getSupabaseClient } from "@/lib/supabase";
@@ -365,14 +366,12 @@ function EditRowDialog({
             <input
               className="w-full rounded-lg border border-border bg-surface2 px-3 py-2"
               value={name}
-            
- onChange={(e) => {
-  const v = e.target.value;
-  const parsed = parseNameForWear(v);
-  setName(parsed.nameNoWear);          
-  if (parsed.wear) setWear(parsed.wear); 
-}}
-
+              onChange={(e) => {
+                const v = e.target.value;
+                const parsed = parseNameForWear(v);
+                setName(parsed.nameNoWear);
+                if (parsed.wear) setWear(parsed.wear);
+              }}
               list="item-suggestions"
             />
           </div>
@@ -429,7 +428,10 @@ function EditRowDialog({
         </div>
 
         <div className="mt-6 flex justify-end gap-2">
-          <button className="rounded-lg border border-border bg-surface2 px-4 py-2 hover:bg-surface" onClick={onClose}>
+          <button
+            className="rounded-lg border border-border bg-surface2 px-4 py-2 hover:bg-surface"
+            onClick={onClose}
+          >
             Cancel
           </button>
           <button className="btn-accent px-4 py-2" onClick={apply}>
@@ -465,7 +467,9 @@ function RowCard({ r }: { r: Row }) {
             {r.nameNoWear}
           </div>
           <div className="mt-1 flex flex-wrap gap-1">
-            {wearLabelForRow(r.wear as WearCode) && <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>}
+            {wearLabelForRow(r.wear as WearCode) && (
+              <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>
+            )}
             {r.pattern && <Pill>Pattern: {r.pattern}</Pill>}
             {r.float && <Pill>Float: {r.float}</Pill>}
           </div>
@@ -495,7 +499,13 @@ function RowCard({ r }: { r: Row }) {
             title="Edit"
             onClick={() => (window as any).__dash_openEdit?.(r)}
           >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <path d="M12 20h9" />
               <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
             </svg>
@@ -505,7 +515,13 @@ function RowCard({ r }: { r: Row }) {
             title="Delete"
             onClick={() => (window as any).__dash_deleteRow?.(r)}
           >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
               <path d="M3 6h18" />
               <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
               <path d="M10 11v6M14 11v6" />
@@ -531,7 +547,7 @@ export default function DashboardPage() {
 
   // controls
   const [mName, setMName] = useState("");
- const [mWear, setMWear] = useState<WearCode>("");
+  const [mWear, setMWear] = useState<WearCode>("");
   const [mFloat, setMFloat] = useState("");
   const [mPattern, setMPattern] = useState("");
   const [mQty, setMQty] = useState(1);
@@ -663,7 +679,8 @@ export default function DashboardPage() {
         images?: Record<string, string>;
         updatedAt?: number;
       } = await priceRes.json();
-      const extraImgData: { images?: Record<string, string> } = (await (imgRes as any)?.json?.()) ?? {};
+      const extraImgData: { images?: Record<string, string> } =
+        (await (imgRes as any)?.json?.()) ?? {};
 
       const map = priceData.map || {};
       const images: Record<string, string> = {
@@ -700,7 +717,11 @@ export default function DashboardPage() {
           const img =
             row.image && row.image.trim() !== ""
               ? row.image
-              : findImage(row.market_hash_name, row.nameNoWear, (row.wear as string | undefined));
+              : findImage(
+                  row.market_hash_name,
+                  row.nameNoWear,
+                  (row.wear as string | undefined)
+                );
 
           const saneSteam = sanitizeSteam(row.steamAUD, sp);
 
@@ -745,7 +766,9 @@ export default function DashboardPage() {
 
       for (const { name, idx } of batch) {
         try {
-          const resp = await fetch(`/api/images/by-name?name=${encodeURIComponent(name)}`);
+          const resp = await fetch(
+            `/api/images/by-name?name=${encodeURIComponent(name)}`
+          );
           const data: { url: string | null } = await resp.json();
           if (cancelled) return;
 
@@ -782,7 +805,9 @@ export default function DashboardPage() {
   // #region [HANDLERS] Scroll to top
   const scrollToTop = () => {
     if (typeof window === "undefined") return;
-    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const prefersReduced = window
+      .matchMedia("(prefers-reduced-motion: reduce)")
+      .matches;
     window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
   };
   // #endregion
@@ -812,7 +837,7 @@ export default function DashboardPage() {
       totalAUD: priceAUD ? priceAUD * mQty : undefined,
       source: "manual",
     };
-   setRows((r) => mergeRows([newRow, ...r]));
+    setRows((r) => mergeRows([newRow, ...r]));
     setMName("");
     setMWear("");
     setMFloat("");
@@ -877,7 +902,9 @@ export default function DashboardPage() {
 
           for (const name of variants) {
             try {
-              const resp = await fetch(`/api/prices/steam?name=${encodeURIComponent(name)}`);
+              const resp = await fetch(
+                `/api/prices/steam?name=${encodeURIComponent(name)}`
+              );
               const data: { aud?: number | null } = await resp.json();
               const parsed = typeof data?.aud === "number" ? data.aud : undefined;
               const sane = sanitizeSteam(parsed, r.skinportAUD);
@@ -927,57 +954,69 @@ export default function DashboardPage() {
   }, []);
   // #endregion
 
- // #region [DERIVED] 
-const [sorted, totals] = useMemo(() => {
-  const copy = [...rows];
-  const dir: 1 | -1 = sort.dir === "asc" ? 1 : -1;
+  // #region [DERIVED]
+  const [sorted, totals] = useMemo(() => {
+    const copy = [...rows];
+    const dir: 1 | -1 = sort.dir === "asc" ? 1 : -1;
 
-  copy.sort((a, b) => {
-    let c = 0;
-    switch (sort.key) {
-      case "item": c = cmpStr(a.nameNoWear, b.nameNoWear, dir); break;
-      case "wear": c = cmpWear(a.wear as string, b.wear as string, dir); break;
-      case "pattern": c = cmpNum(a.pattern, b.pattern, dir); break;
-      case "float": c = cmpNum(a.float, b.float, dir); break;
-      case "qty": c = cmpNum(a.quantity, b.quantity, dir); break;
-      case "skinport": c = cmpNum(a.skinportAUD, b.skinportAUD, dir); break;
-      case "steam": c = cmpNum(a.steamAUD, b.steamAUD, dir); break;
-    }
-    if (c === 0) c = cmpStr(a.nameNoWear, b.nameNoWear, 1);
-    return c;
-  });
+    copy.sort((a, b) => {
+      let c = 0;
+      switch (sort.key) {
+        case "item":
+          c = cmpStr(a.nameNoWear, b.nameNoWear, dir);
+          break;
+        case "wear":
+          c = cmpWear(a.wear as string, b.wear as string, dir);
+          break;
+        case "pattern":
+          c = cmpNum(a.pattern, b.pattern, dir);
+          break;
+        case "float":
+          c = cmpNum(a.float, b.float, dir);
+          break;
+        case "qty":
+          c = cmpNum(a.quantity, b.quantity, dir);
+          break;
+        case "skinport":
+          c = cmpNum(a.skinportAUD, b.skinportAUD, dir);
+          break;
+        case "steam":
+          c = cmpNum(a.steamAUD, b.steamAUD, dir);
+          break;
+      }
+      if (c === 0) c = cmpStr(a.nameNoWear, b.nameNoWear, 1);
+      return c;
+    });
 
-  const totalItems = copy.reduce((acc, r) => acc + (r.quantity ?? 1), 0);
-  const totalSkinport = copy.reduce(
-    (s, r) => s + (r.skinportAUD ?? 0) * (r.quantity ?? 1),
-    0
-  );
-  const totalSteam = copy.reduce(
-    (s, r) => s + (r.steamAUD ?? 0) * (r.quantity ?? 1),
-    0
-  );
+    const totalItems = copy.reduce((acc, r) => acc + (r.quantity ?? 1), 0);
+    const totalSkinport = copy.reduce(
+      (s, r) => s + (r.skinportAUD ?? 0) * (r.quantity ?? 1),
+      0
+    );
+    const totalSteam = copy.reduce(
+      (s, r) => s + (r.steamAUD ?? 0) * (r.quantity ?? 1),
+      0
+    );
 
-  return [copy, { totalItems, totalSkinport, totalSteam }] as const;
-}, [rows, sort]);
+    return [copy, { totalItems, totalSkinport, totalSteam }] as const;
+  }, [rows, sort]);
 
-const origIndexMap = useMemo(() => {
-  const m = new Map<Row, number>();
-  rows.forEach((r, i) => m.set(r, i));
-  return m;
-}, [rows]);
+  const origIndexMap = useMemo(() => {
+    const m = new Map<Row, number>();
+    rows.forEach((r, i) => m.set(r, i));
+    return m;
+  }, [rows]);
 
-const autoNames = useMemo(() => {
-  const set = new Set<string>();
-  Object.keys(spMap).forEach((k) => set.add(k));
-  rows.forEach((r) => {
-    if (r.market_hash_name) set.add(r.market_hash_name);
-    if (r.nameNoWear) set.add(r.nameNoWear);
-  });
-
-  return Array.from(set).sort((a, b) => a.localeCompare(b));
-}, [spMap, rows]);
-// #endregion
-
+  const autoNames = useMemo(() => {
+    const set = new Set<string>();
+    Object.keys(spMap).forEach((k) => set.add(k));
+    rows.forEach((r) => {
+      if (r.market_hash_name) set.add(r.market_hash_name);
+      if (r.nameNoWear) set.add(r.nameNoWear);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [spMap, rows]);
+  // #endregion
 
   // #region [HANDLERS] Manual refresh + misc helpers
   async function handleManualRefresh() {
@@ -1016,47 +1055,46 @@ const autoNames = useMemo(() => {
 
   // #region [HANDLERS] Import handling
   /** Receive parsed items from ImportWizard or raw Steam JSON */
-function handleParsed(data: any) {
-  let items: any[] = [];
+  function handleParsed(data: any) {
+    let items: any[] = [];
 
-  try {
-    if (data && (data.items || data.rows || data.inventory)) {
-      items = data.items || data.rows || data.inventory;
-    } else if (Array.isArray(data)) {
-      items = data;
-    } else if (data && data.assets && data.descriptions) {
-      const parsed = parseSteamInventory(data);
-      items = parsed.items || [];
+    try {
+      if (data && (data.items || data.rows || data.inventory)) {
+        items = data.items || data.rows || data.inventory;
+      } else if (Array.isArray(data)) {
+        items = data;
+      } else if (data && data.assets && data.descriptions) {
+        const parsed = parseSteamInventory(data);
+        items = parsed.items || [];
+      }
+    } catch (err) {
+      console.error("Steam JSON parse failed", err);
+      items = [];
     }
-  } catch (err) {
-    console.error("Steam JSON parse failed", err);
-    items = [];
+
+    // Guard: nothing to add
+    if (!Array.isArray(items) || items.length === 0) return;
+
+    // Optional: strip obviously bad entries
+    const clean = items.filter(Boolean);
+
+    const mapped = mapUploadedToRows(clean, spMap);
+    if (mapped.length === 0) return;
+
+    setRows((prev) =>
+      mergeRows([...prev.filter((r) => r.source === "manual"), ...mapped])
+    );
+
+    try {
+      localStorage.setItem("cs2_items", JSON.stringify(clean));
+    } catch {}
   }
-
-  // Guard: nothing to add
-  if (!Array.isArray(items) || items.length === 0) return;
-
-  // Optional: strip obviously bad entries
-  const clean = items.filter(Boolean);
-
-  const mapped = mapUploadedToRows(clean, spMap);
-  if (mapped.length === 0) return;
-
-  setRows((prev) =>
-    mergeRows([
-      ...prev.filter((r) => r.source === "manual"),
-      ...mapped,
-    ])
-  );
-
-  try {
-    localStorage.setItem("cs2_items", JSON.stringify(clean));
-  } catch {}
-}
-// #endregion [HANDLERS] Import handling
+  // #endregion [HANDLERS] Import handling
 
   // #region [RENDER]
-        {/* Top row: Left Manual Add / Right Stats */}
+  return (
+    <div className="mx-auto max-w-6xl p-6 space-y-6">
+      {/* Top row: Left Manual Add / Right Stats */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* Manual add (panel) */}
         <div className="flex h-full flex-col rounded-2xl border border-border bg-surface/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
@@ -1084,7 +1122,16 @@ function handleParsed(data: any) {
                   }}
                   list="item-suggestions"
                 />
-                <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m21 21-4.35-4.35"></path><circle cx="11" cy="11" r="7"></circle></svg>
+                <svg
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="m21 21-4.35-4.35"></path>
+                  <circle cx="11" cy="11" r="7"></circle>
+                </svg>
               </div>
               <datalist id="item-suggestions">
                 {autoNames.map((n) => (
@@ -1095,12 +1142,16 @@ function handleParsed(data: any) {
 
             <div className="md:col-span-3">
               <label className="mb-1 block text-[11px] tracking-wide text-muted">
-                Wear {isNonWearCategory(stripNone(mName || "")) && <span className="text-muted">(n/a)</span>}
+                Wear {isNonWearCategory(stripNone(mName || "")) && (
+                  <span className="text-muted">(n/a)</span>
+                )}
               </label>
               <select
-                className={`h-12 w-full appearance-none rounded-xl border border-border bg-surface2 px-3 text-sm outline-none focus:border-accent/60 focus:ring-2 focus:ring-accent/30 transition ${isNonWearCategory(stripNone(mName || "")) ? "opacity-50" : ""}`}
+                className={`h-12 w-full appearance-none rounded-xl border border-border bg-surface2 px-3 text-sm outline-none focus:border-accent/60 focus:ring-2 focus:ring-accent/30 transition ${
+                  isNonWearCategory(stripNone(mName || "")) ? "opacity-50" : ""
+                }`}
                 value={mWear}
-                onChange={(e) => setMWear(e.target.value as any)}
+                onChange={(e) => setMWear(e.target.value as WearCode)}
                 disabled={isNonWearCategory(stripNone(mName || ""))}
               >
                 {WEAR_OPTIONS.map((w) => (
@@ -1112,7 +1163,9 @@ function handleParsed(data: any) {
             </div>
 
             <div className="md:col-span-2">
-              <label className="mb-1 block text-[11px] tracking-wide text-muted">Float (note)</label>
+              <label className="mb-1 block text-[11px] tracking-wide text-muted">
+                Float (note)
+              </label>
               <input
                 className="h-12 w-full rounded-xl border border-border bg-surface2 px-3 text-sm placeholder:text-muted outline-none focus:border-accent/60 focus:ring-2 focus:ring-accent/30 transition"
                 placeholder="0.1234"
@@ -1122,7 +1175,9 @@ function handleParsed(data: any) {
             </div>
 
             <div className="md:col-span-2">
-              <label className="mb-1 block text-[11px] tracking-wide text-muted">Pattern (note)</label>
+              <label className="mb-1 block text-[11px] tracking-wide text-muted">
+                Pattern (note)
+              </label>
               <input
                 className="h-12 w-full rounded-xl border border-border bg-surface2 px-3 text-sm placeholder:text-muted outline-none focus:border-accent/60 focus:ring-2 focus:ring-accent/30 transition"
                 placeholder="123"
@@ -1134,7 +1189,9 @@ function handleParsed(data: any) {
             <div className="md:col-span-12">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="w-44">
-                  <label className="mb-1 block text-[11px] tracking-wide text-muted">Quantity</label>
+                  <label className="mb-1 block text-[11px] tracking-wide text-muted">
+                    Quantity
+                  </label>
                   <div className="flex h-12 items-stretch overflow-hidden rounded-xl border border-border bg-surface2">
                     <button
                       type="button"
@@ -1164,7 +1221,15 @@ function handleParsed(data: any) {
                   className="btn-accent h-12 flex-1 disabled:opacity-60"
                 >
                   <span className="inline-flex w-full items-center justify-center gap-2 font-medium">
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" /></svg>
+                    <svg
+                      className="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
                     Add
                   </span>
                 </button>
@@ -1211,7 +1276,11 @@ function handleParsed(data: any) {
 
             <div className="rounded-xl border border-border bg-surface2/60 p-3">
               <div className="text-xs uppercase tracking-wide text-muted">Steam − Skinport</div>
-              <div className={`mt-1 text-2xl font-semibold ${totals.totalSteam - totals.totalSkinport >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+              <div
+                className={`mt-1 text-2xl font-semibold ${
+                  totals.totalSteam - totals.totalSkinport >= 0 ? "text-emerald-400" : "text-red-400"
+                }`}
+              >
                 A${(totals.totalSteam - totals.totalSkinport).toFixed(2)}
               </div>
             </div>
@@ -1220,7 +1289,8 @@ function handleParsed(data: any) {
               <div className="text-xs uppercase tracking-wide text-muted">Skinport total</div>
               <div className="mt-1 text-xl font-medium">A${totals.totalSkinport.toFixed(2)}</div>
               <div className="mt-1 text-xs text-muted">
-                {rows.filter((r) => typeof r.skinportAUD === "number").length}/{rows.length} priced • {formatTime(skinportUpdatedAt)}
+                {rows.filter((r) => typeof r.skinportAUD === "number").length}/{rows.length} priced •{" "}
+                {formatTime(skinportUpdatedAt)}
               </div>
             </div>
 
@@ -1228,93 +1298,14 @@ function handleParsed(data: any) {
               <div className="text-xs uppercase tracking-wide text-muted">Steam total</div>
               <div className="mt-1 text-xl font-medium">A${totals.totalSteam.toFixed(2)}</div>
               <div className="mt-1 text-xs text-muted">
-                {rows.filter((r) => typeof r.steamAUD === "number").length}/{rows.length} priced • {formatTime(steamUpdatedAt)}
+                {rows.filter((r) => typeof r.steamAUD === "number").length}/{rows.length} priced •{" "}
+                {formatTime(steamUpdatedAt)}
               </div>
             </div>
           </div>
         </div>
       </div>
 
-        {/* Stats panel */}
-       function StatsPanel({
-  totals,
-  steamUpdatedAt,
-  skinportUpdatedAt,
-}: {
-  totals: { totalItems: number; totalSkinport: number; totalSteam: number };
-  steamUpdatedAt: number | null;
-  skinportUpdatedAt: number | null;
-}) {
-  return (
-  {/* Top row: Left Manual Add / Right Stats */}
-<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-  {/* Manual add (panel) */}
-  <div className="flex h-full flex-col rounded-2xl border border-border bg-surface/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
-    {/* …manual panel inputs… */}
-  </div>
-
-  {/* Stats panel (inline, NOT a function) */}
-  <div className="relative rounded-2xl border border-border bg-surface/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
-    <div className="mb-3 flex items-center justify-between">
-      <h3 className="text-base font-semibold">Stats</h3>
-      <button
-        type="button"
-        title="Refresh prices now (Skinport & Steam)"
-        onClick={handleManualRefresh}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface2 hover:bg-surface focus:outline-none focus:ring-2 focus:ring-accent/30"
-        aria-label="Refresh prices"
-      >
-        <svg
-          className={["h-4 w-4", refreshing ? "animate-spin" : ""].join(" ")}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M21 12a9 9 0 1 1-3-6.7" />
-          <path d="M21 3v6h-6" />
-        </svg>
-      </button>
-    </div>
-
-    <div className="grid grid-cols-2 gap-3">
-      <div className="rounded-xl border border-border bg-surface2/60 p-3">
-        <div className="text-xs uppercase tracking-wide text-muted">Total items</div>
-        <div className="mt-1 text-2xl font-semibold">{totals.totalItems}</div>
-      </div>
-
-      <div className="rounded-xl border border-border bg-surface2/60 p-3">
-        <div className="text-xs uppercase tracking-wide text-muted">Steam − Skinport</div>
-        <div className={`mt-1 text-2xl font-semibold ${totals.totalSteam - totals.totalSkinport >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-          A${(totals.totalSteam - totals.totalSkinport).toFixed(2)}
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-border bg-surface2/60 p-3">
-        <div className="text-xs uppercase tracking-wide text-muted">Skinport total</div>
-        <div className="mt-1 text-xl font-medium">A${totals.totalSkinport.toFixed(2)}</div>
-        <div className="mt-1 text-xs text-muted">
-          {rows.filter((r) => typeof r.skinportAUD === "number").length}/{rows.length} priced • {formatTime(skinportUpdatedAt)}
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-border bg-surface2/60 p-3">
-        <div className="text-xs uppercase tracking-wide text-muted">Steam total</div>
-        <div className="mt-1 text-xl font-medium">A${totals.totalSteam.toFixed(2)}</div>
-        <div className="mt-1 text-xs text-muted">
-          {rows.filter((r) => typeof r.steamAUD === "number").length}/{rows.length} priced • {formatTime(steamUpdatedAt)}
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-  );
-}
-         
-         
       {/* Sort toolbar */}
       <div className="mt-4 mb-2 flex flex-wrap items-center gap-2 text-sm">
         <span className="mr-1 text-muted">Sort:</span>
@@ -1375,7 +1366,9 @@ function handleParsed(data: any) {
                             {r.nameNoWear}
                           </div>
                           <div className="mt-1 flex flex-wrap gap-1">
-                            {wearLabelForRow(r.wear as WearCode) && <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>}
+                            {wearLabelForRow(r.wear as WearCode) && (
+                              <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>
+                            )}
                             {r.pattern && <Pill>Pattern: {r.pattern}</Pill>}
                             {r.float && <Pill>Float: {r.float}</Pill>}
                           </div>
@@ -1389,10 +1382,15 @@ function handleParsed(data: any) {
                     {/* SKINPORT */}
                     <td className="px-4 py-2">
                       <div className="text-right leading-tight">
-                        <div>{typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}</div>
+                        <div>
+                          {typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}
+                        </div>
                         {typeof r.skinportAUD === "number" && (r.quantity ?? 1) > 1 && (
                           <div className="mt-0.5 text-[11px] text-muted">
-                            ×{r.quantity ?? 1} = <span className="tabular-nums">A${(r.skinportAUD * (r.quantity ?? 1)).toFixed(2)}</span>
+                            ×{r.quantity ?? 1} ={" "}
+                            <span className="tabular-nums">
+                              A${(r.skinportAUD * (r.quantity ?? 1)).toFixed(2)}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -1404,7 +1402,10 @@ function handleParsed(data: any) {
                         <div>{typeof r.steamAUD === "number" ? `A$${r.steamAUD.toFixed(2)}` : "—"}</div>
                         {typeof r.steamAUD === "number" && (r.quantity ?? 1) > 1 && (
                           <div className="mt-0.5 text-[11px] text-muted">
-                            ×{r.quantity ?? 1} = <span className="tabular-nums">A${(r.steamAUD * (r.quantity ?? 1)).toFixed(2)}</span>
+                            ×{r.quantity ?? 1} ={" "}
+                            <span className="tabular-nums">
+                              A${(r.steamAUD * (r.quantity ?? 1)).toFixed(2)}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -1421,7 +1422,13 @@ function handleParsed(data: any) {
                             setEditOpen(true);
                           }}
                         >
-                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
                             <path d="M12 20h9" />
                             <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
                           </svg>
@@ -1432,7 +1439,13 @@ function handleParsed(data: any) {
                           title="Delete"
                           onClick={() => removeRow(orig)}
                         >
-                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
                             <path d="M3 6h18" />
                             <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
                             <path d="M10 11v6M14 11v6" />
@@ -1480,11 +1493,19 @@ function handleParsed(data: any) {
           "fixed bottom-6 right-6 z-50 rounded-full bg-surface/90 shadow-lg shadow-black/40",
           "backdrop-blur px-4 h-12 inline-flex items-center gap-2 text-text",
           "border border-border hover:bg-surface2 transition-all duration-200",
-          showBackToTop ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-3 pointer-events-none",
+          showBackToTop
+            ? "opacity-100 translate-y-0 pointer-events-auto"
+            : "opacity-0 translate-y-3 pointer-events-none",
         ].join(" ")}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="-mt-[1px]">
-          <path d="M6 14l6-6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M6 14l6-6 6 6"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
         <span className="text-sm">Top</span>
       </button>
@@ -1493,4 +1514,3 @@ function handleParsed(data: any) {
   // #endregion [RENDER]
 }
 // #endregion [COMPONENT]
-
