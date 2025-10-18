@@ -1,78 +1,138 @@
-"use client";
+// src/app/page.tsx
+import Image from "next/image";
+import Link from "next/link";
+import GetStartedButton from "@/components/GetStartedButton";
 
-import { useState } from "react";
-import AuthModal from "@/components/auth-modal";
-import Faq from "@/components/Faq";
+export const dynamic = "force-dynamic";
 
 export default function HomePage() {
-  const [showModal, setShowModal] = useState(false);
-
   return (
-    <main className="min-h-[calc(100vh-64px)] text-text bg-[radial-gradient(60%_80%_at_50%_-10%,rgba(216,255,53,0.06)_0%,transparent_60%),linear-gradient(#0a0a0a,#0a0a0a)]">
+    <div className="relative">
       {/* Hero */}
-      <section className="mx-auto max-w-5xl px-6 pt-20 pb-10 text-center">
-        <div className="inline-flex items-center gap-2 rounded-full bg-surface/70 px-3 py-1 text-xs text-muted ring-1 ring-border">
-          <span className="inline-block h-2 w-2 rounded-full bg-accent" />
-          ALPHA
-        </div>
+      <section className="border-b border-border bg-gradient-to-b from-transparent to-black/10">
+        <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
+          <div className="grid items-center gap-10 md:grid-cols-2">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[11px] tracking-wide text-accent">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
+                CS2 inventory, simplified
+              </div>
 
-        <h1 className="mt-6 text-4xl font-extrabold leading-tight sm:text-5xl">
-          Track and value your
-          <br />
-          <span className="bg-gradient-to-r from-accent to-white/90 bg-clip-text text-transparent">
-            CS2 item portfolio
-          </span>
-        </h1>
+              <h1 className="mt-4 text-3xl font-extrabold leading-tight text-text md:text-5xl">
+                Track, value, and manage your{" "}
+                <span className="text-accent drop-shadow-[0_0_10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]">
+                  CS2 items
+                </span>{" "}
+                in one place
+              </h1>
 
-        <p className="mx-auto mt-4 max-w-2xl text-balance text-muted">
-          Add items manually or import from Steam. See live Skinport/Steam prices and watch
-          your portfolio value update in real-time.
-        </p>
+              <p className="mt-4 max-w-prose text-muted md:text-lg">
+                Import from Steam, add items manually, and see live price
+                snapshots from Skinport &amp; Steam. Works with an account or as
+                a guest—your data stays with you.
+              </p>
 
-        <div className="mt-8 flex items-center justify-center gap-3">
-          <button
-            onClick={() => setShowModal(true)}
-            type="button"
-            className="btn-accent"
-          >
-            Get started
-          </button>
-        </div>
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                <GetStartedButton />
+                <Link
+                  href="/dashboard"
+                  className="h-12 rounded-xl border border-border px-5 text-sm text-text hover:bg-surface/60"
+                >
+                  View Demo Dashboard
+                </Link>
+              </div>
 
-        {/* Mock preview frame */}
-        <div className="mx-auto mt-12 w-full max-w-5xl rounded-2xl border border-border bg-surface p-2 shadow-neon">
-          <div className="h-72 w-full rounded-xl bg-[linear-gradient(180deg,#0f1014,#0a0a0a)] ring-1 ring-border" />
+              <p className="mt-3 text-xs text-muted">
+                No email verification required. You can{" "}
+                <span className="text-text">continue as guest</span> and upgrade
+                later—your items will sync to your new account.
+              </p>
+            </div>
+
+            <div className="relative hidden md:block">
+              <div className="pointer-events-none absolute -inset-8 -z-10 rounded-[28px] blur-2xl [background:radial-gradient(600px_200px_at_60%_50%,theme(colors.accent.DEFAULT)/15%,transparent)]" />
+              <div className="rounded-2xl border border-border bg-surface/60 p-4 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
+                <Image
+                  src="/hero-shot.png"
+                  alt="CS2 Tracker dashboard preview"
+                  width={980}
+                  height={620}
+                  className="rounded-xl border border-border"
+                  priority
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Features */}
-      <section className="mx-auto grid max-w-5xl grid-cols-1 gap-4 px-6 pb-20 sm:grid-cols-3">
-        <div className="card p-5 text-center shadow-neon">
-          <h3 className="mb-2 font-semibold text-accent">Real-time pricing</h3>
-          <p className="text-sm text-muted">
-            Live prices (Steam / Skinport) with sensible caching. If no current price exists, last
-            sold is used until updated.
-          </p>
-        </div>
-
-        <div className="card p-5 text-center shadow-neon">
-          <h3 className="mb-2 font-semibold text-accent">Portfolio analytics</h3>
-          <p className="text-sm text-muted">
-            Total value, P/L, and % change over 1h / 24h / 30d. Filter by exterior, rarity, and more.
-          </p>
-        </div>
-
-        <div className="card p-5 text-center shadow-neon">
-          <h3 className="mb-2 font-semibold text-accent">Manual storage items</h3>
-          <p className="text-sm text-muted">
-            Add items not in your visible inventory (storage units). Save them to your account or browser.
-          </p>
+      <section className="mx-auto max-w-6xl px-6 py-14">
+        <h2 className="text-2xl font-semibold">Why CS2 Tracker?</h2>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Feature
+            title="Guest or Account"
+            body="Start as a guest with local-only storage. Create an account anytime—your existing dashboard is synced to the cloud automatically."
+          />
+          <Feature
+            title="Smart pricing"
+            body="Skinport and Steam prices with sanity checks. Totals update automatically with quantity and live refresh."
+          />
+          <Feature
+            title="Manual + Import"
+            body="Paste Steam JSON or use the import wizard. Add items manually with wear, float, and pattern notes."
+          />
+          <Feature
+            title="Fast search"
+            body="Autocomplete shows base item names only (no wear spam). Pick a wear separately for clean entries."
+          />
+          <Feature
+            title="Every device"
+            body="With an account, your dashboard follows you to any device. As a guest, your data is saved locally."
+          />
+          <Feature
+            title="Privacy-first"
+            body="No email verification required to start. Password resets by email only when you need them."
+          />
         </div>
       </section>
-<div className="mt-16 md:mt-24" />
-<Faq />
-<div className="mt-16" />
-      {showModal && <AuthModal onClose={() => setShowModal(false)} />}
-    </main>
+
+      {/* CTA strip */}
+      <section className="border-t border-border bg-surface/40">
+        <div className="mx-auto max-w-6xl px-6 py-10">
+          <div className="flex flex-col items-center justify-between gap-4 rounded-2xl border border-border bg-surface/60 p-6 md:flex-row">
+            <div>
+              <h3 className="text-lg font-semibold">Ready to build your list?</h3>
+              <p className="text-sm text-muted">
+                Import from Steam or add items manually—takes seconds.
+              </p>
+            </div>
+            <GetStartedButton>Get Started — it’s free</GetStartedButton>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }
+
+function Feature({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-surface/60 p-4">
+      <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
+        {/* tiny bolt icon */}
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          aria-hidden
+        >
+          <path d="M13 2L3 14h7l-1 8 11-14h-7l0-6z" />
+        </svg>
+      </div>
+      <h3 className="font-medium">{title}</h3>
+      <p className="mt-1 text-sm text-muted">{body}</p>
+    </div>
+  );
+}
+
