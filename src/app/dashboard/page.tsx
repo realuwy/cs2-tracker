@@ -928,25 +928,54 @@ export default function DashboardPage() {
   // #endregion
 
  // #region [DERIVED] 
-const autoNames = useMemo(() => {
-  const bases = new Set<string>();
+const [sorted, totals] = useMemo(() => {
+  const copy = [...rows];
+  const dir: 1 | -1 = sort.dir === "asc" ? 1 : -1;
 
-  Object.keys(spMap).forEach((k) => {
-    const { nameNoWear } = parseNameForWear(stripNone(k));
-    bases.add(nameNoWear);
-  });
-
-  rows.forEach((r) => {
-    if (r.nameNoWear) bases.add(r.nameNoWear);
-    else if (r.market_hash_name) {
-      const { nameNoWear } = parseNameForWear(stripNone(r.market_hash_name));
-      bases.add(nameNoWear);
+  copy.sort((a, b) => {
+    let c = 0;
+    switch (sort.key) {
+      case "item": c = cmpStr(a.nameNoWear, b.nameNoWear, dir); break;
+      case "wear": c = cmpWear(a.wear as string, b.wear as string, dir); break;
+      case "pattern": c = cmpNum(a.pattern, b.pattern, dir); break;
+      case "float": c = cmpNum(a.float, b.float, dir); break;
+      case "qty": c = cmpNum(a.quantity, b.quantity, dir); break;
+      case "skinport": c = cmpNum(a.skinportAUD, b.skinportAUD, dir); break;
+      case "steam": c = cmpNum(a.steamAUD, b.steamAUD, dir); break;
     }
+    if (c === 0) c = cmpStr(a.nameNoWear, b.nameNoWear, 1);
+    return c;
   });
 
-  return Array.from(bases).sort((a, b) => a.localeCompare(b));
-}, [spMap, rows]);
+  const totalItems = copy.reduce((acc, r) => acc + (r.quantity ?? 1), 0);
+  const totalSkinport = copy.reduce(
+    (s, r) => s + (r.skinportAUD ?? 0) * (r.quantity ?? 1),
+    0
+  );
+  const totalSteam = copy.reduce(
+    (s, r) => s + (r.steamAUD ?? 0) * (r.quantity ?? 1),
+    0
+  );
 
+  return [copy, { totalItems, totalSkinport, totalSteam }] as const;
+}, [rows, sort]);
+
+const origIndexMap = useMemo(() => {
+  const m = new Map<Row, number>();
+  rows.forEach((r, i) => m.set(r, i));
+  return m;
+}, [rows]);
+
+const autoNames = useMemo(() => {
+  const set = new Set<string>();
+  Object.keys(spMap).forEach((k) => set.add(k));
+  rows.forEach((r) => {
+    if (r.market_hash_name) set.add(r.market_hash_name);
+    if (r.nameNoWear) set.add(r.nameNoWear);
+  });
+
+  return Array.from(set).sort((a, b) => a.localeCompare(b));
+}, [spMap, rows]);
 // #endregion
 
 
@@ -1146,8 +1175,18 @@ const autoNames = useMemo(() => {
         </div>
 
         {/* Stats panel */}
-        <div className="relative rounded-2xl border border-border bg-surface/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
-          <div className="mb-3 flex items-center justify-between">
+       function StatsPanel({
+  totals,
+  steamUpdatedAt,
+  skinportUpdatedAt,
+}: {
+  totals: { totalItems: number; totalSkinport: number; totalSteam: number };
+  steamUpdatedAt: number | null;
+  skinportUpdatedAt: number | null;
+}) {
+  return (
+    <div className="relative rounded-2xl border border-border bg-surface/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
+      div className="mb-3 flex items-center justify-between">
             <h3 className="text-base font-semibold">Stats</h3>
             <button
               type="button"
@@ -1195,6 +1234,11 @@ const autoNames = useMemo(() => {
         </div>
       </div>
 
+    </div>
+  );
+}
+         
+         
       {/* Sort toolbar */}
       <div className="mt-4 mb-2 flex flex-wrap items-center gap-2 text-sm">
         <span className="mr-1 text-muted">Sort:</span>
