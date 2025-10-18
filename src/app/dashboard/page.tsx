@@ -366,11 +366,11 @@ function EditRowDialog({
               className="w-full rounded-lg border border-border bg-surface2 px-3 py-2"
               value={name}
             
-               onChange={(e) => {
+ onChange={(e) => {
   const v = e.target.value;
   const parsed = parseNameForWear(v);
-  setName(parsed.nameNoWear);        
-  if (parsed.wear) setMWear(parsed.wear);
+  setMName(parsed.nameNoWear);          
+  if (parsed.wear) setMWear(parsed.wear); 
 }}
 
               list="item-suggestions"
