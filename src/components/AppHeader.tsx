@@ -1,72 +1,67 @@
 "use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import SignOutButton from "@/components/SignOutButton";
 import { getSupabaseClient } from "@/lib/supabase";
-import { useEffect, useState } from "react";
 
-function Header() {
+type User = { name?: string | null; email?: string | null } | null;
+
+function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="text-text/80 hover:text-text transition-colors"
+    >
+      {children}
+    </Link>
+  );
+}
+
+export default function AppHeader({ user = null }: { user?: User }) {
   const supabase = getSupabaseClient();
   const [authed, setAuthed] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setAuthed(data.session?.user?.id ?? null));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, sess) => setAuthed(sess?.user?.id ?? null));
-    return () => sub.subscription.unsubscribe();
+    let unsub: (() => void) | undefined;
+
+    const init = async () => {
+      const { data } = await supabase.auth.getSession();
+      setAuthed(data.session?.user?.id ?? null);
+      const { data: sub } = supabase.auth.onAuthStateChange((_e, sess) => {
+        setAuthed(sess?.user?.id ?? null);
+      });
+      unsub = () => sub.subscription.unsubscribe();
+    };
+
+    init();
+    return () => unsub?.();
   }, [supabase]);
 
-  return (
-    <header className="flex items-center justify-between px-4 py-3">
-      <a href="/" className="font-semibold">CS2 Tracker</a>
-      <nav className="flex items-center gap-3">
-        {authed ? (
-          <>
-            <a href="/dashboard" className="text-sm underline">Dashboard</a>
-            <SignOutButton />
-          </>
-        ) : (
-          <>
-            <a href="/login" className="rounded-lg border border-border bg-surface2 px-3 py-2 hover:bg-surface">
-              Sign In
-            </a>
-            <a href="/login" className="btn-accent px-3 py-2">Sign Up</a>
-          </>
-        )}
-      </nav>
-    </header>
-  );
-}
-
-export default Header;
-
-type User = { name?: string | null; email?: string | null } | null;
-
-export default function AppHeader({ user = null }: { user?: User }) {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
         {/* Left: brand */}
         <Link
-  href="/"
-  aria-label="CS2 Tracker home"
-  className="group inline-flex items-center gap-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
->
-  {/* PNG logo @24px (44x44 source) */}
-  <Image
-    src="/logo-arrow.png"
-    alt=""
-    width={24}
-    height={24}
-    priority
-    className="inline-block select-none drop-shadow-[0_0_10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]"
-  />
-
-  <span className="inline-flex items-center gap-2">
-    <span className="text-sm font-semibold tracking-wide text-text">CS2 Tracker</span>
-    <span className="rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent">alpha</span>
-  </span>
-</Link>
+          href="/"
+          aria-label="CS2 Tracker home"
+          className="group inline-flex items-center gap-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+        >
+          {/* PNG logo @24px (44x44 source) */}
+          <Image
+            src="/logo-arrow.png"
+            alt=""
+            width={24}
+            height={24}
+            priority
+            className="inline-block select-none drop-shadow-[0_0_10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]"
+          />
+          <span className="inline-flex items-center gap-2">
+            <span className="text-sm font-semibold tracking-wide text-text">CS2 Tracker</span>
+            <span className="rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent">alpha</span>
+          </span>
+        </Link>
 
         {/* Center: primary nav */}
         <nav className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 md:block">
@@ -78,152 +73,33 @@ export default function AppHeader({ user = null }: { user?: User }) {
           </ul>
         </nav>
 
-        {/* Right: user menu (2x2 dots) */}
-        <DotsUserMenu user={user} />
+        {/* Right: auth actions */}
+        <div className="flex items-center gap-2">
+          {authed ? (
+            <>
+              <Link
+                href="/dashboard"
+                className="rounded-lg border border-border bg-surface2 px-3 py-2 text-sm hover:bg-surface"
+              >
+                Dashboard
+              </Link>
+              <SignOutButton />
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="rounded-lg border border-border bg-surface2 px-3 py-2 text-sm hover:bg-surface"
+              >
+                Sign In
+              </Link>
+              <Link href="/login" className="btn-accent px-3 py-2 text-sm">
+                Sign Up
+              </Link>
+            </>
+          )}
+        </div>
       </div>
     </header>
-  );
-}
-
-function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <Link
-      href={href}
-      className="rounded px-1 py-0.5 text-text/80 hover:text-text hover:underline hover:decoration-accent/30 hover:underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
-    >
-      {children}
-    </Link>
-  );
-}
-
-function DotsUserMenu({ user }: { user: User }) {
-  const [open, setOpen] = useState(false);
-  const btnRef = useRef<HTMLButtonElement | null>(null);
-  const popRef = useRef<HTMLDivElement | null>(null);
-
-  // Close on outside click / Esc
-  useEffect(() => {
-    if (!open) return;
-    const onClick = (e: MouseEvent) => {
-      if (!popRef.current || !btnRef.current) return;
-      const t = e.target as Node;
-      if (!popRef.current.contains(t) && !btnRef.current.contains(t)) setOpen(false);
-    };
-    const onEsc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    window.addEventListener("click", onClick);
-    window.addEventListener("keydown", onEsc);
-    return () => {
-      window.removeEventListener("click", onClick);
-      window.removeEventListener("keydown", onEsc);
-    };
-  }, [open]);
-
-  return (
-    <div className="relative">
-      <button
-        ref={btnRef}
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen(v => !v)}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface shadow-card hover:bg-surface2 hover:ring-1 hover:ring-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
-      >
-        <DotsIcon />
-        <span className="sr-only">Open user menu</span>
-      </button>
-
-      {open && (
-        <div
-          ref={popRef}
-          role="menu"
-          aria-label="User menu"
-          className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border border-border bg-surface shadow-card"
-        >
-          <div className="border-b border-border px-3 py-2">
-            <p className="truncate text-xs text-muted">{user?.email ?? "Guest"}</p>
-          </div>
-
-          <div className="p-1">
-            {/* Mobile primary routes */}
-<div className="md:hidden">
-  <MenuItem href="/" label="Home" />
-  <MenuItem href="/dashboard" label="Dashboard" />
-  <div className="my-1 border-t border-border" />
-</div>
-
-            {user ? (
-              <>
-                <MenuItem href="/profile" label="Profile" />
-                <MenuItem href="/settings" label="Settings" />
-                <MenuButton
-                  label="Sign out"
-                  onClick={() => {
-                    window.dispatchEvent(new CustomEvent("cs2:close-auth"));
-                    setOpen(false);
-                  }}
-                />
-              </>
-            ) : (
-              <>
-                <MenuButton
-                  label="Sign up"
-                  onClick={() => {
-                    window.dispatchEvent(new CustomEvent("cs2:open-auth", { detail: { mode: "signup" } }));
-                    setOpen(false);
-                  }}
-                />
-                <MenuButton
-                  label="Log in"
-                  onClick={() => {
-                    window.dispatchEvent(new CustomEvent("cs2:open-auth", { detail: { mode: "login" } }));
-                    setOpen(false);
-                  }}
-                />
-              </>
-            )}
-            <div className="my-1 border-t border-border" />
-            <MenuItem href="/about" label="About" />
-            <MenuItem href="/privacy" label="Privacy" />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MenuItem({ href, label }: { href: string; label: string }) {
-  return (
-    <Link
-      href={href}
-      role="menuitem"
-      className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm text-text/90 hover:bg-surface2 hover:ring-1 hover:ring-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
-    >
-      {label}
-      <span className="text-xs text-muted">↗</span>
-    </Link>
-  );
-}
-
-function MenuButton({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      onClick={onClick}
-      className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-text/90 hover:bg-surface2 hover:ring-1 hover:ring-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
-    >
-      {label}
-    </button>
-  );
-}
-
-function DotsIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" className="text-text">
-      <circle cx="8" cy="8" r="1.5" fill="currentColor" />
-      <circle cx="16" cy="8" r="1.5" fill="currentColor" />
-      <circle cx="8" cy="16" r="1.5" fill="currentColor" />
-      <circle cx="16" cy="16" r="1.5" fill="currentColor" />
-    </svg>
   );
 }
