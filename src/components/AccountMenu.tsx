@@ -1,104 +1,113 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { getSupabaseClient } from "@/lib/supabase";
 
-type UserLite = { name?: string | null; email?: string | null; avatarUrl?: string | null } | null;
-
-export default function AccountMenu({
-  user,
-  onOpenAuth,
-  onClearLocal,
+function MenuItem({
+  children,
+  onClick,
+  href,
 }: {
-  user: UserLite;
-  onOpenAuth: () => void;
-  onClearLocal: () => void | Promise<void>;
+  children: React.ReactNode;
+  onClick?: () => void;
+  href?: string;
 }) {
-  const [open, setOpen] = useState(false);
+  const base =
+    "w-full px-3 py-2 text-left text-sm rounded-md hover:bg-surface2/70 transition";
+  if (href) {
+    return (
+      <Link href={href} className={base} onClick={onClick}>
+        {children}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" className={base} onClick={onClick}>
+      {children}
+    </button>
+  );
+}
+
+export default function AccountMenu({ authed }: { authed: boolean }) {
+  const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
+  const router = useRouter();
 
-  // Close on outside click
+  // Close on outside click / Esc
   useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (!ref.current) return;
-      if (!ref.current.contains(e.target as Node)) setOpen(false);
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
     };
-    window.addEventListener("click", onClick);
-    return () => window.removeEventListener("click", onClick);
-  }, []);
-
-  // Close on Escape
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setIsOpen(false);
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
   }, []);
-
-  const initial =
-    (user?.name?.trim() || user?.email?.trim() || "A").slice(0, 1).toUpperCase();
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative hidden md:block" ref={ref}>
       <button
-        onClick={() => setOpen((v) => !v)}
         type="button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className="inline-flex items-center gap-2 rounded-lg border border-slate-800/60 bg-[#0b0b0f]/60 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800/60 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+        aria-label="Account menu"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen(v => !v)}
+        className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-sm text-text hover:bg-surface2 focus:outline-none focus:ring-2 focus:ring-accent/30"
       >
-        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-violet-600 text-[13px] font-semibold text-white">
-          {initial}
-        </span>
-        <span className="hidden sm:inline">{user ? "Account" : "Account"}</span>
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          className={`transition ${open ? "rotate-180" : ""}`}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          aria-hidden="true"
-        >
-          <path d="M6 9l6 6 6-6" />
+        Account
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden>
+          <path d="M7 10l5 5 5-5H7z" />
         </svg>
       </button>
 
-      {open && (
+      {isOpen && (
         <div
           role="menu"
-          className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border border-slate-800/60 bg-[#0b0b0f]/95 shadow-2xl backdrop-blur"
+          className="absolute right-0 mt-2 w-64 rounded-xl border border-border bg-surface/95 p-2 shadow-lg backdrop-blur"
         >
-          {user ? (
+          {/* Show different sets depending on auth */}
+          {authed ? (
             <>
-              <div className="px-3 py-2 text-xs text-slate-400">
-                {user.name || user.email}
-              </div>
-              <div className="h-px bg-slate-800/60" />
-              <button
-                role="menuitem"
-                onClick={() => {
-                  setOpen(false);
-                  void onClearLocal();
+              <div className="px-2 pb-1 text-[11px] uppercase tracking-wide text-muted">Account</div>
+              <MenuItem href="/dashboard" onClick={() => setIsOpen(false)}>
+                Dashboard
+              </MenuItem>
+              <MenuItem
+                onClick={async () => {
+                  setIsOpen(false);
+                  const supabase = getSupabaseClient();
+                  await supabase.auth.signOut();
+                  router.push("/login");
+                  router.refresh();
                 }}
-                className="block w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800/60"
               >
-                Sign out
-              </button>
+                Sign Out
+              </MenuItem>
             </>
           ) : (
             <>
-              <button
-                role="menuitem"
+              <div className="px-2 pb-1 text-[11px] uppercase tracking-wide text-muted">Get started</div>
+              <MenuItem href="/login" onClick={() => setIsOpen(false)}>
+                Sign In
+              </MenuItem>
+              <MenuItem href="/login" onClick={() => setIsOpen(false)}>
+                Sign Up
+              </MenuItem>
+              <MenuItem
                 onClick={() => {
-                  setOpen(false);
-                  onOpenAuth();
+                  try {
+                    localStorage.setItem("cs2:guest", "1"); // guest mode flag
+                  } catch {}
+                  setIsOpen(false);
+                  router.push("/dashboard");
                 }}
-                className="block w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800/60"
               >
-                Sign in / Sign up
-              </button>
+                Continue as guest
+              </MenuItem>
             </>
           )}
         </div>
