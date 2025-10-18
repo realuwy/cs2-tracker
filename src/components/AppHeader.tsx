@@ -307,9 +307,10 @@ export default function AppHeader() {
             )}
           </div>
 
-          {/* 4-dot user menu (mobile shows all links inside; desktop keeps it for quick access) */}
-          <div className="relative" ref={menuRef}>
-            <DotsButton onClick={() => setMenuOpen((v) => !v)} aria-label="Open menu" />
+         {/* Dots menu – visible on mobile only */}
+<div className="relative md:hidden" ref={menuRef}>
+  <DotsButton onClick={() => setMenuOpen((v) => !v)} aria-label="Open menu" />
+
             {menuOpen && (
               <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-surface p-2 shadow-xl md:hidden">
                 <ul className="space-y-1 text-sm">
