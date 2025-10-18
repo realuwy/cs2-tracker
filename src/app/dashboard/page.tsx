@@ -1,6 +1,26 @@
 "use client";
 export const dynamic = "force-dynamic";
 
+/* =============================================================================
+   CS2 Tracker – Dashboard Page
+   -----------------------------------------------------------------------------
+   Quick Nav (search or fold by these):
+   [IMPORTS]
+   [CONSTANTS]
+   [HELPERS]
+   [TYPES]
+   [UI: Atoms]
+   [UI: Edit Dialog]
+   [UI: Mobile Row Card]
+   [COMPONENT]
+     ├─ [STATE]
+     ├─ [EFFECTS]
+     ├─ [DERIVED]
+     ├─ [HANDLERS]
+     └─ [RENDER]
+============================================================================= */
+
+// #region [IMPORTS]
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { InvItem } from "@/lib/api"; // keep InvItem for Row typing
 import { getSupabaseClient } from "@/lib/supabase";
@@ -8,7 +28,9 @@ import { fetchAccountRows, upsertAccountRows } from "@/lib/rows";
 import ImportWizard from "@/components/ImportWizard";
 import type { ParsedInventory } from "@/types/steam";
 import { parseSteamInventory } from "@/lib/steam-parse";
+// #endregion [IMPORTS]
 
+// #region [CONSTANTS]
 /* ----------------------------- constants ----------------------------- */
 
 const STORAGE_KEY = "cs2:dashboard:rows";
@@ -47,6 +69,10 @@ const FALLBACK_DATA_URL =
     `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><rect x="0" y="0" width="40" height="40" rx="6" ry="6" fill="#3f3f46"/></svg>`
   );
 
+const WEAR_TO_RANK: Record<string, number> = { FN: 0, MW: 1, FT: 2, WW: 3, BS: 4 };
+// #endregion [CONSTANTS]
+
+// #region [HELPERS]
 /* ----------------------------- helpers ----------------------------- */
 
 const stripNone = (s: string) => s.replace(NONE_SUFFIX_RE, "");
@@ -68,6 +94,7 @@ function isNonWearCategory(nameNoWear: string): boolean {
     s
   );
 }
+
 function Tooltip({
   label,
   children,
@@ -87,6 +114,7 @@ function Tooltip({
     </div>
   );
 }
+
 function rowKey(r: Row): string {
   const name = stripNone((r.market_hash_name || r.name || r.nameNoWear || "").trim());
   const wear = (r.wear || "").trim();
@@ -94,6 +122,7 @@ function rowKey(r: Row): string {
   const flt = (r.float ?? "").toString().trim();
   return [name, wear, pattern, flt].join("|").toLowerCase();
 }
+
 function mergeRows(rows: Row[]): Row[] {
   const map = new Map<string, Row>();
 
@@ -170,7 +199,6 @@ function mapUploadedToRows(items: any[], spMap: Record<string, number>): Row[] {
   });
 }
 
-const WEAR_TO_RANK: Record<string, number> = { FN: 0, MW: 1, FT: 2, WW: 3, BS: 4 };
 const wearRank = (code?: string) => (code ? WEAR_TO_RANK[code] ?? 99 : 99);
 
 const isMissingStr = (s?: string | null) => !s || s.trim() === "";
@@ -201,7 +229,8 @@ const cmpNum = (a: unknown, b: unknown, dir: 1 | -1) => {
 const cmpWear = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
   const ra = wearRank(a);
   const rb = wearRank(b);
-  const am = ra === 99, bm = rb === 99;
+  const am = ra === 99,
+    bm = rb === 99;
   if (am && bm) return 0;
   if (am) return 1;
   if (bm) return -1;
@@ -220,13 +249,16 @@ function sanitizeSteam(aud: number | undefined, skinport?: number): number | und
   if (aud === undefined || !isFinite(aud) || aud <= 0) return undefined;
   if (aud > 20000) return undefined;
   if (typeof skinport === "number" && skinport > 0) {
-    const lo = skinport * 0.5, hi = skinport * 3;
+    const lo = skinport * 0.5,
+      hi = skinport * 3;
     if (aud < lo || aud > hi) return undefined;
     if (skinport < 50 && aud > 100) return undefined;
   }
   return aud;
 }
+// #endregion [HELPERS]
 
+// #region [TYPES]
 /* ----------------------------- types ----------------------------- */
 
 type Row = Omit<InvItem, "pattern" | "float"> & {
@@ -250,7 +282,9 @@ function sortReducer(state: SortState, action: SortAction): SortState {
   }
   return { key: action.key, dir: "asc" };
 }
+// #endregion [TYPES]
 
+// #region [UI: Atoms]
 /* ----------------------------- UI atoms ----------------------------- */
 
 function Pill({ children }: { children: React.ReactNode }) {
@@ -260,7 +294,9 @@ function Pill({ children }: { children: React.ReactNode }) {
     </span>
   );
 }
+// #endregion [UI: Atoms]
 
+// #region [UI: Edit Dialog]
 /* ----------------------------- Edit dialog ----------------------------- */
 
 function EditRowDialog({
@@ -397,7 +433,9 @@ function EditRowDialog({
     </div>
   );
 }
+// #endregion [UI: Edit Dialog]
 
+// #region [UI: Mobile Row Card]
 /* ----------------------------- Mobile Row Card ----------------------------- */
 
 function RowCard({ r }: { r: Row }) {
@@ -472,10 +510,13 @@ function RowCard({ r }: { r: Row }) {
     </div>
   );
 }
+// #endregion [UI: Mobile Row Card]
 
+// #region [COMPONENT]
 /* ----------------------------- component ----------------------------- */
 
 export default function DashboardPage() {
+  // #region [STATE]
   const [rows, setRows] = useState<Row[]>([]);
   const [spMap, setSpMap] = useState<Record<string, number>>({});
   const [sort, dispatchSort] = useReducer(sortReducer, { key: "item", dir: "asc" });
@@ -501,6 +542,9 @@ export default function DashboardPage() {
 
   // --- auth state (for per-user sync) ---
   const [authed, setAuthed] = useState<string | null>(null);
+  // #endregion [STATE]
+
+  // #region [EFFECTS] Auth session
   useEffect(() => {
     let unsub: (() => void) | undefined;
     (async () => {
@@ -513,16 +557,18 @@ export default function DashboardPage() {
     })();
     return () => unsub?.();
   }, [supabase]);
+  // #endregion
 
-  // Load any uploaded (bookmarklet) items into the table on first load
+  // #region [EFFECTS] Load bookmarklet items once
   useEffect(() => {
     try {
       const raw = localStorage.getItem("cs2_items");
       if (raw) setRows(JSON.parse(raw));
     } catch {}
   }, []);
+  // #endregion
 
-  /* ---- restore rows (local + account sync) ---- */
+  // #region [EFFECTS] Restore rows (local + account sync)
   useEffect(() => {
     (async () => {
       // read local
@@ -574,8 +620,9 @@ export default function DashboardPage() {
       }
     })();
   }, [authed]);
+  // #endregion
 
-  /* ---- persist rows (local + upsert when authed) ---- */
+  // #region [EFFECTS] Persist rows (local + upsert when authed)
   const saveTimer = useRef<number | null>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -594,8 +641,9 @@ export default function DashboardPage() {
       if (saveTimer.current) window.clearTimeout(saveTimer.current);
     };
   }, [rows, authed]);
+  // #endregion
 
-  /* ---- Skinport map + images ---- */
+  // #region [HANDLERS] Skinport map + images
   async function refreshSkinport() {
     try {
       const [priceRes, imgRes] = await Promise.all([
@@ -663,12 +711,15 @@ export default function DashboardPage() {
       // keep last-good values
     }
   }
+  // #endregion
 
+  // #region [EFFECTS] Initial Skinport refresh
   useEffect(() => {
     refreshSkinport();
   }, []);
+  // #endregion
 
-  /* ---- lazy image hydration via by-name API (Skinport→Steam) ---- */
+  // #region [EFFECTS] Lazy image hydration via by-name API (Skinport→Steam)
   const hydratedNamesRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     let cancelled = false;
@@ -709,8 +760,9 @@ export default function DashboardPage() {
       cancelled = true;
     };
   }, [rows]);
+  // #endregion
 
-  /* ---- back to top visibility ---- */
+  // #region [EFFECTS] Back-to-top visibility
   useEffect(() => {
     if (typeof window === "undefined") return; // SSR guard
     const onScroll = () => setShowBackToTop(window.scrollY > 600);
@@ -718,15 +770,17 @@ export default function DashboardPage() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+  // #endregion
 
-  /* ---- smooth scroll to top ---- */
+  // #region [HANDLERS] Scroll to top
   const scrollToTop = () => {
     if (typeof window === "undefined") return;
     const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
   };
+  // #endregion
 
-  /* ---- manual add ---- */
+  // #region [HANDLERS] Manual add
   function addManual() {
     if (!mName.trim()) return;
     const parsed = parseNameForWear(mName.trim());
@@ -758,7 +812,9 @@ export default function DashboardPage() {
     setMPattern("");
     setMQty(1);
   }
+  // #endregion
 
+  // #region [HANDLERS] Remove / Update qty
   function removeRow(idx: number) {
     setRows((r) => r.filter((_, i) => i !== idx));
   }
@@ -778,8 +834,9 @@ export default function DashboardPage() {
       )
     );
   }
+  // #endregion
 
-  /* ---- Steam backfill (prices by name) ---- */
+  // #region [HANDLERS] Steam backfill (prices by name)
   const pricesFetchingRef = useRef(false);
   async function backfillSomeSteamPrices(max = 8) {
     if (pricesFetchingRef.current) return;
@@ -839,10 +896,15 @@ export default function DashboardPage() {
       pricesFetchingRef.current = false;
     }
   }
+  // #endregion
+
+  // #region [EFFECTS] Initial Steam backfill
   useEffect(() => {
     backfillSomeSteamPrices(12);
   }, []);
+  // #endregion
 
+  // #region [EFFECTS] Auto-refresh every 15 minutes (4/hour)
   /** Auto-refresh every 15 minutes (4/hour) */
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -856,8 +918,9 @@ export default function DashboardPage() {
     const id = window.setInterval(tick, 15 * 60 * 1000);
     return () => window.clearInterval(id);
   }, []);
+  // #endregion
 
-  /* ---- sorting + totals ---- */
+  // #region [DERIVED] Sorting + totals + index map + autocomplete
   const [sorted, totals] = useMemo(() => {
     const copy = [...rows];
     const dir: 1 | -1 = sort.dir === "asc" ? 1 : -1;
@@ -906,23 +969,6 @@ export default function DashboardPage() {
     return m;
   }, [rows]);
 
-  // expose handlers for RowCard buttons (mobile)
-  useEffect(() => {
-    (window as any).__dash_openEdit = (row: Row) => {
-      setEditRow(row);
-      setEditOpen(true);
-    };
-    (window as any).__dash_deleteRow = (row: Row) => {
-      const orig = origIndexMap.get(row);
-      if (orig != null) removeRow(orig);
-    };
-    return () => {
-      delete (window as any).__dash_openEdit;
-      delete (window as any).__dash_deleteRow;
-    };
-  }, [origIndexMap]);
-
-  /* ----- AUTOCOMPLETE OPTIONS (from Skinport map + existing rows) ----- */
   const autoNames = useMemo(() => {
     const set = new Set<string>();
     Object.keys(spMap).forEach((k) => set.add(k));
@@ -932,8 +978,9 @@ export default function DashboardPage() {
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [spMap, rows]);
+  // #endregion
 
-  // Manual refresh (Skinport + Steam)
+  // #region [HANDLERS] Manual refresh + misc helpers
   async function handleManualRefresh() {
     try {
       setRefreshing(true);
@@ -944,14 +991,12 @@ export default function DashboardPage() {
     }
   }
 
-  // Small helper to show times like "14:32"
   function formatTime(ts: number | null) {
     return ts
       ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       : "—";
   }
 
-  // Sort button chip used in the toolbar
   function SortChip({ k, label }: { k: SortKey; label: string }) {
     const active = sort.key === k;
     const arrow = active ? (sort.dir === "asc" ? "▲" : "▼") : "";
@@ -968,61 +1013,63 @@ export default function DashboardPage() {
       </button>
     );
   }
+  // #endregion
 
-/** Receive parsed items from ImportWizard or raw Steam JSON */
-function handleParsed(data: any) {
-  let items: any[] = [];
+  // #region [HANDLERS] Import handling
+  /** Receive parsed items from ImportWizard or raw Steam JSON */
+  function handleParsed(data: any) {
+    let items: any[] = [];
 
-  try {
-    if (data && (data.items || data.rows || data.inventory)) {
-      items = data.items || data.rows || data.inventory;
-    } else if (Array.isArray(data)) {
-      items = data;
-    } else if (data && data.assets && data.descriptions) {
-      const parsed = parseSteamInventory(data); // make sure it's imported
-      items = parsed.items || [];
+    try {
+      if (data && (data.items || data.rows || data.inventory)) {
+        items = data.items || data.rows || data.inventory;
+      } else if (Array.isArray(data)) {
+        items = data;
+      } else if (data && data.assets && data.descriptions) {
+        const parsed = parseSteamInventory(data); // make sure it's imported
+        items = parsed.items || [];
+      }
+    } catch (err) {
+      console.error("Steam JSON parse failed", err);
+      items = [];
     }
-  } catch (err) {
-    console.error("Steam JSON parse failed", err);
-    items = [];
+
+    // Guard: nothing to add
+    if (!Array.isArray(items) || items.length === 0) return;
+
+    // Optional: strip obviously bad entries
+    const clean = items.filter(Boolean);
+
+    const mapped = mapUploadedToRows(clean, spMap);
+    if (mapped.length === 0) return;
+
+    setRows((prev) =>
+      mergeRows([
+        ...prev.filter((r) => r.source === "manual"),
+        ...mapped,
+      ])
+    );
+
+    try {
+      localStorage.setItem("cs2_items", JSON.stringify(clean));
+    } catch {}
   }
+  // #endregion
 
-  // Guard: nothing to add
-  if (!Array.isArray(items) || items.length === 0) return;
-
-  // Optional: strip obviously bad entries
-  const clean = items.filter(Boolean);
-
-  const mapped = mapUploadedToRows(clean, spMap);
-  if (mapped.length === 0) return;
-
-  setRows((prev) => mergeRows([
-  ...prev.filter((r) => r.source === "manual"),
-  ...mapped,
-]));
-
-
-  try {
-    localStorage.setItem("cs2_items", JSON.stringify(clean));
-  } catch {}
-}
-
-
-return (
-  <div className="mx-auto max-w-6xl p-6 space-y-6">
-
-
-    {/* Top row: Left Manual Add / Right Stats */}
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-      {/* Manual add (panel) */}
-      <div className="flex h-full flex-col rounded-2xl border border-border bg-surface/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
-        <div className="mb-2 flex items-center gap-2">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
-          <h3 className="text-base font-semibold">Search &amp; add item</h3>
-        </div>
-        <p className="mb-4 text-sm text-muted">
-          Type the base name (without wear). Choose wear, optional float/pattern, set quantity, then add.
-        </p>
+  // #region [RENDER]
+  return (
+    <div className="mx-auto max-w-6xl p-6 space-y-6">
+      {/* Top row: Left Manual Add / Right Stats */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {/* Manual add (panel) */}
+        <div className="flex h-full flex-col rounded-2xl border border-border bg-surface/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
+          <div className="mb-2 flex items-center gap-2">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
+            <h3 className="text-base font-semibold">Search &amp; add item</h3>
+          </div>
+          <p className="mb-4 text-sm text-muted">
+            Type the base name (without wear). Choose wear, optional float/pattern, set quantity, then add.
+          </p>
 
           <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-12">
             <div className="md:col-span-5">
@@ -1353,5 +1400,7 @@ return (
       </button>
     </div>
   );
+  // #endregion [RENDER]
 }
+// #endregion [COMPONENT]
 
