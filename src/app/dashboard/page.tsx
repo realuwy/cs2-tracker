@@ -370,7 +370,7 @@ function EditRowDialog({
   const v = e.target.value;
   const parsed = parseNameForWear(v);
   setName(parsed.nameNoWear);          
-  if (parsed.wear) setMWear(parsed.wear); 
+  if (parsed.wear) setWear(parsed.wear); 
 }}
 
               list="item-suggestions"
