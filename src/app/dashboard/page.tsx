@@ -365,7 +365,13 @@ function EditRowDialog({
             <input
               className="w-full rounded-lg border border-border bg-surface2 px-3 py-2"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+             onChange={(e) => {
+  const v = e.target.value;
+  const parsed = parseNameForWear(v);
+  setMName(parsed.nameNoWear);    
+  if (parsed.wear) setMWear(parsed.wear); 
+}}
+
               list="item-suggestions"
             />
           </div>
