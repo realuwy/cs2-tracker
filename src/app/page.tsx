@@ -98,21 +98,6 @@ export default function HomePage() {
           />
         </div>
       </section>
-
-      {/* CTA strip */}
-      <section className="border-t border-border bg-surface/40">
-        <div className="mx-auto max-w-6xl px-6 py-10">
-          <div className="flex flex-col items-center justify-between gap-4 rounded-2xl border border-border bg-surface/60 p-6 md:flex-row">
-            <div>
-              <h3 className="text-lg font-semibold">Ready to build your list?</h3>
-              <p className="text-sm text-muted">
-                Import from Steam or add items manually—takes seconds.
-              </p>
-            </div>
-            <GetStartedButton>Get Started — it’s free</GetStartedButton>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
