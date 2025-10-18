@@ -1261,7 +1261,7 @@ export default function DashboardPage() {
               sorted.map((r) => {
                 const orig = origIndexMap.get(r)!;
                 return (
-                  <tr key={r.market_hash_name + "|" + orig} className="border-top border-border">
+                  <tr key={r.market_hash_name + "|" + orig} className="border-t border-border">
                     {/* ITEM */}
                     <td className="px-4 py-2">
                       <div className="flex items-start gap-3">
