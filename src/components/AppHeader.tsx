@@ -17,18 +17,22 @@ function NavLink({
   const pathname = usePathname();
   const active =
     pathname === href || (href !== "/" && pathname?.startsWith(href));
+
   return (
     <Link
       href={href}
       className={[
-        "transition-colors",
-        active ? "text-text" : "text-muted hover:text-text",
+        "relative pb-1 transition-colors",
+        active
+          ? "text-accent after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-full after:rounded-full after:bg-accent after:shadow-[0_0_8px_var(--tw-shadow-color)] after:[--tw-shadow-color:theme(colors.accent.glow)]"
+          : "text-muted hover:text-text",
       ].join(" ")}
     >
       {children}
     </Link>
   );
 }
+
 
 /** 4-dot icon button used for the user menu */
 function DotsButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
