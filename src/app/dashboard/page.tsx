@@ -1016,44 +1016,44 @@ const autoNames = useMemo(() => {
 
   // #region [HANDLERS] Import handling
   /** Receive parsed items from ImportWizard or raw Steam JSON */
-  function handleParsed(data: any) {
-    let items: any[] = [];
+function handleParsed(data: any) {
+  let items: any[] = [];
 
-    try {
-      if (data && (data.items || data.rows || data.inventory)) {
-        items = data.items || data.rows || data.inventory;
-      } else if (Array.isArray(data)) {
-        items = data;
-      } else if (data && data.assets && data.descriptions) {
-        const parsed = parseSteamInventory(data); // make sure it's imported
-        items = parsed.items || [];
-      }
-    } catch (err) {
-      console.error("Steam JSON parse failed", err);
-      items = [];
+  try {
+    if (data && (data.items || data.rows || data.inventory)) {
+      items = data.items || data.rows || data.inventory;
+    } else if (Array.isArray(data)) {
+      items = data;
+    } else if (data && data.assets && data.descriptions) {
+      const parsed = parseSteamInventory(data);
+      items = parsed.items || [];
     }
-
-    // Guard: nothing to add
-    if (!Array.isArray(items) || items.length === 0) return;
-
-    // Optional: strip obviously bad entries
-    const clean = items.filter(Boolean);
-
-    const mapped = mapUploadedToRows(clean, spMap);
-    if (mapped.length === 0) return;
-
-    setRows((prev) =>
-      mergeRows([
-        ...prev.filter((r) => r.source === "manual"),
-        ...mapped,
-      ])
-    );
-
-    try {
-      localStorage.setItem("cs2_items", JSON.stringify(clean));
-    } catch {}
+  } catch (err) {
+    console.error("Steam JSON parse failed", err);
+    items = [];
   }
-  // #endregion
+
+  // Guard: nothing to add
+  if (!Array.isArray(items) || items.length === 0) return;
+
+  // Optional: strip obviously bad entries
+  const clean = items.filter(Boolean);
+
+  const mapped = mapUploadedToRows(clean, spMap);
+  if (mapped.length === 0) return;
+
+  setRows((prev) =>
+    mergeRows([
+      ...prev.filter((r) => r.source === "manual"),
+      ...mapped,
+    ])
+  );
+
+  try {
+    localStorage.setItem("cs2_items", JSON.stringify(clean));
+  } catch {}
+}
+// #endregion [HANDLERS] Import handling
 
   // #region [RENDER]
   return (
