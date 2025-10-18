@@ -17,7 +17,7 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
   );
 }
 
-function DotsIcon({ className = "h-5 w-5" }) {
+function DotsIcon({ className = "h-4 w-4" }) {
   // 2×2 grid of dots
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
@@ -28,7 +28,6 @@ function DotsIcon({ className = "h-5 w-5" }) {
     </svg>
   );
 }
-
 
 function MenuItem({
   children,
@@ -49,31 +48,24 @@ function MenuItem({
     );
   }
   return (
-   <button
-  type="button"
-  aria-label="User menu"
-  aria-expanded={open}
-  onClick={() => setOpen(v => !v)}
-  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-text/90 hover:bg-surface2 focus:outline-none focus:ring-2 focus:ring-accent/30"
->
-  <DotsIcon className="h-4 w-4" />
-</button>
-
+    <button type="button" className={base} onClick={onClick}>
+      {children}
+    </button>
   );
 }
 
 function DotsUserMenu({ authed }: { authed: boolean }) {
-  const [open, setOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
 
   // click-outside + Esc close
   useEffect(() => {
     function onDoc(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") setIsOpen(false);
     }
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onKey);
@@ -88,28 +80,27 @@ function DotsUserMenu({ authed }: { authed: boolean }) {
       <button
         type="button"
         aria-label="User menu"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-surface2 text-muted hover:bg-surface focus:outline-none focus:ring-2 focus:ring-accent/30"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((v) => !v)}
+        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-text/90 hover:bg-surface2 focus:outline-none focus:ring-2 focus:ring-accent/30"
       >
-        <DotsIcon className="h-5 w-5" />
+        <DotsIcon />
       </button>
 
-      {open && (
+      {isOpen && (
         <div
           role="menu"
           className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-surface/95 p-2 shadow-lg backdrop-blur"
         >
           {authed ? (
             <>
-              <MenuItem href="/dashboard" onClick={() => setOpen(false)}>
+              <MenuItem href="/dashboard" onClick={() => setIsOpen(false)}>
                 Dashboard
               </MenuItem>
               <div className="my-1 h-px bg-border/60" />
               <MenuItem
                 onClick={async () => {
-                  setOpen(false);
-                  // SignOutButton does this too, but this keeps menu self-contained if used standalone
+                  setIsOpen(false);
                   const supabase = getSupabaseClient();
                   await supabase.auth.signOut();
                   router.push("/login");
@@ -121,10 +112,10 @@ function DotsUserMenu({ authed }: { authed: boolean }) {
             </>
           ) : (
             <>
-              <MenuItem href="/login" onClick={() => setOpen(false)}>
+              <MenuItem href="/login" onClick={() => setIsOpen(false)}>
                 Sign In
               </MenuItem>
-              <MenuItem href="/login" onClick={() => setOpen(false)}>
+              <MenuItem href="/login" onClick={() => setIsOpen(false)}>
                 Sign Up
               </MenuItem>
               <div className="my-1 h-px bg-border/60" />
@@ -133,7 +124,7 @@ function DotsUserMenu({ authed }: { authed: boolean }) {
                   try {
                     localStorage.setItem("cs2:guest", "1");
                   } catch {}
-                  setOpen(false);
+                  setIsOpen(false);
                   router.push("/dashboard");
                 }}
               >
