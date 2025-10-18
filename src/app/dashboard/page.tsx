@@ -87,6 +87,8 @@ function Tooltip({
     </div>
   );
 }
+function rowKey(r: Row) { ... }
+function mergeRows(rows: Row[]): Row[] { ... }
 
 function mapUploadedToRows(items: any[], spMap: Record<string, number>): Row[] {
   return (items || []).map((it: any) => {
@@ -958,10 +960,11 @@ function handleParsed(data: any) {
   const mapped = mapUploadedToRows(clean, spMap);
   if (mapped.length === 0) return;
 
-  setRows((prev) => [
-    ...prev.filter((r) => r.source === "manual"),
-    ...mapped,
-  ]);
+  setRows((prev) => mergeRows([
+  ...prev.filter((r) => r.source === "manual"),
+  ...mapped,
+]));
+
 
   try {
     localStorage.setItem("cs2_items", JSON.stringify(clean));
