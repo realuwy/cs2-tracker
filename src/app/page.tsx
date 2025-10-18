@@ -1,125 +1,81 @@
 // src/app/page.tsx
-import Image from "next/image";
 import Link from "next/link";
-import GetStartedButton from "@/components/GetStartedButton";
+import Image from "next/image";
 
-export const dynamic = "force-dynamic";
+export const metadata = {
+  title: "CS2 Tracker · Track, value & manage your CS2 items",
+  description:
+    "Import from Steam or add items manually. Works with an account or as a guest—your data stays with you.",
+};
 
 export default function HomePage() {
   return (
-    <div className="relative">
+    <main className="min-h-screen bg-black text-zinc-200">
       {/* Hero */}
-      <section className="border-b border-border bg-gradient-to-b from-transparent to-black/10">
-        <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
-          <div className="grid items-center gap-10 md:grid-cols-2">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[11px] tracking-wide text-accent">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
-                CS2 inventory, simplified
-              </div>
-
-              <h1 className="mt-4 text-3xl font-extrabold leading-tight text-text md:text-5xl">
-                Track, value, and manage your{" "}
-                <span className="text-accent drop-shadow-[0_0_10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]">
-                  CS2 items
-                </span>{" "}
-                in one place
-              </h1>
-
-              <p className="mt-4 max-w-prose text-muted md:text-lg">
-                Import from Steam, add items manually, and see live price
-                snapshots from Skinport &amp; Steam. Works with an account or as
-                a guest—your data stays with you.
-              </p>
-
-              <div className="mt-8 flex flex-wrap items-center gap-3">
-                <GetStartedButton />
-                <Link
-                  href="/dashboard"
-                  className="h-12 rounded-xl border border-border px-5 text-sm text-text hover:bg-surface/60"
-                >
-                  View Demo Dashboard
-                </Link>
-              </div>
-
-              <p className="mt-3 text-xs text-muted">
-                No email verification required. You can{" "}
-                <span className="text-text">continue as guest</span> and upgrade
-                later—your items will sync to your new account.
-              </p>
+      <section className="mx-auto max-w-7xl px-6 pt-16 md:pt-20">
+        <div className="flex flex-col-reverse items-center gap-10 md:flex-row md:items-start">
+          {/* Left: copy + CTA */}
+          <div className="w-full md:w-1/2">
+            {/* Badge */}
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-lime-300/20 bg-lime-300/10 px-3 py-1 text-sm text-lime-300">
+              <span className="inline-block h-2 w-2 rounded-full bg-lime-300" />
+              CS2 inventory, simplified
             </div>
 
-            <div className="relative hidden md:block">
-              <div className="pointer-events-none absolute -inset-8 -z-10 rounded-[28px] blur-2xl [background:radial-gradient(600px_200px_at_60%_50%,theme(colors.accent.DEFAULT)/15%,transparent)]" />
-              <div className="rounded-2xl border border-border bg-surface/60 p-4 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
-               
-                <Image
-  src="/hero-dashboard.png"
-  alt="CS2 Tracker dashboard preview"
-  width={970}
-  height={640}
-  className="rounded-xl border border-border shadow-[0_0_30px_-10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]"
-  priority
-/>
+            {/* Heading */}
+            <h1 className="text-4xl font-extrabold leading-tight text-white sm:text-5xl">
+              Track, value, and
+              <br />
+              manage your <span className="text-lime-300">CS2</span>
+              <br />
+              <span className="text-lime-300">items</span> in one place
+            </h1>
 
-              </div>
+            {/* Subcopy */}
+            <p className="mt-4 max-w-xl text-zinc-400">
+              Import from Steam, add items manually, and see live price snapshots
+              from Skinport & Steam. Works with an account or as a guest—your data
+              stays with you.
+            </p>
+
+            {/* CTA */}
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                href="/dashboard"
+                className="rounded-xl bg-lime-400 px-5 py-3 font-semibold text-black transition hover:bg-lime-300"
+              >
+                Get Started
+              </Link>
+            </div>
+
+            {/* Tiny reassurance */}
+            <p className="mt-3 text-sm text-zinc-500">
+              No email verification required. You can continue as guest and
+              upgrade later—your items will sync to your new account.
+            </p>
+          </div>
+
+          {/* Right: preview image (visible on mobile too) */}
+          <div className="w-full md:w-1/2">
+            <div className="relative mx-auto w-full max-w-[720px] overflow-hidden rounded-2xl ring-1 ring-white/10 shadow-2xl">
+              <Image
+                src="/hero-dashboard.png" // update if your path differs
+                alt="CS2 Tracker dashboard preview"
+                width={1440}
+                height={900}
+                priority
+                sizes="(max-width: 768px) 100vw, 50vw"
+                className="block h-auto w-full"
+              />
+              {/* optional subtle glow */}
+              <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-lime-300/10" />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features */}
-      <section className="mx-auto max-w-6xl px-6 py-14">
-        <h2 className="text-2xl font-semibold">Why CS2 Tracker?</h2>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Feature
-            title="Guest or Account"
-            body="Start as a guest with local-only storage. Create an account anytime—your existing dashboard is synced to the cloud automatically."
-          />
-          <Feature
-            title="Smart pricing"
-            body="Skinport and Steam prices with sanity checks. Totals update automatically with quantity and live refresh."
-          />
-          <Feature
-            title="Manual + Import"
-            body="Paste Steam JSON or use the import wizard. Add items manually with wear, float, and pattern notes."
-          />
-          <Feature
-            title="Fast search"
-            body="Autocomplete shows base item names only (no wear spam). Pick a wear separately for clean entries."
-          />
-          <Feature
-            title="Every device"
-            body="With an account, your dashboard follows you to any device. As a guest, your data is saved locally."
-          />
-          <Feature
-            title="Privacy-first"
-            body="No email verification required to start. Password resets by email only when you need them."
-          />
-        </div>
-      </section>
-    </div>
+      {/* Footer spacer -> your global footer component handles the rest */}
+      <div className="h-16" />
+    </main>
   );
 }
-
-function Feature({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="rounded-2xl border border-border bg-surface/60 p-4">
-      <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
-        {/* tiny bolt icon */}
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          aria-hidden
-        >
-          <path d="M13 2L3 14h7l-1 8 11-14h-7l0-6z" />
-        </svg>
-      </div>
-      <h3 className="font-medium">{title}</h3>
-      <p className="mt-1 text-sm text-muted">{body}</p>
-    </div>
-  );
-}
-
