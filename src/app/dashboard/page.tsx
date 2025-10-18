@@ -87,8 +87,44 @@ function Tooltip({
     </div>
   );
 }
-function rowKey(r: Row) { ... }
-function mergeRows(rows: Row[]): Row[] { ... }
+function rowKey(r: Row): string {
+  const name = stripNone((r.market_hash_name || r.name || r.nameNoWear || "").trim());
+  const wear = (r.wear || "").trim();
+  const pattern = (r.pattern ?? "").toString().trim();
+  const flt = (r.float ?? "").toString().trim();
+  return [name, wear, pattern, flt].join("|").toLowerCase();
+}
+function mergeRows(rows: Row[]): Row[] {
+  const map = new Map<string, Row>();
+
+  for (const r0 of rows) {
+    const key = rowKey(r0);
+    const existing = map.get(key);
+    const qAdd = Math.max(1, Number(r0.quantity ?? 1));
+    const spUnit = isMissingNum(r0.skinportAUD) ? undefined : Number(r0.skinportAUD);
+
+    if (!existing) {
+      map.set(key, {
+        ...r0,
+        quantity: qAdd,
+        totalAUD: typeof spUnit === "number" ? spUnit * qAdd : r0.totalAUD,
+      });
+    } else {
+      const qNext = Math.max(1, Number(existing.quantity ?? 1)) + qAdd;
+      const spUnitExisting = isMissingNum(existing.skinportAUD)
+        ? undefined
+        : Number(existing.skinportAUD);
+      map.set(key, {
+        ...existing,
+        quantity: qNext,
+        totalAUD:
+          typeof spUnitExisting === "number" ? spUnitExisting * qNext : existing.totalAUD,
+      });
+    }
+  }
+
+  return Array.from(map.values());
+}
 
 function mapUploadedToRows(items: any[], spMap: Record<string, number>): Row[] {
   return (items || []).map((it: any) => {
