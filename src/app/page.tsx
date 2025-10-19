@@ -1,4 +1,4 @@
-// src/app/page.tsx
+ // src/app/page.tsx
 import Image from "next/image";
 import Link from "next/link";
 
@@ -32,9 +32,9 @@ export default function HomePage() {
               </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
-                {/* Open auth modal in Sign In mode via URL param */}
+                {/* Open the auth chooser (signin / signup / guest) */}
                 <Link
-                  href="/?auth=signin"
+                  href="/?auth=choose"
                   className="rounded-xl bg-lime-400 px-5 py-3 font-semibold text-black transition hover:bg-lime-300"
                 >
                   Get Started
@@ -48,7 +48,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* Hero preview – now visible on mobile too */}
+            {/* Hero preview (mobile + desktop) */}
             <div className="relative">
               <div className="pointer-events-none absolute -inset-8 -z-10 hidden rounded-[28px] blur-2xl md:block [background:radial-gradient(600px_200px_at_60%_50%,theme(colors.accent.DEFAULT)/15%,transparent)]" />
               <div className="rounded-2xl border border-border bg-surface/60 p-4 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
@@ -106,13 +106,7 @@ function Feature({ title, body }: { title: string; body: string }) {
     <div className="rounded-2xl border border-border bg-surface/60 p-4">
       <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
         {/* tiny bolt icon */}
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          aria-hidden
-        >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
           <path d="M13 2L3 14h7l-1 8 11-14h-7l0-6z" />
         </svg>
       </div>
@@ -121,3 +115,4 @@ function Feature({ title, body }: { title: string; body: string }) {
     </div>
   );
 }
+
