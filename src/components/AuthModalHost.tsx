@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 
 type Mode = "chooser" | "signin" | "signup" | "forgot";
-type OpenDetail = Mode | "guest" | "choose" | undefined; // <- event/url may send these
+type OpenDetail = Mode | "guest" | "choose" | undefined;
 
 export default function AuthModalHost() {
   const [open, setOpen] = useState(false);
@@ -25,7 +25,6 @@ export default function AuthModalHost() {
   const search = useSearchParams();
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
-  // central open + reset
   const openWith = (next: Mode = "chooser") => {
     setMode(next);
     setErr(null);
@@ -46,8 +45,7 @@ export default function AuthModalHost() {
     router.push("/dashboard");
   };
 
-  /* ---------------------- Triggers ----------------------- */
-  // Global event trigger
+  // Global trigger
   useEffect(() => {
     const onOpen = (e: Event) => {
       const d = (e as CustomEvent<OpenDetail>).detail;
@@ -67,25 +65,23 @@ export default function AuthModalHost() {
     else if (auth === "choose") openWith("chooser");
     else openWith((auth as Mode) ?? "chooser");
 
-    // clean URL
     const url = new URL(window.location.href);
     url.searchParams.delete("auth");
     window.history.replaceState({}, "", url.toString());
   }, [search]);
 
-  // Esc to close
+  // Esc + scroll lock
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     if (open) window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  // Lock scroll
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
+    return () => void (document.body.style.overflow = prev);
   }, [open]);
 
   const onBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -93,13 +89,13 @@ export default function AuthModalHost() {
     if (!dialogRef.current.contains(e.target as Node)) setOpen(false);
   };
 
-  /* ----------------------- Actions ----------------------- */
+  // Actions
   const onSignIn = async () => {
     setLoading(true);
     setErr(null);
     try {
       const res = await supabase.auth.signInWithPassword({
-        email: emailOrUsername, // add username->email lookup later if desired
+        email: emailOrUsername, // add username->email lookup later if you want
         password,
       });
       if (res.error) throw res.error;
@@ -147,7 +143,6 @@ export default function AuthModalHost() {
     }
   };
 
-  /* ----------------------- Render ------------------------ */
   if (!open) return null;
 
   return (
@@ -157,8 +152,8 @@ export default function AuthModalHost() {
     >
       <div
         ref={dialogRef}
-        className="relative w-full max-w-md rounded-xl bg-zinc-900 p-6 text-white shadow-lg ring-1 ring-white/10"
         onMouseDown={(e) => e.stopPropagation()}
+        className="relative w-full max-w-md rounded-2xl border border-border bg-surface p-6 text-text shadow-card"
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-2xl font-bold">
@@ -170,16 +165,13 @@ export default function AuthModalHost() {
               ? "Sign Up"
               : "Forgot Password"}
           </h2>
-          <button
-            onClick={() => setOpen(false)}
-            className="rounded-md border border-zinc-700 px-2 py-1 text-sm hover:bg-zinc-800"
-          >
+          <button onClick={() => setOpen(false)} className="btn-ghost px-2 py-1 text-sm">
             Close
           </button>
         </div>
 
         {err && (
-          <div className="mb-3 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+          <div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
             {err}
           </div>
         )}
@@ -187,22 +179,13 @@ export default function AuthModalHost() {
         {/* ---------- CHOOSER ---------- */}
         {mode === "chooser" && (
           <div className="space-y-3">
-            <button
-              onClick={() => openWith("signin")}
-              className="w-full rounded-xl bg-lime-400 px-4 py-2 font-semibold text-black hover:bg-lime-300"
-            >
+            <button onClick={() => openWith("signin")} className="btn-accent w-full">
               Sign In
             </button>
-            <button
-              onClick={() => openWith("signup")}
-              className="w-full rounded-xl border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800"
-            >
+            <button onClick={() => openWith("signup")} className="btn-ghost w-full">
               Create an account
             </button>
-            <button
-              onClick={continueAsGuest}
-              className="w-full rounded-xl border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800"
-            >
+            <button onClick={continueAsGuest} className="btn-ghost w-full">
               Continue as guest
             </button>
           </div>
@@ -211,39 +194,35 @@ export default function AuthModalHost() {
         {/* ---------- SIGN IN ---------- */}
         {mode === "signin" && (
           <>
-            <label className="mb-2 block text-sm">Email (or username)</label>
+            <label className="mb-2 block text-sm text-muted">Email (or username)</label>
             <input
               value={emailOrUsername}
               onChange={(e) => setEmailOrUsername(e.target.value)}
               placeholder="you@example.com"
               autoFocus
-              className="mb-3 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:ring-2 focus:ring-lime-400/40"
+              className="mb-3 w-full rounded-xl border border-border bg-surface2/70 px-3 py-2 text-text placeholder-muted outline-none focus:ring-2 focus:ring-accent/30"
             />
-            <label className="mb-2 block text-sm">Password</label>
+            <label className="mb-2 block text-sm text-muted">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mb-5 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:ring-2 focus:ring-lime-400/40"
+              className="mb-5 w-full rounded-xl border border-border bg-surface2/70 px-3 py-2 text-text placeholder-muted outline-none focus:ring-2 focus:ring-accent/30"
             />
-            <button
-              onClick={onSignIn}
-              disabled={loading}
-              className="mb-3 w-full rounded-xl bg-lime-400 px-4 py-2 font-semibold text-black hover:bg-lime-300 disabled:opacity-60"
-            >
+            <button onClick={onSignIn} disabled={loading} className="btn-accent mb-3 w-full disabled:opacity-60">
               {loading ? "Signing in…" : "Sign In"}
             </button>
 
             <div className="mt-3 space-y-2 text-center text-sm">
-              <button onClick={() => openWith("signup")} className="font-medium text-lime-300 hover:underline">
+              <button onClick={() => openWith("signup")} className="text-accent hover:underline">
                 Create an account
               </button>
               <br />
-              <button onClick={continueAsGuest} className="text-zinc-300 hover:underline">
+              <button onClick={continueAsGuest} className="link-muted hover:underline">
                 Continue as guest
               </button>
               <br />
-              <button onClick={() => openWith("forgot")} className="text-zinc-400 hover:underline">
+              <button onClick={() => openWith("forgot")} className="link-muted hover:underline">
                 Forgot password?
               </button>
             </div>
@@ -253,43 +232,39 @@ export default function AuthModalHost() {
         {/* ---------- SIGN UP ---------- */}
         {mode === "signup" && (
           <>
-            <label className="mb-2 block text-sm">Username</label>
+            <label className="mb-2 block text-sm text-muted">Username</label>
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="uwy"
               autoFocus
-              className="mb-3 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:ring-2 focus:ring-lime-400/40"
+              className="mb-3 w-full rounded-xl border border-border bg-surface2/70 px-3 py-2 text-text placeholder-muted outline-none focus:ring-2 focus:ring-accent/30"
             />
-            <label className="mb-2 block text-sm">Email</label>
+            <label className="mb-2 block text-sm text-muted">Email</label>
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="mb-3 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:ring-2 focus:ring-lime-400/40"
+              className="mb-3 w-full rounded-xl border border-border bg-surface2/70 px-3 py-2 text-text placeholder-muted outline-none focus:ring-2 focus:ring-accent/30"
             />
-            <label className="mb-2 block text-sm">Password</label>
+            <label className="mb-2 block text-sm text-muted">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mb-5 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:ring-2 focus:ring-lime-400/40"
+              className="mb-5 w-full rounded-xl border border-border bg-surface2/70 px-3 py-2 text-text placeholder-muted outline-none focus:ring-2 focus:ring-accent/30"
             />
-            <button
-              onClick={onSignUp}
-              disabled={loading}
-              className="mb-3 w-full rounded-xl bg-lime-400 px-4 py-2 font-semibold text-black hover:bg-lime-300 disabled:opacity-60"
-            >
+            <button onClick={onSignUp} disabled={loading} className="btn-accent mb-3 w-full disabled:opacity-60">
               {loading ? "Creating…" : "Create account"}
             </button>
 
-            <div className="mt-3 text-center text-sm text-zinc-400">
+            <div className="mt-3 text-center text-sm text-muted">
               Already have an account?{" "}
-              <button onClick={() => openWith("signin")} className="font-medium text-lime-300 hover:underline">
+              <button onClick={() => openWith("signin")} className="text-accent hover:underline">
                 Sign In
               </button>
               <br />
-              <button onClick={continueAsGuest} className="mt-2 text-zinc-300 hover:underline">
+              <button onClick={continueAsGuest} className="mt-2 link-muted hover:underline">
                 Continue as guest
               </button>
             </div>
@@ -299,24 +274,20 @@ export default function AuthModalHost() {
         {/* ---------- FORGOT ---------- */}
         {mode === "forgot" && (
           <>
-            <label className="mb-2 block text-sm">Email</label>
+            <label className="mb-2 block text-sm text-muted">Email</label>
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               autoFocus
-              className="mb-5 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:ring-2 focus:ring-lime-400/40"
+              className="mb-5 w-full rounded-xl border border-border bg-surface2/70 px-3 py-2 text-text placeholder-muted outline-none focus:ring-2 focus:ring-accent/30"
             />
-            <button
-              onClick={onForgot}
-              disabled={loading}
-              className="mb-3 w-full rounded-xl bg-lime-400 px-4 py-2 font-semibold text-black hover:bg-lime-300 disabled:opacity-60"
-            >
+            <button onClick={onForgot} disabled={loading} className="btn-accent mb-3 w-full disabled:opacity-60">
               {loading ? "Sending…" : "Send reset link"}
             </button>
 
-            <div className="mt-3 text-center text-sm text-zinc-400">
-              <button onClick={() => openWith("signin")} className="text-zinc-400 hover:underline">
+            <div className="mt-3 text-center text-sm">
+              <button onClick={() => openWith("signin")} className="link-muted hover:underline">
                 Back to sign in
               </button>
             </div>
