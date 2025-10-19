@@ -194,9 +194,9 @@ export default function AuthModalHost() {
         {/* ---------- SIGN IN ---------- */}
         {mode === "signin" && (
           <>
-            <label className="mb-2 block text-sm text-muted">Email (or username)</label>
+            <label className="mb-2 block text-sm text-muted">Email</label>
             <input
-              value={emailOrUsername}
+              value={email}
               onChange={(e) => setEmailOrUsername(e.target.value)}
               placeholder="you@example.com"
               autoFocus
@@ -236,7 +236,7 @@ export default function AuthModalHost() {
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="uwy"
+              placeholder="username"
               autoFocus
               className="mb-3 w-full rounded-xl border border-border bg-surface2/70 px-3 py-2 text-text placeholder-muted outline-none focus:ring-2 focus:ring-accent/30"
             />
@@ -244,7 +244,7 @@ export default function AuthModalHost() {
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder="user@example.com"
               className="mb-3 w-full rounded-xl border border-border bg-surface2/70 px-3 py-2 text-text placeholder-muted outline-none focus:ring-2 focus:ring-accent/30"
             />
             <label className="mb-2 block text-sm text-muted">Password</label>
