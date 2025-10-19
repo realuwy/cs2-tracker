@@ -36,12 +36,14 @@ export default function HomePage() {
 <Link
   href="/?auth=signup"
   className="rounded-xl bg-accent px-5 py-3 font-semibold text-black
+             hover:bg-accent-hover transition
              shadow-[0_0_18px_var(--tw-shadow-color)]
              [--tw-shadow-color:theme(colors.accent.glow)]
-             transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-accent/40"
+             focus:outline-none focus:ring-2 focus:ring-accent/40"
 >
   Get Started
 </Link>
+
 
 
               </div>
