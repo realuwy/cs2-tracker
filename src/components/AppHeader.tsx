@@ -1,3 +1,4 @@
+// src/components/AppHeader.tsx
 "use client";
 
 import Link from "next/link";
@@ -6,18 +7,11 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 
-/* ----------------------------- NavLink ----------------------------- */
-function NavLink({
-  href,
-  children,
-}: {
-  href: string;
-  children: React.ReactNode;
-}) {
-  const pathname = usePathname();
-  const active =
-    pathname === href || (href !== "/" && pathname?.startsWith(href));
+/* ---------- Small helpers ---------- */
 
+function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+  const pathname = usePathname();
+  const active = pathname === href || (href !== "/" && pathname?.startsWith(href));
   return (
     <Link
       href={href}
@@ -32,7 +26,8 @@ function NavLink({
     </Link>
   );
 }
-/* ---------------------------- Dots Button ---------------------------- */
+
+/** 4-dot icon button used for the mobile menu */
 function DotsButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
@@ -41,59 +36,70 @@ function DotsButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
       className={[
         "inline-flex h-9 w-9 items-center justify-center rounded-lg border",
         "border-border bg-surface2/70 hover:bg-surface transition",
-        // 👇 ensure visible icon color on dark bg
-        "text-zinc-300 hover:text-white",
         "focus:outline-none focus:ring-2 focus:ring-accent/30",
         props.className || "",
       ].join(" ")}
     >
-      <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4">
-        {/* Explicitly fill using currentColor so tailwind text-* applies */}
-        <circle cx="8"  cy="8"  r="1.75" fill="currentColor" />
-        <circle cx="16" cy="8"  r="1.75" fill="currentColor" />
-        <circle cx="8"  cy="16" r="1.75" fill="currentColor" />
-        <circle cx="16" cy="16" r="1.75" fill="currentColor" />
+      <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden>
+        <circle cx="8" cy="8" r="1.75" />
+        <circle cx="16" cy="8" r="1.75" />
+        <circle cx="8" cy="16" r="1.75" />
+        <circle cx="16" cy="16" r="1.75" />
       </svg>
     </button>
   );
 }
 
+type SessionName = string | null; // username preferred, else email
 
-type SessionName = string | null;
-
-/* ---------------------------- AppHeader ---------------------------- */
 export default function AppHeader() {
   const supabase = getSupabaseClient();
   const router = useRouter();
- const search = useSearchParams();
-  
+  const pathname = usePathname();
+  const search = useSearchParams();
+
   const [sessionName, setSessionName] = useState<SessionName>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [accountOpen, setAccountOpen] = useState(false);
-  const [isGuest, setIsGuest] = useState<boolean>(
-    typeof window !== "undefined" &&
-      window.localStorage.getItem("guest_mode") === "true"
-  );
+  const [menuOpen, setMenuOpen] = useState(false);       // mobile dots
+  const [accountOpen, setAccountOpen] = useState(false); // account dropdown
+  const [isGuest, setIsGuest] = useState<boolean>(false);
 
   const menuRef = useRef<HTMLDivElement | null>(null);
   const acctRef = useRef<HTMLDivElement | null>(null);
 
-  /* ------------------------- Supabase Session ------------------------- */
-   useEffect(() => {
-    if (search.get("account") === "open") {
-      setAccountOpen(true);
-      const url = new URL(window.location.href);
-      url.searchParams.delete("account");
-      window.history.replaceState({}, "", url.toString());
-    }
-  }, [search]);
+  /* ---------- Guest-mode sync helpers ---------- */
 
-  // Optional: allow programmatic open
+  const syncGuest = () => {
+    try {
+      setIsGuest(localStorage.getItem("guest_mode") === "true");
+    } catch {
+      setIsGuest(false);
+    }
+  };
+
+  // initial read + listeners for guest events / storage
   useEffect(() => {
-    const onOpen = () => setAccountOpen(true);
-    window.addEventListener("account:open", onOpen as EventListener);
-    return () => window.removeEventListener("account:open", onOpen as EventListener);
+    syncGuest();
+
+    const onGuestEnabled = () => syncGuest();
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "guest_mode") syncGuest();
+    };
+
+    window.addEventListener("guest:enabled", onGuestEnabled as EventListener);
+    window.addEventListener("storage", onStorage);
+
+    return () => {
+      window.removeEventListener("guest:enabled", onGuestEnabled as EventListener);
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
+
+  // re-check when route changes
+  useEffect(() => {
+    syncGuest();
+  }, [pathname]);
+
+  /* ---------- Supabase session -> name ---------- */
   useEffect(() => {
     let unsub: (() => void) | undefined;
 
@@ -109,8 +115,11 @@ export default function AppHeader() {
         setSessionName(
           (u?.user_metadata as any)?.username || u?.email || null
         );
+        // Clear guest flag on successful login
         if (sess?.user) {
-          window.localStorage.removeItem("guest_mode");
+          try {
+            localStorage.removeItem("guest_mode");
+          } catch {}
           setIsGuest(false);
         }
       });
@@ -121,42 +130,65 @@ export default function AppHeader() {
     return () => unsub?.();
   }, [supabase]);
 
-  /* --------------------------- Outside Click -------------------------- */
+  /* ---------- Click outside to close menus ---------- */
   useEffect(() => {
-    const onDocClick = (e: MouseEvent) => {
+    const closeOnOutside = (e: MouseEvent) => {
       const t = e.target as Node;
-      if (menuOpen && menuRef.current && !menuRef.current.contains(t))
+      if (menuOpen && menuRef.current && !menuRef.current.contains(t)) {
         setMenuOpen(false);
-      if (accountOpen && acctRef.current && !acctRef.current.contains(t))
+      }
+      if (accountOpen && acctRef.current && !acctRef.current.contains(t)) {
         setAccountOpen(false);
+      }
     };
-    window.addEventListener("mousedown", onDocClick);
-    return () => window.removeEventListener("mousedown", onDocClick);
+    window.addEventListener("mousedown", closeOnOutside);
+    return () => window.removeEventListener("mousedown", closeOnOutside);
   }, [menuOpen, accountOpen]);
 
-  /* ------------------------------ Actions ----------------------------- */
+  /* ---------- Optional: open Account via ?account=open ---------- */
+  useEffect(() => {
+    if (search.get("account") === "open") {
+      setAccountOpen(true);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("account");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [search]);
+
+  /* ---------- Actions ---------- */
+
   const openSignIn = () =>
     window.dispatchEvent(new CustomEvent("auth:open", { detail: "signin" }));
   const openSignUp = () =>
     window.dispatchEvent(new CustomEvent("auth:open", { detail: "signup" }));
 
   const continueAsGuest = () => {
-    window.localStorage.setItem("guest_mode", "true");
+    try {
+      localStorage.setItem("guest_mode", "true");
+    } catch {}
     setIsGuest(true);
+    window.dispatchEvent(new Event("guest:enabled"));
     router.push("/dashboard");
+    setTimeout(() => router.refresh(), 0);
   };
 
   const signOut = async () => {
     await supabase.auth.signOut();
     setSessionName(null);
+    // Land as guest after sign out
+    try {
+      localStorage.setItem("guest_mode", "true");
+    } catch {}
+    setIsGuest(true);
     router.push("/");
   };
 
   const authed = !!sessionName;
 
-  /* ------------------------------ Render ------------------------------ */
+  /* ---------- Render ---------- */
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
+    <header className="sticky top-0 z-40 w-full border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
         {/* Left: brand */}
         <Link
@@ -185,34 +217,23 @@ export default function AppHeader() {
         {/* Center: primary nav (desktop only) */}
         <nav className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 md:block">
           <ul className="flex items-center gap-8 text-sm text-text">
-            <li>
-              <NavLink href="/">Home</NavLink>
-            </li>
-            <li>
-              <NavLink href="/dashboard">Dashboard</NavLink>
-            </li>
-            <li>
-              <NavLink href="/about">About</NavLink>
-            </li>
-            <li>
-              <NavLink href="/privacy">Privacy</NavLink>
-            </li>
+            <li><NavLink href="/">Home</NavLink></li>
+            <li><NavLink href="/dashboard">Dashboard</NavLink></li>
+            <li><NavLink href="/about">About</NavLink></li>
+            <li><NavLink href="/privacy">Privacy</NavLink></li>
           </ul>
         </nav>
 
-        {/* Right: account + dots (mobile only for dots) */}
+        {/* Right: actions */}
         <div className="flex items-center gap-2">
-          {/* Account dropdown */}
+          {/* Account dropdown (desktop & mobile) */}
           <div className="relative" ref={acctRef}>
             <button
               type="button"
               onClick={() => setAccountOpen((v) => !v)}
               aria-haspopup="menu"
               aria-expanded={accountOpen}
-              className={[
-                "inline-flex items-center gap-2 rounded-lg border border-border bg-surface2/70 px-3 py-1.5 text-sm",
-                "hover:bg-surface transition focus:outline-none focus:ring-2 focus:ring-accent/30",
-              ].join(" ")}
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface2/70 px-3 py-1.5 text-sm hover:bg-surface transition focus:outline-none focus:ring-2 focus:ring-accent/30"
             >
               <span>Account</span>
               {authed && (
@@ -225,12 +246,7 @@ export default function AppHeader() {
                   Guest
                 </span>
               )}
-              <svg
-                viewBox="0 0 24 24"
-                width="14"
-                height="14"
-                className="opacity-70"
-              >
+              <svg viewBox="0 0 24 24" width="14" height="14" className="opacity-70">
                 <path
                   d="M6 9l6 6 6-6"
                   stroke="currentColor"
@@ -243,24 +259,16 @@ export default function AppHeader() {
             </button>
 
             {accountOpen && (
-              <div
-                role="menu"
-                className="absolute right-0 mt-2 w-64 rounded-xl border border-border bg-surface p-2 shadow-xl z-50"
-              >
+              <div role="menu" className="absolute right-0 mt-2 w-64 rounded-xl border border-border bg-surface p-2 shadow-xl">
                 <div className="px-2 pb-2 pt-1 text-[10px] uppercase tracking-wider text-muted">
                   Account
                 </div>
 
                 <div className="px-3 pb-2 text-xs text-muted">
                   {authed ? (
-                    <>
-                      Signed in as{" "}
-                      <span className="text-text">{sessionName}</span>
-                    </>
+                    <>Signed in as <span className="text-text">{sessionName}</span></>
                   ) : isGuest ? (
-                    <>
-                      Browsing as <span className="text-text">Guest</span>
-                    </>
+                    <>Browsing as <span className="text-text">Guest</span></>
                   ) : (
                     <>Not signed in</>
                   )}
@@ -273,30 +281,21 @@ export default function AppHeader() {
                     <button
                       role="menuitem"
                       className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                      onClick={() => {
-                        setAccountOpen(false);
-                        openSignIn();
-                      }}
+                      onClick={() => { setAccountOpen(false); openSignIn(); }}
                     >
                       Sign In
                     </button>
                     <button
                       role="menuitem"
                       className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                      onClick={() => {
-                        setAccountOpen(false);
-                        openSignUp();
-                      }}
+                      onClick={() => { setAccountOpen(false); openSignUp(); }}
                     >
                       Sign Up
                     </button>
                     <button
                       role="menuitem"
                       className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                      onClick={() => {
-                        setAccountOpen(false);
-                        continueAsGuest();
-                      }}
+                      onClick={() => { setAccountOpen(false); continueAsGuest(); }}
                     >
                       Continue as guest
                     </button>
@@ -316,10 +315,7 @@ export default function AppHeader() {
                     <button
                       role="menuitem"
                       className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-red-300 hover:bg-red-400/10"
-                      onClick={() => {
-                        setAccountOpen(false);
-                        signOut();
-                      }}
+                      onClick={() => { setAccountOpen(false); signOut(); }}
                     >
                       Sign Out
                     </button>
@@ -329,50 +325,29 @@ export default function AppHeader() {
             )}
           </div>
 
-          {/* Dots menu — MOBILE ONLY */}
+          {/* Dots menu – mobile only */}
           <div className="relative md:hidden" ref={menuRef}>
-            <DotsButton
-              onClick={() => setMenuOpen((v) => !v)}
-              aria-label="Open menu"
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-            />
+            <DotsButton onClick={() => setMenuOpen((v) => !v)} aria-label="Open menu" />
             {menuOpen && (
-              <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-surface p-2 shadow-xl z-50">
+              <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-surface p-2 shadow-xl">
                 <ul className="space-y-1 text-sm">
                   <li>
-                    <Link
-                      href="/"
-                      className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
-                      onClick={() => setMenuOpen(false)}
-                    >
+                    <Link href="/" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>
                       Home
                     </Link>
                   </li>
                   <li>
-                    <Link
-                      href="/dashboard"
-                      className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
-                      onClick={() => setMenuOpen(false)}
-                    >
+                    <Link href="/dashboard" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>
                       Dashboard
                     </Link>
                   </li>
                   <li>
-                    <Link
-                      href="/about"
-                      className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
-                      onClick={() => setMenuOpen(false)}
-                    >
+                    <Link href="/about" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>
                       About
                     </Link>
                   </li>
                   <li>
-                    <Link
-                      href="/privacy"
-                      className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
-                      onClick={() => setMenuOpen(false)}
-                    >
+                    <Link href="/privacy" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>
                       Privacy
                     </Link>
                   </li>
