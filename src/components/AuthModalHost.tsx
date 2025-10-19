@@ -1,3 +1,4 @@
+// src/components/AuthModalHost.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -25,6 +26,7 @@ export default function AuthModalHost() {
   const search = useSearchParams();
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
+  /* ------------------ helpers ------------------ */
   const openWith = (next: Mode = "chooser") => {
     setMode(next);
     setErr(null);
@@ -39,13 +41,16 @@ export default function AuthModalHost() {
 
   const continueAsGuest = () => {
     try {
-      window.localStorage.setItem("guest_mode", "true");
+      localStorage.setItem("guest_mode", "true");
     } catch {}
+    window.dispatchEvent(new Event("guest:enabled")); // allow listeners to react
     setOpen(false);
     router.push("/dashboard");
+    setTimeout(() => router.refresh(), 0);
   };
 
-  // Global trigger
+  /* ------------------ triggers ----------------- */
+  // Global event: window.dispatchEvent(new CustomEvent("auth:open", { detail: "signin"|"signup"|"choose"|"guest" }))
   useEffect(() => {
     const onOpen = (e: Event) => {
       const d = (e as CustomEvent<OpenDetail>).detail;
@@ -57,7 +62,7 @@ export default function AuthModalHost() {
     return () => window.removeEventListener("auth:open", onOpen as EventListener);
   }, []);
 
-  // URL trigger: /?auth=choose|signin|signup|guest
+  // URL: /?auth=choose|signin|signup|guest
   useEffect(() => {
     const auth = search.get("auth") as OpenDetail;
     if (!auth) return;
@@ -70,7 +75,7 @@ export default function AuthModalHost() {
     window.history.replaceState({}, "", url.toString());
   }, [search]);
 
-  // Esc + scroll lock
+  // Esc + scroll-lock
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     if (open) window.addEventListener("keydown", onKey);
@@ -81,7 +86,7 @@ export default function AuthModalHost() {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => void (document.body.style.overflow = prev);
+    return () => { document.body.style.overflow = prev; };
   }, [open]);
 
   const onBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -89,13 +94,13 @@ export default function AuthModalHost() {
     if (!dialogRef.current.contains(e.target as Node)) setOpen(false);
   };
 
-  // Actions
+  /* ------------------ actions ------------------ */
   const onSignIn = async () => {
     setLoading(true);
     setErr(null);
     try {
       const res = await supabase.auth.signInWithPassword({
-        email: emailOrUsername, // add username->email lookup later if you want
+        email: emailOrUsername, // email or (later) resolved username->email
         password,
       });
       if (res.error) throw res.error;
@@ -143,6 +148,7 @@ export default function AuthModalHost() {
     }
   };
 
+  /* ------------------ render ------------------- */
   if (!open) return null;
 
   return (
@@ -165,7 +171,7 @@ export default function AuthModalHost() {
               ? "Sign Up"
               : "Forgot Password"}
           </h2>
-          <button onClick={() => setOpen(false)} className="btn-ghost px-2 py-1 text-sm">
+          <button className="btn-ghost px-2 py-1 text-sm" onClick={() => setOpen(false)}>
             Close
           </button>
         </div>
@@ -191,84 +197,112 @@ export default function AuthModalHost() {
           </div>
         )}
 
-        {/* ---------- SIGN IN ---------- */}
+        {/* ---------- SIGN IN (FORM) ---------- */}
         {mode === "signin" && (
-          <>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              onSignIn();
+            }}
+          >
             <label className="mb-2 block text-sm text-muted">Email</label>
             <input
-              value={email}
+              type="text"
+              name="username"
+              autoComplete="username"
+              value={emailOrUsername}
               onChange={(e) => setEmailOrUsername(e.target.value)}
-              placeholder="user@example.com"
+              placeholder="you@example.com"
               autoFocus
               className="mb-3 w-full rounded-xl border border-border bg-surface2/70 px-3 py-2 text-text placeholder-muted outline-none focus:ring-2 focus:ring-accent/30"
             />
+
             <label className="mb-2 block text-sm text-muted">Password</label>
             <input
               type="password"
+              name="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="mb-5 w-full rounded-xl border border-border bg-surface2/70 px-3 py-2 text-text placeholder-muted outline-none focus:ring-2 focus:ring-accent/30"
             />
-            <button onClick={onSignIn} disabled={loading} className="btn-accent mb-3 w-full disabled:opacity-60">
+
+            <button type="submit" disabled={loading} className="btn-accent mb-3 w-full disabled:opacity-60">
               {loading ? "Signing in…" : "Sign In"}
             </button>
 
             <div className="mt-3 space-y-2 text-center text-sm">
-              <button onClick={() => openWith("signup")} className="text-accent hover:underline">
+              <button type="button" onClick={() => openWith("signup")} className="text-accent hover:underline">
                 Create an account
               </button>
               <br />
-              <button onClick={continueAsGuest} className="link-muted hover:underline">
+              <button type="button" onClick={continueAsGuest} className="link-muted hover:underline">
                 Continue as guest
               </button>
               <br />
-              <button onClick={() => openWith("forgot")} className="link-muted hover:underline">
+              <button type="button" onClick={() => openWith("forgot")} className="link-muted hover:underline">
                 Forgot password?
               </button>
             </div>
-          </>
+          </form>
         )}
 
-        {/* ---------- SIGN UP ---------- */}
+        {/* ---------- SIGN UP (FORM) ---------- */}
         {mode === "signup" && (
-          <>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              onSignUp();
+            }}
+          >
             <label className="mb-2 block text-sm text-muted">Username</label>
             <input
+              type="text"
+              name="username"
+              autoComplete="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="username"
+              placeholder="uwy"
               autoFocus
               className="mb-3 w-full rounded-xl border border-border bg-surface2/70 px-3 py-2 text-text placeholder-muted outline-none focus:ring-2 focus:ring-accent/30"
             />
+
             <label className="mb-2 block text-sm text-muted">Email</label>
             <input
+              type="email"
+              name="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="user@example.com"
+              placeholder="you@example.com"
               className="mb-3 w-full rounded-xl border border-border bg-surface2/70 px-3 py-2 text-text placeholder-muted outline-none focus:ring-2 focus:ring-accent/30"
             />
+
             <label className="mb-2 block text-sm text-muted">Password</label>
             <input
               type="password"
+              name="new-password"
+              autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="mb-5 w-full rounded-xl border border-border bg-surface2/70 px-3 py-2 text-text placeholder-muted outline-none focus:ring-2 focus:ring-accent/30"
             />
-            <button onClick={onSignUp} disabled={loading} className="btn-accent mb-3 w-full disabled:opacity-60">
+
+            <button type="submit" disabled={loading} className="btn-accent mb-3 w-full disabled:opacity-60">
               {loading ? "Creating…" : "Create account"}
             </button>
 
             <div className="mt-3 text-center text-sm text-muted">
               Already have an account?{" "}
-              <button onClick={() => openWith("signin")} className="text-accent hover:underline">
+              <button type="button" onClick={() => openWith("signin")} className="text-accent hover:underline">
                 Sign In
               </button>
               <br />
-              <button onClick={continueAsGuest} className="mt-2 link-muted hover:underline">
+              <button type="button" onClick={continueAsGuest} className="mt-2 link-muted hover:underline">
                 Continue as guest
               </button>
             </div>
-          </>
+          </form>
         )}
 
         {/* ---------- FORGOT ---------- */}
@@ -276,9 +310,12 @@ export default function AuthModalHost() {
           <>
             <label className="mb-2 block text-sm text-muted">Email</label>
             <input
+              type="email"
+              name="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="user@example.com"
+              placeholder="you@example.com"
               autoFocus
               className="mb-5 w-full rounded-xl border border-border bg-surface2/70 px-3 py-2 text-text placeholder-muted outline-none focus:ring-2 focus:ring-accent/30"
             />
