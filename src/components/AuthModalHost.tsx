@@ -198,7 +198,7 @@ export default function AuthModalHost() {
             <input
               value={email}
               onChange={(e) => setEmailOrUsername(e.target.value)}
-              placeholder="you@example.com"
+              placeholder="user@example.com"
               autoFocus
               className="mb-3 w-full rounded-xl border border-border bg-surface2/70 px-3 py-2 text-text placeholder-muted outline-none focus:ring-2 focus:ring-accent/30"
             />
@@ -278,7 +278,7 @@ export default function AuthModalHost() {
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder="user@example.com"
               autoFocus
               className="mb-5 w-full rounded-xl border border-border bg-surface2/70 px-3 py-2 text-text placeholder-muted outline-none focus:ring-2 focus:ring-accent/30"
             />
