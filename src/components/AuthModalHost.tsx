@@ -1,314 +1,116 @@
-"use client";
+// src/app/page.tsx
+import Image from "next/image";
+import Link from "next/link";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { getSupabaseClient } from "@/lib/supabase";
+export const dynamic = "force-dynamic";
 
-type Mode = "signin" | "signup" | "forgot";
-
-export default function AuthModalHost() {
-  const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<Mode>("signin");
-
-  const [emailOrUsername, setEmailOrUsername] = useState(""); // signin
-  const [email, setEmail] = useState("");                     // signup/forgot
-  const [username, setUsername] = useState("");               // signup
-  const [password, setPassword] = useState("");
-
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-
-  const supabase = getSupabaseClient();
-  const router = useRouter();
-  const search = useSearchParams();
-  const dialogRef = useRef<HTMLDivElement | null>(null);
-
-  /** Centralized open that always resets to a safe state */
-  const openWith = (next: Mode = "signin") => {
-    setMode(next);
-    setErr(null);
-    setPassword("");
-    // keep what makes sense: clear signin field only if switching away from forgot/signup noise
-    if (next === "signin") {
-      setEmailOrUsername("");
-    }
-    if (next !== "signup") {
-      setUsername("");
-      setEmail("");
-    }
-    setOpen(true);
-  };
-
-  /* ---------------------------- Triggers ---------------------------- */
-  // Global event trigger
-  useEffect(() => {
-    const onOpen = (e: Event) => {
-      const detail = (e as CustomEvent).detail as Mode | undefined;
-      openWith(detail ?? "signin");
-    };
-    window.addEventListener("auth:open", onOpen as EventListener);
-    return () => window.removeEventListener("auth:open", onOpen as EventListener);
-  }, []);
-
-  // URL trigger: /?auth=signin or /?auth=signup
-  useEffect(() => {
-    const auth = search.get("auth");
-    if (auth === "signin" || auth === "signup") {
-      openWith(auth);
-      // Clean the URL so refresh doesn't reopen
-      const url = new URL(window.location.href);
-      url.searchParams.delete("auth");
-      window.history.replaceState({}, "", url.toString());
-    }
-  }, [search]);
-
-  // Close on Escape
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    if (open) window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
-
-  // Lock scroll while open
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
-
-  // Backdrop click to close
-  const onBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!dialogRef.current) return;
-    if (!dialogRef.current.contains(e.target as Node)) setOpen(false);
-  };
-
-  /* ----------------------------- Actions ---------------------------- */
-  const continueAsGuest = () => {
-    try {
-      window.localStorage.setItem("guest_mode", "true");
-    } catch {}
-    setOpen(false);
-    router.push("/dashboard");
-  };
-
-  const onSignIn = async () => {
-    setLoading(true);
-    setErr(null);
-    try {
-      // If you add username->email lookup later, swap emailOrUsername accordingly.
-      const res = await supabase.auth.signInWithPassword({
-        email: emailOrUsername,
-        password,
-      });
-      if (res.error) throw res.error;
-      setOpen(false);
-      router.push("/dashboard");
-    } catch (e: any) {
-      setErr(e?.message ?? "Sign in failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onSignUp = async () => {
-    setLoading(true);
-    setErr(null);
-    try {
-      const res = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { username } },
-      });
-      if (res.error) throw res.error;
-      setOpen(false);
-      router.push("/dashboard");
-    } catch (e: any) {
-      setErr(e?.message ?? "Sign up failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onForgot = async () => {
-    setLoading(true);
-    setErr(null);
-    try {
-      const res = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo:
-          typeof window !== "undefined" ? `${location.origin}/reset` : undefined,
-      });
-      if (res.error) throw res.error;
-      setErr("If that email exists, a reset link has been sent.");
-    } catch (e: any) {
-      setErr(e?.message ?? "Could not start reset");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /* ------------------------------ Render ---------------------------- */
-  if (!open) return null;
-
+export default function HomePage() {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-      onMouseDown={onBackdropClick}
-    >
-      <div
-        ref={dialogRef}
-        className="relative w-full max-w-md rounded-xl bg-zinc-900 p-6 text-white shadow-lg ring-1 ring-white/10"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold">
-            {mode === "signin" ? "Sign In" : mode === "signup" ? "Sign Up" : "Forgot Password"}
-          </h2>
-          <button
-            onClick={() => setOpen(false)}
-            className="rounded-md border border-zinc-700 px-2 py-1 text-sm hover:bg-zinc-800"
-          >
-            Close
-          </button>
-        </div>
+    <div className="relative">
+      {/* Hero */}
+      <section className="border-b border-border bg-gradient-to-b from-transparent to-black/10">
+        <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
+          <div className="grid items-center gap-10 md:grid-cols-2">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[11px] tracking-wide text-accent">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
+                CS2 inventory, simplified
+              </div>
 
-        {err && (
-          <div className="mb-3 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
-            {err}
+              <h1 className="mt-4 text-3xl font-extrabold leading-tight text-text md:text-5xl">
+                Track, value, and manage your{" "}
+                <span className="text-accent drop-shadow-[0_0_10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]">
+                  CS2 items
+                </span>{" "}
+                in one place
+              </h1>
+
+              <p className="mt-4 max-w-prose text-muted md:text-lg">
+                Import from Steam, add items manually, and see live price
+                snapshots from Skinport &amp; Steam. Works with an account or as
+                a guest—your data stays with you.
+              </p>
+
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                {/* Open the chooser */}
+                <Link
+                  href="/?auth=choose"
+                  className="rounded-xl bg-lime-400 px-5 py-3 font-semibold text-black transition hover:bg-lime-300"
+                >
+                  Get Started
+                </Link>
+              </div>
+
+              <p className="mt-3 text-xs text-muted">
+                No email verification required. You can{" "}
+                <span className="text-text">continue as guest</span> and upgrade
+                later—your items will sync to your new account.
+              </p>
+            </div>
+
+            {/* Hero preview – visible on all breakpoints */}
+            <div className="relative">
+              <div className="pointer-events-none absolute -inset-8 -z-10 hidden rounded-[28px] blur-2xl md:block [background:radial-gradient(600px_200px_at_60%_50%,theme(colors.accent.DEFAULT)/15%,transparent)]" />
+              <div className="rounded-2xl border border-border bg-surface/60 p-4 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
+                <Image
+                  src="/hero-dashboard.png"
+                  alt="CS2 Tracker dashboard preview"
+                  width={970}
+                  height={640}
+                  priority
+                  sizes="(min-width: 768px) 600px, 100vw"
+                  className="w-full rounded-xl border border-border shadow-[0_0_30px_-10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]"
+                />
+              </div>
+            </div>
           </div>
-        )}
+        </div>
+      </section>
 
-        {/* ---------------------------- SIGN IN ---------------------------- */}
-        {mode === "signin" && (
-          <>
-            <label className="mb-2 block text-sm">Email (or username)</label>
-            <input
-              value={emailOrUsername}
-              onChange={(e) => setEmailOrUsername(e.target.value)}
-              placeholder="you@example.com"
-              autoFocus
-              className="mb-3 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:ring-2 focus:ring-lime-400/40"
-            />
-            <label className="mb-2 block text-sm">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mb-5 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:ring-2 focus:ring-lime-400/40"
-            />
-            <button
-              onClick={onSignIn}
-              disabled={loading}
-              className="mb-3 w-full rounded-xl bg-lime-400 px-4 py-2 font-semibold text-black hover:bg-lime-300 disabled:opacity-60"
-            >
-              {loading ? "Signing in…" : "Sign In"}
-            </button>
-
-            {/* Continue as guest – visible on Sign In */}
-            <button
-              onClick={continueAsGuest}
-              className="mb-2 w-full rounded-xl border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800"
-            >
-              Continue as guest
-            </button>
-
-            <div className="mt-3 text-center text-sm text-zinc-400">
-              Need an account?{" "}
-              <button
-                onClick={() => openWith("signup")}
-                className="font-medium text-lime-300 hover:underline"
-              >
-                Sign Up
-              </button>
-              <br />
-              <button
-                onClick={() => openWith("forgot")}
-                className="mt-2 text-zinc-400 hover:underline"
-              >
-                Forgot password?
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* ---------------------------- SIGN UP ---------------------------- */}
-        {mode === "signup" && (
-          <>
-            <label className="mb-2 block text-sm">Username</label>
-            <input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="uwy"
-              autoFocus
-              className="mb-3 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:ring-2 focus:ring-lime-400/40"
-            />
-            <label className="mb-2 block text-sm">Email</label>
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              className="mb-3 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:ring-2 focus:ring-lime-400/40"
-            />
-            <label className="mb-2 block text-sm">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mb-5 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:ring-2 focus:ring-lime-400/40"
-            />
-            <button
-              onClick={onSignUp}
-              disabled={loading}
-              className="mb-3 w-full rounded-xl bg-lime-400 px-4 py-2 font-semibold text-black hover:bg-lime-300 disabled:opacity-60"
-            >
-              {loading ? "Creating…" : "Create account"}
-            </button>
-
-            <div className="mt-3 text-center text-sm text-zinc-400">
-              Already have an account?{" "}
-              <button
-                onClick={() => openWith("signin")}
-                className="font-medium text-lime-300 hover:underline"
-              >
-                Sign In
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* --------------------------- FORGOT PASS -------------------------- */}
-        {mode === "forgot" && (
-          <>
-            <label className="mb-2 block text-sm">Email</label>
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              autoFocus
-              className="mb-5 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:ring-2 focus:ring-lime-400/40"
-            />
-            <button
-              onClick={onForgot}
-              disabled={loading}
-              className="mb-3 w-full rounded-xl bg-lime-400 px-4 py-2 font-semibold text-black hover:bg-lime-300 disabled:opacity-60"
-            >
-              {loading ? "Sending…" : "Send reset link"}
-            </button>
-
-            <div className="mt-3 text-center text-sm text-zinc-400">
-              <button
-                onClick={() => openWith("signin")}
-                className="text-zinc-400 hover:underline"
-              >
-                Back to sign in
-              </button>
-            </div>
-          </>
-        )}
-      </div>
+      {/* Features */}
+      <section className="mx-auto max-w-6xl px-6 py-14">
+        <h2 className="text-2xl font-semibold">Why CS2 Tracker?</h2>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Feature
+            title="Guest or Account"
+            body="Start as a guest with local-only storage. Create an account anytime—your existing dashboard is synced to the cloud automatically."
+          />
+          <Feature
+            title="Smart pricing"
+            body="Skinport and Steam prices with sanity checks. Totals update automatically with quantity and live refresh."
+          />
+          <Feature
+            title="Manual + Import"
+            body="Paste Steam JSON or use the import wizard. Add items manually with wear, float, and pattern notes."
+          />
+          <Feature
+            title="Fast search"
+            body="Autocomplete shows base item names only (no wear spam). Pick a wear separately for clean entries."
+          />
+          <Feature
+            title="Every device"
+            body="With an account, your dashboard follows you to any device. As a guest, your data is saved locally."
+          />
+          <Feature
+            title="Privacy-first"
+            body="No email verification required to start. Password resets by email only when you need them."
+          />
+        </div>
+      </section>
     </div>
   );
 }
 
+function Feature({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-surface/60 p-4">
+      <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+          <path d="M13 2L3 14h7l-1 8 11-14h-7l0-6z" />
+        </svg>
+      </div>
+      <h3 className="font-medium">{title}</h3>
+      <p className="mt-1 text-sm text-muted">{body}</p>
+    </div>
+  );
+}
