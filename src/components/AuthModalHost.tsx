@@ -1,236 +1,258 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 
-function ModalShell({
-  title,
-  onClose,
-  children,
-}: {
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-}) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  if (!mounted) return null;
+type Mode = "signin" | "signup" | "forgot";
 
-  return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-md rounded-xl border border-border bg-surface p-5 shadow-2xl">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{title}</h2>
+export default function AuthModalHost() {
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<Mode>("signin");
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const supabase = getSupabaseClient();
+  const router = useRouter();
+
+  // Listen for global open events: window.dispatchEvent(new CustomEvent("auth:open", { detail: "signin" | "signup" }))
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const d = (e as CustomEvent).detail as Mode | undefined;
+      setMode(d ?? "signin");
+      setErr(null);
+      setOpen(true);
+    };
+    window.addEventListener("auth:open", onOpen as EventListener);
+    return () => window.removeEventListener("auth:open", onOpen as EventListener);
+  }, []);
+
+  // Close on Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    if (open) window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  const continueAsGuest = () => {
+    try {
+      window.localStorage.setItem("guest_mode", "true");
+    } catch {}
+    setOpen(false);
+    router.push("/dashboard");
+  };
+
+  const onSignIn = async () => {
+    setLoading(true);
+    setErr(null);
+    try {
+      // Support username OR email (Supabase: treat as email if contains "@")
+      const isEmail = email.includes("@");
+      let res;
+      if (isEmail) {
+        res = await supabase.auth.signInWithPassword({ email, password });
+      } else {
+        // username sign-in: look up email by username via RPC/edge function if you have it
+        // fallback: try as email anyway (returns error quickly)
+        res = await supabase.auth.signInWithPassword({ email, password });
+      }
+      if (res.error) throw res.error;
+      setOpen(false);
+      router.push("/dashboard");
+    } catch (e: any) {
+      setErr(e?.message ?? "Sign in failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onSignUp = async () => {
+    setLoading(true);
+    setErr(null);
+    try {
+      const res = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { username } },
+      });
+      if (res.error) throw res.error;
+      // No email verification required → go to dashboard
+      setOpen(false);
+      router.push("/dashboard");
+    } catch (e: any) {
+      setErr(e?.message ?? "Sign up failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onForgot = async () => {
+    setLoading(true);
+    setErr(null);
+    try {
+      const res = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: typeof window !== "undefined" ? `${location.origin}/reset` : undefined,
+      });
+      if (res.error) throw res.error;
+      setErr("If that email exists, a reset link has been sent.");
+    } catch (e: any) {
+      setErr(e?.message ?? "Could not start reset");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="relative w-full max-w-md rounded-xl bg-zinc-900 p-6 text-white shadow-lg ring-1 ring-white/10">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-2xl font-bold">
+            {mode === "signin" ? "Sign In" : mode === "signup" ? "Sign Up" : "Forgot Password"}
+          </h2>
           <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-border px-2 py-1 text-sm hover:bg-surface2/70"
+            onClick={() => setOpen(false)}
+            className="rounded-md border border-zinc-700 px-2 py-1 text-sm hover:bg-zinc-800"
           >
             Close
           </button>
         </div>
-        {children}
-      </div>
-    </div>,
-    document.body
-  );
-}
-
-export default function AuthModalHost() {
-  const supabase = getSupabaseClient();
-  const router = useRouter();
-
-  const [mode, setMode] = useState<"signin" | "signup" | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-
-  // Open from header via window event
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const d = (e as CustomEvent<string>).detail;
-      setMode(d === "signup" ? "signup" : "signin");
-      setErr(null);
-    };
-    window.addEventListener("auth:open", handler as any);
-    return () => window.removeEventListener("auth:open", handler as any);
-  }, []);
-
-  const close = () => setMode(null);
-
-  // shared fields
-  const [email, setEmail] = useState("");
-  const [username, setUsername] = useState(""); // signup only
-  const [password, setPassword] = useState("");
-
-  const signIn = async () => {
-    try {
-      setBusy(true);
-      setErr(null);
-      // username or email allowed: if looks like an email use it, else treat as username by querying
-      let emailToUse = email;
-      if (!email.includes("@")) {
-        // You can replace this with a proper RLS function if you add it later.
-        // For now: assume user enters email here (simpler UX).
-      }
-      const { error } = await supabase.auth.signInWithPassword({
-        email: emailToUse,
-        password,
-      });
-      if (error) throw error;
-      window.localStorage.removeItem("guest_mode");
-      close();
-      router.push("/dashboard");
-    } catch (e: any) {
-      setErr(e?.message || "Sign in failed");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const signUp = async () => {
-    try {
-      setBusy(true);
-      setErr(null);
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { username: username.trim() || null },
-          emailRedirectTo: undefined, // no email verification flow
-        },
-      });
-      if (error) throw error;
-      window.localStorage.removeItem("guest_mode");
-      close();
-      router.push("/dashboard");
-    } catch (e: any) {
-      setErr(e?.message || "Sign up failed");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  if (!mode) return null;
-
-  return (
-    <ModalShell
-      title={mode === "signin" ? "Sign In" : "Create an Account"}
-      onClose={close}
-    >
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          mode === "signin" ? signIn() : signUp();
-        }}
-        className="space-y-3"
-      >
-        {mode === "signup" && (
-          <div>
-            <label className="mb-1 block text-xs text-muted">Username</label>
-            <input
-              className="w-full rounded-lg border border-border bg-surface2 px-3 py-2"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="uwais11"
-              required
-            />
-          </div>
-        )}
-        <div>
-          <label className="mb-1 block text-xs text-muted">
-            {mode === "signin" ? "Email" : "Email"}
-          </label>
-          <input
-            type="email"
-            className="w-full rounded-lg border border-border bg-surface2 px-3 py-2"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            required
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs text-muted">Password</label>
-          <input
-            type="password"
-            className="w-full rounded-lg border border-border bg-surface2 px-3 py-2"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            required
-          />
-        </div>
 
         {err && (
-          <div className="rounded-lg border border-red-400/40 bg-red-400/10 p-2 text-sm text-red-200">
+          <div className="mb-3 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
             {err}
           </div>
         )}
 
-        <div className="pt-1">
-          <button
-            type="submit"
-            disabled={busy}
-            className="btn-accent w-full py-2 disabled:opacity-60"
-          >
-            {busy ? "Please wait…" : mode === "signin" ? "Sign In" : "Sign Up"}
-          </button>
-        </div>
-
+        {/* Forms */}
         {mode === "signin" && (
-          <div className="text-center text-sm">
+          <>
+            <label className="mb-2 block text-sm">Email (or username)</label>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="mb-3 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:ring-2 focus:ring-lime-400/40"
+            />
+            <label className="mb-2 block text-sm">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="mb-5 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:ring-2 focus:ring-lime-400/40"
+            />
             <button
-              type="button"
-              className="text-accent hover:underline"
-              onClick={() =>
-                window.dispatchEvent(
-                  new CustomEvent("auth:open", { detail: "signup" })
-                )
-              }
+              onClick={onSignIn}
+              disabled={loading}
+              className="mb-3 w-full rounded-xl bg-lime-400 px-4 py-2 font-semibold text-black hover:bg-lime-300 disabled:opacity-60"
             >
-              Need an account? Sign Up
+              {loading ? "Signing in…" : "Sign In"}
             </button>
-          </div>
+
+            {/* 🔹 Continue as guest lives here */}
+            <button
+              onClick={continueAsGuest}
+              className="mb-2 w-full rounded-xl border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800"
+            >
+              Continue as guest
+            </button>
+
+            <div className="mt-3 text-center text-sm text-zinc-400">
+              Need an account?{" "}
+              <button
+                onClick={() => setMode("signup")}
+                className="font-medium text-lime-300 hover:underline"
+              >
+                Sign Up
+              </button>
+              <br />
+              <button
+                onClick={() => setMode("forgot")}
+                className="mt-2 text-zinc-400 hover:underline"
+              >
+                Forgot password?
+              </button>
+            </div>
+          </>
         )}
+
         {mode === "signup" && (
-          <div className="text-center text-sm">
+          <>
+            <label className="mb-2 block text-sm">Username</label>
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="uwy"
+              className="mb-3 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:ring-2 focus:ring-lime-400/40"
+            />
+            <label className="mb-2 block text-sm">Email</label>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="mb-3 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:ring-2 focus:ring-lime-400/40"
+            />
+            <label className="mb-2 block text-sm">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="mb-5 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:ring-2 focus:ring-lime-400/40"
+            />
             <button
-              type="button"
-              className="text-accent hover:underline"
-              onClick={() =>
-                window.dispatchEvent(
-                  new CustomEvent("auth:open", { detail: "signin" })
-                )
-              }
+              onClick={onSignUp}
+              disabled={loading}
+              className="mb-3 w-full rounded-xl bg-lime-400 px-4 py-2 font-semibold text-black hover:bg-lime-300 disabled:opacity-60"
             >
-              Already have an account? Sign In
+              {loading ? "Creating…" : "Create account"}
             </button>
-          </div>
+
+            <div className="mt-3 text-center text-sm text-zinc-400">
+              Already have an account?{" "}
+              <button
+                onClick={() => setMode("signin")}
+                className="font-medium text-lime-300 hover:underline"
+              >
+                Sign In
+              </button>
+            </div>
+          </>
         )}
 
-        {mode === "signin" && (
-          <div className="text-center text-sm">
-            <LinkButton href="/reset">Forgot password?</LinkButton>
-          </div>
-        )}
-      </form>
-    </ModalShell>
-  );
-}
+        {mode === "forgot" && (
+          <>
+            <label className="mb-2 block text-sm">Email</label>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="mb-5 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:ring-2 focus:ring-lime-400/40"
+            />
+            <button
+              onClick={onForgot}
+              disabled={loading}
+              className="mb-3 w-full rounded-xl bg-lime-400 px-4 py-2 font-semibold text-black hover:bg-lime-300 disabled:opacity-60"
+            >
+              {loading ? "Sending…" : "Send reset link"}
+            </button>
 
-/** Minimal inline link-like button */
-function LinkButton({
-  href,
-  children,
-}: {
-  href: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <a href={href} className="text-accent hover:underline">
-      {children}
-    </a>
+            <div className="mt-3 text-center text-sm text-zinc-400">
+              <button
+                onClick={() => setMode("signin")}
+                className="text-zinc-400 hover:underline"
+              >
+                Back to sign in
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
