@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 
 type Mode = "chooser" | "signin" | "signup" | "forgot";
+type OpenDetail = Mode | "guest" | "choose" | undefined; // <- event/url may send these
 
 export default function AuthModalHost() {
   const [open, setOpen] = useState(false);
@@ -24,7 +25,7 @@ export default function AuthModalHost() {
   const search = useSearchParams();
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
-  /* ---------------------- Utilities ---------------------- */
+  // central open + reset
   const openWith = (next: Mode = "chooser") => {
     setMode(next);
     setErr(null);
@@ -33,9 +34,7 @@ export default function AuthModalHost() {
       setUsername("");
       setEmail("");
     }
-    if (next !== "signin") {
-      setEmailOrUsername("");
-    }
+    if (next !== "signin") setEmailOrUsername("");
     setOpen(true);
   };
 
@@ -51,9 +50,10 @@ export default function AuthModalHost() {
   // Global event trigger
   useEffect(() => {
     const onOpen = (e: Event) => {
-      const d = (e as CustomEvent).detail as Mode | undefined;
+      const d = (e as CustomEvent<OpenDetail>).detail;
       if (d === "guest") return continueAsGuest();
-      openWith(d ?? "chooser");
+      if (d === "choose") return openWith("chooser");
+      openWith((d as Mode) ?? "chooser");
     };
     window.addEventListener("auth:open", onOpen as EventListener);
     return () => window.removeEventListener("auth:open", onOpen as EventListener);
@@ -61,15 +61,12 @@ export default function AuthModalHost() {
 
   // URL trigger: /?auth=choose|signin|signup|guest
   useEffect(() => {
-    const auth = search.get("auth");
+    const auth = search.get("auth") as OpenDetail;
     if (!auth) return;
-    if (auth === "guest") {
-      continueAsGuest();
-    } else if (auth === "signin" || auth === "signup" || auth === "choose") {
-      openWith(auth === "choose" ? "chooser" : (auth as Mode));
-    } else {
-      openWith("chooser");
-    }
+    if (auth === "guest") continueAsGuest();
+    else if (auth === "choose") openWith("chooser");
+    else openWith((auth as Mode) ?? "chooser");
+
     // clean URL
     const url = new URL(window.location.href);
     url.searchParams.delete("auth");
@@ -102,7 +99,7 @@ export default function AuthModalHost() {
     setErr(null);
     try {
       const res = await supabase.auth.signInWithPassword({
-        email: emailOrUsername, // treat as email; add username->email lookup later if desired
+        email: emailOrUsername, // add username->email lookup later if desired
         password,
       });
       if (res.error) throw res.error;
@@ -238,24 +235,15 @@ export default function AuthModalHost() {
             </button>
 
             <div className="mt-3 space-y-2 text-center text-sm">
-              <button
-                onClick={() => openWith("signup")}
-                className="font-medium text-lime-300 hover:underline"
-              >
+              <button onClick={() => openWith("signup")} className="font-medium text-lime-300 hover:underline">
                 Create an account
               </button>
               <br />
-              <button
-                onClick={continueAsGuest}
-                className="text-zinc-300 hover:underline"
-              >
+              <button onClick={continueAsGuest} className="text-zinc-300 hover:underline">
                 Continue as guest
               </button>
               <br />
-              <button
-                onClick={() => openWith("forgot")}
-                className="text-zinc-400 hover:underline"
-              >
+              <button onClick={() => openWith("forgot")} className="text-zinc-400 hover:underline">
                 Forgot password?
               </button>
             </div>
@@ -297,17 +285,11 @@ export default function AuthModalHost() {
 
             <div className="mt-3 text-center text-sm text-zinc-400">
               Already have an account?{" "}
-              <button
-                onClick={() => openWith("signin")}
-                className="font-medium text-lime-300 hover:underline"
-              >
+              <button onClick={() => openWith("signin")} className="font-medium text-lime-300 hover:underline">
                 Sign In
               </button>
               <br />
-              <button
-                onClick={continueAsGuest}
-                className="mt-2 text-zinc-300 hover:underline"
-              >
+              <button onClick={continueAsGuest} className="mt-2 text-zinc-300 hover:underline">
                 Continue as guest
               </button>
             </div>
@@ -334,10 +316,7 @@ export default function AuthModalHost() {
             </button>
 
             <div className="mt-3 text-center text-sm text-zinc-400">
-              <button
-                onClick={() => openWith("signin")}
-                className="text-zinc-400 hover:underline"
-              >
+              <button onClick={() => openWith("signin")} className="text-zinc-400 hover:underline">
                 Back to sign in
               </button>
             </div>
