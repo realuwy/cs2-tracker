@@ -33,9 +33,12 @@ export default function HomePage() {
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 {/* Open the auth chooser (signin / signup / guest) */}
-         <Link
+<Link
   href="/?auth=signup"
-  className="rounded-xl bg-lime-400 px-5 py-3 font-semibold text-black transition hover:bg-lime-300"
+  className="rounded-xl bg-accent px-5 py-3 font-semibold text-black
+             shadow-[0_0_18px_var(--tw-shadow-color)]
+             [--tw-shadow-color:theme(colors.accent.glow)]
+             transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-accent/40"
 >
   Get Started
 </Link>
