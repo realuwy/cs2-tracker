@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 
 type Mode = "signin" | "signup" | "forgot";
@@ -9,36 +9,83 @@ type Mode = "signin" | "signup" | "forgot";
 export default function AuthModalHost() {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("signin");
-  const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
+
+  const [emailOrUsername, setEmailOrUsername] = useState(""); // signin
+  const [email, setEmail] = useState("");                     // signup/forgot
+  const [username, setUsername] = useState("");               // signup
   const [password, setPassword] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const supabase = getSupabaseClient();
   const router = useRouter();
+  const search = useSearchParams();
+  const dialogRef = useRef<HTMLDivElement | null>(null);
 
-  // Listen for global open events: window.dispatchEvent(new CustomEvent("auth:open", { detail: "signin" | "signup" }))
+  /** Centralized open that always resets to a safe state */
+  const openWith = (next: Mode = "signin") => {
+    setMode(next);
+    setErr(null);
+    setPassword("");
+    // keep what makes sense: clear signin field only if switching away from forgot/signup noise
+    if (next === "signin") {
+      setEmailOrUsername("");
+    }
+    if (next !== "signup") {
+      setUsername("");
+      setEmail("");
+    }
+    setOpen(true);
+  };
+
+  /* ---------------------------- Triggers ---------------------------- */
+  // Global event trigger
   useEffect(() => {
     const onOpen = (e: Event) => {
-      const d = (e as CustomEvent).detail as Mode | undefined;
-      setMode(d ?? "signin");
-      setErr(null);
-      setOpen(true);
+      const detail = (e as CustomEvent).detail as Mode | undefined;
+      openWith(detail ?? "signin");
     };
     window.addEventListener("auth:open", onOpen as EventListener);
     return () => window.removeEventListener("auth:open", onOpen as EventListener);
   }, []);
 
+  // URL trigger: /?auth=signin or /?auth=signup
+  useEffect(() => {
+    const auth = search.get("auth");
+    if (auth === "signin" || auth === "signup") {
+      openWith(auth);
+      // Clean the URL so refresh doesn't reopen
+      const url = new URL(window.location.href);
+      url.searchParams.delete("auth");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [search]);
+
   // Close on Escape
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     if (open) window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  // Lock scroll while open
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
+  // Backdrop click to close
+  const onBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!dialogRef.current) return;
+    if (!dialogRef.current.contains(e.target as Node)) setOpen(false);
+  };
+
+  /* ----------------------------- Actions ---------------------------- */
   const continueAsGuest = () => {
     try {
       window.localStorage.setItem("guest_mode", "true");
@@ -51,16 +98,11 @@ export default function AuthModalHost() {
     setLoading(true);
     setErr(null);
     try {
-      // Support username OR email (Supabase: treat as email if contains "@")
-      const isEmail = email.includes("@");
-      let res;
-      if (isEmail) {
-        res = await supabase.auth.signInWithPassword({ email, password });
-      } else {
-        // username sign-in: look up email by username via RPC/edge function if you have it
-        // fallback: try as email anyway (returns error quickly)
-        res = await supabase.auth.signInWithPassword({ email, password });
-      }
+      // If you add username->email lookup later, swap emailOrUsername accordingly.
+      const res = await supabase.auth.signInWithPassword({
+        email: emailOrUsername,
+        password,
+      });
       if (res.error) throw res.error;
       setOpen(false);
       router.push("/dashboard");
@@ -81,7 +123,6 @@ export default function AuthModalHost() {
         options: { data: { username } },
       });
       if (res.error) throw res.error;
-      // No email verification required → go to dashboard
       setOpen(false);
       router.push("/dashboard");
     } catch (e: any) {
@@ -96,7 +137,8 @@ export default function AuthModalHost() {
     setErr(null);
     try {
       const res = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: typeof window !== "undefined" ? `${location.origin}/reset` : undefined,
+        redirectTo:
+          typeof window !== "undefined" ? `${location.origin}/reset` : undefined,
       });
       if (res.error) throw res.error;
       setErr("If that email exists, a reset link has been sent.");
@@ -107,11 +149,19 @@ export default function AuthModalHost() {
     }
   };
 
+  /* ------------------------------ Render ---------------------------- */
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="relative w-full max-w-md rounded-xl bg-zinc-900 p-6 text-white shadow-lg ring-1 ring-white/10">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      onMouseDown={onBackdropClick}
+    >
+      <div
+        ref={dialogRef}
+        className="relative w-full max-w-md rounded-xl bg-zinc-900 p-6 text-white shadow-lg ring-1 ring-white/10"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-2xl font-bold">
             {mode === "signin" ? "Sign In" : mode === "signup" ? "Sign Up" : "Forgot Password"}
@@ -130,14 +180,15 @@ export default function AuthModalHost() {
           </div>
         )}
 
-        {/* Forms */}
+        {/* ---------------------------- SIGN IN ---------------------------- */}
         {mode === "signin" && (
           <>
             <label className="mb-2 block text-sm">Email (or username)</label>
             <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={emailOrUsername}
+              onChange={(e) => setEmailOrUsername(e.target.value)}
               placeholder="you@example.com"
+              autoFocus
               className="mb-3 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:ring-2 focus:ring-lime-400/40"
             />
             <label className="mb-2 block text-sm">Password</label>
@@ -155,7 +206,7 @@ export default function AuthModalHost() {
               {loading ? "Signing in…" : "Sign In"}
             </button>
 
-            {/* 🔹 Continue as guest lives here */}
+            {/* Continue as guest – visible on Sign In */}
             <button
               onClick={continueAsGuest}
               className="mb-2 w-full rounded-xl border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-800"
@@ -166,14 +217,14 @@ export default function AuthModalHost() {
             <div className="mt-3 text-center text-sm text-zinc-400">
               Need an account?{" "}
               <button
-                onClick={() => setMode("signup")}
+                onClick={() => openWith("signup")}
                 className="font-medium text-lime-300 hover:underline"
               >
                 Sign Up
               </button>
               <br />
               <button
-                onClick={() => setMode("forgot")}
+                onClick={() => openWith("forgot")}
                 className="mt-2 text-zinc-400 hover:underline"
               >
                 Forgot password?
@@ -182,6 +233,7 @@ export default function AuthModalHost() {
           </>
         )}
 
+        {/* ---------------------------- SIGN UP ---------------------------- */}
         {mode === "signup" && (
           <>
             <label className="mb-2 block text-sm">Username</label>
@@ -189,6 +241,7 @@ export default function AuthModalHost() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="uwy"
+              autoFocus
               className="mb-3 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:ring-2 focus:ring-lime-400/40"
             />
             <label className="mb-2 block text-sm">Email</label>
@@ -216,7 +269,7 @@ export default function AuthModalHost() {
             <div className="mt-3 text-center text-sm text-zinc-400">
               Already have an account?{" "}
               <button
-                onClick={() => setMode("signin")}
+                onClick={() => openWith("signin")}
                 className="font-medium text-lime-300 hover:underline"
               >
                 Sign In
@@ -225,6 +278,7 @@ export default function AuthModalHost() {
           </>
         )}
 
+        {/* --------------------------- FORGOT PASS -------------------------- */}
         {mode === "forgot" && (
           <>
             <label className="mb-2 block text-sm">Email</label>
@@ -232,6 +286,7 @@ export default function AuthModalHost() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
+              autoFocus
               className="mb-5 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 outline-none focus:ring-2 focus:ring-lime-400/40"
             />
             <button
@@ -244,7 +299,7 @@ export default function AuthModalHost() {
 
             <div className="mt-3 text-center text-sm text-zinc-400">
               <button
-                onClick={() => setMode("signin")}
+                onClick={() => openWith("signin")}
                 className="text-zinc-400 hover:underline"
               >
                 Back to sign in
@@ -256,3 +311,4 @@ export default function AuthModalHost() {
     </div>
   );
 }
+
