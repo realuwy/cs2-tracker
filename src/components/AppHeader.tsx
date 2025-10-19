@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 
 /* ----------------------------- NavLink ----------------------------- */
@@ -65,7 +65,8 @@ type SessionName = string | null;
 export default function AppHeader() {
   const supabase = getSupabaseClient();
   const router = useRouter();
-
+ const search = useSearchParams();
+  
   const [sessionName, setSessionName] = useState<SessionName>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -78,6 +79,21 @@ export default function AppHeader() {
   const acctRef = useRef<HTMLDivElement | null>(null);
 
   /* ------------------------- Supabase Session ------------------------- */
+   useEffect(() => {
+    if (search.get("account") === "open") {
+      setAccountOpen(true);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("account");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [search]);
+
+  // Optional: allow programmatic open
+  useEffect(() => {
+    const onOpen = () => setAccountOpen(true);
+    window.addEventListener("account:open", onOpen as EventListener);
+    return () => window.removeEventListener("account:open", onOpen as EventListener);
+  }, []);
   useEffect(() => {
     let unsub: (() => void) | undefined;
 
