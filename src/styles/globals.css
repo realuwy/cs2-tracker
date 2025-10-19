@@ -2,14 +2,116 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
+/* ---- Base / Resets ---- */
+:root { color-scheme: dark; }
+
+html, body { height: 100%; }
+
+@layer base {
+  body {
+    @apply bg-bg text-text antialiased;
+  }
+
+  /* smooth-ish default border color everywhere */
+  * {
+    @apply border-border;
+  }
+
+  /* Selection to match neon accent */
+  ::selection {
+    background: theme(colors.accent.DEFAULT / 0.25);
+    color: theme(colors.text);
+  }
+
+  /* Prefer reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
-html, body {
-  height: 100%;
+/* ---- Components / Reusable Utilities ---- */
+@layer components {
+  /* Cards & panels */
+  .card {
+    @apply rounded-2xl border border-border bg-surface/60 shadow-card;
+  }
+  .panel {
+    @apply rounded-xl border border-border bg-surface2/70;
+  }
+  .menu-panel {
+    @apply rounded-xl border border-border bg-surface p-2 shadow-xl;
+  }
+
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 font-semibold transition
+           focus:outline-none focus:ring-2 focus:ring-accent/40;
+  }
+  .btn-ghost {
+    @apply btn border border-border bg-surface2/70 hover:bg-surface;
+  }
+  .btn-danger {
+    @apply btn text-red-300 hover:bg-red-400/10;
+  }
+
+  /* Primary neon CTA (used for Get Started) */
+  .btn-accent {
+    @apply btn bg-accent text-black hover:bg-accent-hover;
+    /* soft neon glow */
+    --tw-shadow-color: theme(colors.accent.glow);
+    box-shadow: 0 0 18px var(--tw-shadow-color);
+  }
+
+  /* Small badge (e.g., “alpha”, “Signed in”) */
+  .badge {
+    @apply inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium;
+  }
+  .badge-accent {
+    @apply badge bg-accent/15 text-accent;
+  }
+
+  /* Links */
+  .link-muted {
+    @apply text-muted hover:text-text transition;
+  }
+
+  /* Header active-link neon underline */
+  .neon-underline {
+    position: relative;
+  }
+  .neon-underline::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    height: 2px;
+    width: 100%;
+    border-radius: 9999px;
+    background: theme(colors.accent.DEFAULT);
+    /* glow */
+    --tw-shadow-color: theme(colors.accent.glow);
+    box-shadow: 0 0 8px var(--tw-shadow-color);
+  }
 }
 
-body {
-  @apply bg-neutral-950 text-neutral-100;
+/* ---- Utilities (minor) ---- */
+@layer utilities {
+  .text-muted { @apply text-muted; }
+  .surface-blur { @apply bg-surface/80 backdrop-blur supports-[backdrop-filter]:bg-surface/70; }
+
+  /* Scrollbar (subtle, optional) */
+  .thin-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: theme(colors.border) transparent;
+  }
+  .thin-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
+  .thin-scrollbar::-webkit-scrollbar-thumb {
+    background-color: theme(colors.border);
+    border-radius: 9999px;
+  }
 }
