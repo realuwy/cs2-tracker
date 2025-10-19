@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 
-/** Small link style for the center-nav */
+/* ----------------------------- NavLink ----------------------------- */
 function NavLink({
   href,
   children,
@@ -33,8 +33,7 @@ function NavLink({
   );
 }
 
-
-/** 4-dot icon button used for the user menu */
+/* ---------------------------- Dots Button ---------------------------- */
 function DotsButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
@@ -57,8 +56,9 @@ function DotsButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   );
 }
 
-type SessionName = string | null; // username preferred, else email
+type SessionName = string | null;
 
+/* ---------------------------- AppHeader ---------------------------- */
 export default function AppHeader() {
   const supabase = getSupabaseClient();
   const router = useRouter();
@@ -74,7 +74,7 @@ export default function AppHeader() {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const acctRef = useRef<HTMLDivElement | null>(null);
 
-  // ----- Load supabase session -> show username || email
+  /* ------------------------- Supabase Session ------------------------- */
   useEffect(() => {
     let unsub: (() => void) | undefined;
 
@@ -90,7 +90,6 @@ export default function AppHeader() {
         setSessionName(
           (u?.user_metadata as any)?.username || u?.email || null
         );
-        // If user logs in, clear guest mode
         if (sess?.user) {
           window.localStorage.removeItem("guest_mode");
           setIsGuest(false);
@@ -103,22 +102,20 @@ export default function AppHeader() {
     return () => unsub?.();
   }, [supabase]);
 
-  // ----- Click outside to close menus
+  /* --------------------------- Outside Click -------------------------- */
   useEffect(() => {
-    const closeOnOutside = (e: MouseEvent) => {
+    const onDocClick = (e: MouseEvent) => {
       const t = e.target as Node;
-      if (menuOpen && menuRef.current && !menuRef.current.contains(t)) {
+      if (menuOpen && menuRef.current && !menuRef.current.contains(t))
         setMenuOpen(false);
-      }
-      if (accountOpen && acctRef.current && !acctRef.current.contains(t)) {
+      if (accountOpen && acctRef.current && !acctRef.current.contains(t))
         setAccountOpen(false);
-      }
     };
-    window.addEventListener("mousedown", closeOnOutside);
-    return () => window.removeEventListener("mousedown", closeOnOutside);
+    window.addEventListener("mousedown", onDocClick);
+    return () => window.removeEventListener("mousedown", onDocClick);
   }, [menuOpen, accountOpen]);
 
-  // ----- Actions
+  /* ------------------------------ Actions ----------------------------- */
   const openSignIn = () =>
     window.dispatchEvent(new CustomEvent("auth:open", { detail: "signin" }));
   const openSignUp = () =>
@@ -133,14 +130,14 @@ export default function AppHeader() {
   const signOut = async () => {
     await supabase.auth.signOut();
     setSessionName(null);
-    // When signed out, keep the current guest flag as-is (do not force guest on)
     router.push("/");
   };
 
   const authed = !!sessionName;
 
+  /* ------------------------------ Render ------------------------------ */
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
         {/* Left: brand */}
         <Link
@@ -148,7 +145,6 @@ export default function AppHeader() {
           aria-label="CS2 Tracker home"
           className="group inline-flex items-center gap-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
         >
-          {/* PNG logo @24px (44x44 source) */}
           <Image
             src="/logo-arrow.png"
             alt=""
@@ -185,9 +181,9 @@ export default function AppHeader() {
           </ul>
         </nav>
 
-        {/* Right: actions */}
+        {/* Right: account + dots (mobile only for dots) */}
         <div className="flex items-center gap-2">
-          {/* Account dropdown (desktop & mobile) */}
+          {/* Account dropdown */}
           <div className="relative" ref={acctRef}>
             <button
               type="button"
@@ -230,18 +226,22 @@ export default function AppHeader() {
             {accountOpen && (
               <div
                 role="menu"
-                className="absolute right-0 mt-2 w-64 rounded-xl border border-border bg-surface p-2 shadow-xl"
+                className="absolute right-0 mt-2 w-64 rounded-xl border border-border bg-surface p-2 shadow-xl z-50"
               >
                 <div className="px-2 pb-2 pt-1 text-[10px] uppercase tracking-wider text-muted">
                   Account
                 </div>
 
-                {/* identity line */}
                 <div className="px-3 pb-2 text-xs text-muted">
                   {authed ? (
-                    <>Signed in as <span className="text-text">{sessionName}</span></>
+                    <>
+                      Signed in as{" "}
+                      <span className="text-text">{sessionName}</span>
+                    </>
                   ) : isGuest ? (
-                    <>Browsing as <span className="text-text">Guest</span></>
+                    <>
+                      Browsing as <span className="text-text">Guest</span>
+                    </>
                   ) : (
                     <>Not signed in</>
                   )}
@@ -249,7 +249,6 @@ export default function AppHeader() {
 
                 <hr className="my-1 border-border/70" />
 
-                {/* Rows differ per state */}
                 {!authed && (
                   <>
                     <button
@@ -311,12 +310,16 @@ export default function AppHeader() {
             )}
           </div>
 
-         {/* Dots menu – visible on mobile only */}
-<div className="relative md:hidden" ref={menuRef}>
-  <DotsButton onClick={() => setMenuOpen((v) => !v)} aria-label="Open menu" />
-
+          {/* Dots menu — MOBILE ONLY */}
+          <div className="relative md:hidden" ref={menuRef}>
+            <DotsButton
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-label="Open menu"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+            />
             {menuOpen && (
-              <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-surface p-2 shadow-xl md:hidden">
+              <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-surface p-2 shadow-xl z-50">
                 <ul className="space-y-1 text-sm">
                   <li>
                     <Link
@@ -363,3 +366,4 @@ export default function AppHeader() {
     </header>
   );
 }
+
