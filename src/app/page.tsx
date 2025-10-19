@@ -34,11 +34,12 @@ export default function HomePage() {
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 {/* Open the auth chooser (signin / signup / guest) */}
                 <Link
-                  href="/?auth=choose"
-                  className="rounded-xl bg-lime-400 px-5 py-3 font-semibold text-black transition hover:bg-lime-300"
-                >
-                  Get Started
-                </Link>
+  href="/?account=open"
+  className="rounded-xl bg-lime-400 px-5 py-3 font-semibold text-black transition hover:bg-lime-300"
+>
+  Get Started
+</Link>
+
               </div>
 
               <p className="mt-3 text-xs text-muted">
