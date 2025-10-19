@@ -32,7 +32,6 @@ function NavLink({
     </Link>
   );
 }
-
 /* ---------------------------- Dots Button ---------------------------- */
 function DotsButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
@@ -42,19 +41,23 @@ function DotsButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
       className={[
         "inline-flex h-9 w-9 items-center justify-center rounded-lg border",
         "border-border bg-surface2/70 hover:bg-surface transition",
+        // 👇 ensure visible icon color on dark bg
+        "text-zinc-300 hover:text-white",
         "focus:outline-none focus:ring-2 focus:ring-accent/30",
         props.className || "",
       ].join(" ")}
     >
-      <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden>
-        <circle cx="8" cy="8" r="1.75" />
-        <circle cx="16" cy="8" r="1.75" />
-        <circle cx="8" cy="16" r="1.75" />
-        <circle cx="16" cy="16" r="1.75" />
+      <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4">
+        {/* Explicitly fill using currentColor so tailwind text-* applies */}
+        <circle cx="8"  cy="8"  r="1.75" fill="currentColor" />
+        <circle cx="16" cy="8"  r="1.75" fill="currentColor" />
+        <circle cx="8"  cy="16" r="1.75" fill="currentColor" />
+        <circle cx="16" cy="16" r="1.75" fill="currentColor" />
       </svg>
     </button>
   );
 }
+
 
 type SessionName = string | null;
 
