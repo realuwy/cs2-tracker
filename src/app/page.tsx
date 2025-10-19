@@ -1,7 +1,6 @@
 // src/app/page.tsx
 import Image from "next/image";
 import Link from "next/link";
-import GetStartedButton from "@/components/GetStartedButton";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +32,13 @@ export default function HomePage() {
               </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
-                <GetStartedButton />
+                {/* Open auth modal in Sign In mode via URL param */}
+                <Link
+                  href="/?auth=signin"
+                  className="rounded-xl bg-lime-400 px-5 py-3 font-semibold text-black transition hover:bg-lime-300"
+                >
+                  Get Started
+                </Link>
               </div>
 
               <p className="mt-3 text-xs text-muted">
@@ -43,19 +48,19 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div className="relative hidden md:block">
-              <div className="pointer-events-none absolute -inset-8 -z-10 rounded-[28px] blur-2xl [background:radial-gradient(600px_200px_at_60%_50%,theme(colors.accent.DEFAULT)/15%,transparent)]" />
+            {/* Hero preview – now visible on mobile too */}
+            <div className="relative">
+              <div className="pointer-events-none absolute -inset-8 -z-10 hidden rounded-[28px] blur-2xl md:block [background:radial-gradient(600px_200px_at_60%_50%,theme(colors.accent.DEFAULT)/15%,transparent)]" />
               <div className="rounded-2xl border border-border bg-surface/60 p-4 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
-               
                 <Image
-  src="/hero-dashboard.png"
-  alt="CS2 Tracker dashboard preview"
-  width={970}
-  height={640}
-  className="rounded-xl border border-border shadow-[0_0_30px_-10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]"
-  priority
-/>
-
+                  src="/hero-dashboard.png"
+                  alt="CS2 Tracker dashboard preview"
+                  width={970}
+                  height={640}
+                  priority
+                  sizes="(min-width: 768px) 600px, 100vw"
+                  className="w-full rounded-xl border border-border shadow-[0_0_30px_-10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]"
+                />
               </div>
             </div>
           </div>
@@ -116,4 +121,3 @@ function Feature({ title, body }: { title: string; body: string }) {
     </div>
   );
 }
-
