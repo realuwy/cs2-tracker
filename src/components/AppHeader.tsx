@@ -374,12 +374,16 @@ export default function AppHeader() {
                   {authed && (
                     <>
                       <button
-                        role="menuitem"
-                        className="block rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                        onClick={() => { setAccountOpen(false); openSettings(); }}
-                      >
-                        Settings
-                      </button>
+  role="menuitem"
+  className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
+  onClick={() => {
+    setAccountOpen(false);
+    window.dispatchEvent(new Event("settings:open"));
+  }}
+>
+  Settings
+</button>
+
                       <button
                         role="menuitem"
                         className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-red-300 hover:bg-red-400/10"
