@@ -2,39 +2,19 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import dynamic from "next/dynamic";
 import { Suspense } from "react";
+import dynamic from "next/dynamic";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-
-// Fonts
 import { Inter, Manrope } from "next/font/google";
+
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
-// src/app/layout.tsx (snippet)
-const SettingsHost = dynamic(() => import("@/components/SettingsHost"), { ssr: false });
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${manrope.variable} font-sans bg-bg text-text`}>
-        <div className="min-h-screen flex flex-col">
-          <AppHeader />
-          <AuthModalHost />
-          <SettingsHost />  {/* ← add this */}
-          <main className="flex-1">{children}</main>
-          <SiteFooter />
-        </div>
-        <Analytics />
-        <SpeedInsights />
-      </body>
-    </html>
-  );
-}
 
 // Browser-only components (no SSR)
 const AppHeader = dynamic(() => import("@/components/AppHeader"), { ssr: false });
 const AuthModalHost = dynamic(() => import("@/components/AuthModalHost"), { ssr: false });
+const SettingsHost = dynamic(() => import("@/components/SettingsHost"), { ssr: false });
 import SiteFooter from "@/components/Footer";
 
 export const metadata: Metadata = {
@@ -45,18 +25,17 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${inter.variable} ${manrope.variable} font-sans bg-bg text-text`}
-      >
+      <body className={`${inter.variable} ${manrope.variable} font-sans bg-bg text-text`}>
         <div className="min-h-screen flex flex-col">
           <AppHeader />
 
-          {/* Wrap AuthModalHost to satisfy useSearchParams CSR bailout */}
+          {/* Wrap hosts so any useSearchParams inside them is safe */}
           <Suspense fallback={null}>
             <AuthModalHost />
+            <SettingsHost />
           </Suspense>
 
-          {/* Wrap ALL route content so any page using useSearchParams is safe */}
+          {/* Wrap route content to avoid CSR bailout warnings on pages using useSearchParams */}
           <Suspense fallback={null}>
             <main className="flex-1">{children}</main>
           </Suspense>
