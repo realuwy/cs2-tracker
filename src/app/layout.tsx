@@ -11,6 +11,26 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Inter, Manrope } from "next/font/google";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
+// src/app/layout.tsx (snippet)
+const SettingsHost = dynamic(() => import("@/components/SettingsHost"), { ssr: false });
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.variable} ${manrope.variable} font-sans bg-bg text-text`}>
+        <div className="min-h-screen flex flex-col">
+          <AppHeader />
+          <AuthModalHost />
+          <SettingsHost />  {/* ← add this */}
+          <main className="flex-1">{children}</main>
+          <SiteFooter />
+        </div>
+        <Analytics />
+        <SpeedInsights />
+      </body>
+    </html>
+  );
+}
 
 // Browser-only components (no SSR)
 const AppHeader = dynamic(() => import("@/components/AppHeader"), { ssr: false });
