@@ -115,19 +115,7 @@ export default function PrivacyPage() {
         </ul>
       </section>
 
-      <section className="card p-5">
-        <h2 className="text-lg font-semibold">Questions</h2>
-        <p className="mt-3 text-sm text-muted">
-          Reach out via{" "}
-          <Link
-            href="https://github.com/realuwy/cs2-tracker/issues"
-            className="underline hover:no-underline"
-          >
-            GitHub issues
-          </Link>
-          . We’re happy to clarify anything here.
-        </p>
-      </section>
+      
 
       <p className="mt-8 text-xs text-muted">Updated: 20 Oct 2025</p>
     </main>
