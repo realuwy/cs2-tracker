@@ -1,4 +1,3 @@
-// src/components/AuthModalHost.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -30,7 +29,6 @@ export default function AuthModalHost() {
     setOpen(true);
   };
 
-  // Global trigger: window.dispatchEvent(new CustomEvent("auth:open",{detail:"chooser"|"signin"|"signup"}))
   useEffect(() => {
     const onOpen = (e: Event) => {
       const d = (e as CustomEvent).detail as Mode | undefined;
@@ -40,7 +38,6 @@ export default function AuthModalHost() {
     return () => window.removeEventListener("auth:open", onOpen as EventListener);
   }, []);
 
-  // URL trigger: /?auth=chooser|signin|signup
   useEffect(() => {
     const a = search.get("auth");
     if (a === "signin" || a === "signup" || a === "chooser") {
@@ -51,14 +48,13 @@ export default function AuthModalHost() {
     }
   }, [search]);
 
-  // Close on Escape
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     if (open) window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  // Focus trap + scroll lock while open
+  // Focus trap + scroll lock
   useEffect(() => {
     if (!open) return;
     const root = dialogRef.current!;
@@ -156,35 +152,40 @@ export default function AuthModalHost() {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div ref={dialogRef} role="dialog" aria-modal="true" className="modal w-full max-w-md">
         {/* Header */}
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-2xl font-bold tracking-tight">
             {mode === "chooser" ? "Get Started" : mode === "signin" ? "Sign In" : mode === "signup" ? "Sign Up" : "Forgot Password"}
           </h2>
           <button className="btn-ghost px-2 py-1 text-sm" onClick={() => setOpen(false)}>Close</button>
         </div>
 
+        {/* Error */}
         {err && (
           <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
             {err}
           </div>
         )}
 
-        {/* CHOOSER */}
+        {/* --- CHOOSER --- */}
         {mode === "chooser" && (
           <div className="grid gap-3">
-            <button className="btn-accent w-full" onClick={() => setMode("signin")}>Sign In</button>
-            <button className="btn-ghost w-full" onClick={() => setMode("signup")}>Create an account</button>
-            <button className="btn-ghost w-full" onClick={continueAsGuest}>Continue as guest</button>
+            <button className="btn-accent w-full h-12 text-base">Sign In</button>
+            <button className="btn-ghost  w-full h-12 text-base" onClick={() => setMode("signup")}>
+              Create an account
+            </button>
+            <button className="btn-ghost  w-full h-12 text-base" onClick={continueAsGuest}>
+              Continue as guest
+            </button>
           </div>
         )}
 
-        {/* SIGN IN */}
+        {/* --- SIGN IN --- */}
         {mode === "signin" && (
-          <div className="grid gap-3">
+          <div className="grid gap-4">
             <div className="grid gap-1">
-              <label className="label">Email</label>
+              <label className="label text-[13px]">Email</label>
               <input
-                className="input"
+                className="input h-11"
                 type="email"
                 inputMode="email"
                 autoComplete="email"
@@ -197,9 +198,9 @@ export default function AuthModalHost() {
             </div>
 
             <div className="grid gap-1">
-              <label className="label">Password</label>
+              <label className="label text-[13px]">Password</label>
               <input
-                className="input"
+                className="input h-11"
                 type="password"
                 autoComplete="current-password"
                 value={password}
@@ -207,7 +208,7 @@ export default function AuthModalHost() {
               />
             </div>
 
-            <button className="btn-accent mt-1 w-full" onClick={onSignIn} disabled={loading}>
+            <button className="btn-accent w-full h-12 text-base" onClick={onSignIn} disabled={loading}>
               {loading ? "Signing in…" : "Sign In"}
             </button>
 
@@ -219,13 +220,13 @@ export default function AuthModalHost() {
           </div>
         )}
 
-        {/* SIGN UP */}
+        {/* --- SIGN UP --- */}
         {mode === "signup" && (
-          <div className="grid gap-3">
+          <div className="grid gap-4">
             <div className="grid gap-1">
-              <label className="label">Username</label>
+              <label className="label text-[13px]">Username</label>
               <input
-                className="input"
+                className="input h-11"
                 placeholder="uwy"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -233,9 +234,9 @@ export default function AuthModalHost() {
             </div>
 
             <div className="grid gap-1">
-              <label className="label">Email</label>
+              <label className="label text-[13px]">Email</label>
               <input
-                className="input"
+                className="input h-11"
                 type="email"
                 inputMode="email"
                 autoComplete="email"
@@ -248,9 +249,9 @@ export default function AuthModalHost() {
             </div>
 
             <div className="grid gap-1">
-              <label className="label">Password</label>
+              <label className="label text-[13px]">Password</label>
               <input
-                className="input"
+                className="input h-11"
                 type="password"
                 autoComplete="new-password"
                 value={password}
@@ -258,7 +259,7 @@ export default function AuthModalHost() {
               />
             </div>
 
-            <button className="btn-accent mt-1 w-full" onClick={onSignUp} disabled={loading}>
+            <button className="btn-accent w-full h-12 text-base" onClick={onSignUp} disabled={loading}>
               {loading ? "Creating…" : "Create account"}
             </button>
 
@@ -269,13 +270,13 @@ export default function AuthModalHost() {
           </div>
         )}
 
-        {/* FORGOT */}
+        {/* --- FORGOT --- */}
         {mode === "forgot" && (
-          <div className="grid gap-3">
+          <div className="grid gap-4">
             <div className="grid gap-1">
-              <label className="label">Email</label>
+              <label className="label text-[13px]">Email</label>
               <input
-                className="input"
+                className="input h-11"
                 type="email"
                 inputMode="email"
                 autoComplete="email"
@@ -287,7 +288,7 @@ export default function AuthModalHost() {
               />
             </div>
 
-            <button className="btn-accent mt-1 w-full" onClick={onForgot} disabled={loading}>
+            <button className="btn-accent w-full h-12 text-base" onClick={onForgot} disabled={loading}>
               {loading ? "Sending…" : "Send reset link"}
             </button>
 
@@ -300,6 +301,4 @@ export default function AuthModalHost() {
     </div>
   );
 }
-
-
 
