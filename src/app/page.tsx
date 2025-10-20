@@ -1,5 +1,4 @@
- // src/app/page.tsx
-import Image from "next/image";
+ import Image from "next/image";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -26,26 +25,15 @@ export default function HomePage() {
               </h1>
 
               <p className="mt-4 max-w-prose text-muted md:text-lg">
-                Import from Steam, add items manually, and see live price
-                snapshots from Skinport &amp; Steam. Works with an account or as
-                a guest—your data stays with you.
+                Add items manually and see live price snapshots from Skinport &amp; Steam.
+                Works with an account or as a guest—your data stays with you.
               </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
-                {/* Open the auth chooser (signin / signup / guest) */}
-<Link
-  href="/?auth=signup"
-  className="rounded-xl bg-accent px-5 py-3 font-semibold text-black
-             hover:bg-accent-hover transition
-             shadow-[0_0_18px_var(--tw-shadow-color)]
-             [--tw-shadow-color:theme(colors.accent.glow)]
-             focus:outline-none focus:ring-2 focus:ring-accent/40"
->
-  Get Started
-</Link>
-
-
-
+                {/* Open auth modal in "chooser" (Sign in / Sign up / Guest) */}
+                <Link href="/?auth=chooser" className="btn-accent">
+                  Get Started
+                </Link>
               </div>
 
               <p className="mt-3 text-xs text-muted">
@@ -55,10 +43,10 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* Hero preview (mobile + desktop) */}
+            {/* Hero preview – visible on mobile too */}
             <div className="relative">
               <div className="pointer-events-none absolute -inset-8 -z-10 hidden rounded-[28px] blur-2xl md:block [background:radial-gradient(600px_200px_at_60%_50%,theme(colors.accent.DEFAULT)/15%,transparent)]" />
-              <div className="rounded-2xl border border-border bg-surface/60 p-4 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
+              <div className="card p-4">
                 <Image
                   src="/hero-dashboard.png"
                   alt="CS2 Tracker dashboard preview"
@@ -87,8 +75,8 @@ export default function HomePage() {
             body="Skinport and Steam prices with sanity checks. Totals update automatically with quantity and live refresh."
           />
           <Feature
-            title="Manual + Import"
-            body="Paste Steam JSON or use the import wizard. Add items manually with wear, float, and pattern notes."
+            title="Manual add"
+            body='Type the base name and pick wear. Paste "AWP | Asiimov (Factory New) x2" — we’ll parse wear/qty.'
           />
           <Feature
             title="Fast search"
@@ -110,9 +98,8 @@ export default function HomePage() {
 
 function Feature({ title, body }: { title: string; body: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface/60 p-4">
+    <div className="card p-4">
       <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent">
-        {/* tiny bolt icon */}
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
           <path d="M13 2L3 14h7l-1 8 11-14h-7l0-6z" />
         </svg>
@@ -122,4 +109,3 @@ function Feature({ title, body }: { title: string; body: string }) {
     </div>
   );
 }
-
