@@ -1,6 +1,26 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@layer components {
+  /* Cards / shells */
+  .card { @apply rounded-2xl border border-border bg-surface/60 shadow-card; }
+  .menu { @apply rounded-xl border border-border bg-surface p-2 shadow-card; }
+  .modal { @apply rounded-2xl border border-border bg-surface p-6 text-text shadow-card; }
+
+  /* Buttons */
+  .btn        { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition; }
+  .btn:focus-visible { @apply outline-none ring-2 ring-accent/30; }
+  .btn:disabled { @apply opacity-60 cursor-not-allowed; }
+
+  .btn-accent { @apply btn bg-accent text-black hover:bg-accent-hover shadow-[0_0_0_1px_rgba(0,0,0,0.2),0_10px_26px_-12px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]; }
+  .btn-ghost  { @apply btn border border-border bg-surface2/70 hover:bg-surface; }
+  .btn-danger { @apply btn text-red-300 hover:bg-red-400/10; }
+
+  /* Inputs */
+  .input { @apply w-full rounded-xl border border-border bg-surface2/70 px-3 py-2 text-sm text-text outline-none focus:ring-2 focus:ring-accent/30; }
+  .select { @apply input pr-8; }
+  .label { @apply mb-1 block text-xs text-muted; }
+}
 
 /* ---- Base / Resets ---- */
 :root { color-scheme: dark; }
