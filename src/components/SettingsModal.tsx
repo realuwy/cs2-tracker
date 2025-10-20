@@ -3,10 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getSupabaseClient } from "@/lib/supabase";
 
-type Props = {
-  open: boolean;
-  onClose: () => void;
-};
+type Props = { open: boolean; onClose: () => void };
 
 export default function SettingsModal({ open, onClose }: Props) {
   const supabase = getSupabaseClient();
@@ -18,15 +15,13 @@ export default function SettingsModal({ open, onClose }: Props) {
   const [isGuest, setIsGuest] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
-  // load session + guest flag
   useEffect(() => {
     if (!open) return;
     setMessage(null);
     setConfirmingClear(false);
     (async () => {
       const { data } = await supabase.auth.getSession();
-      const email = data.session?.user?.email ?? null;
-      setUserEmail(email);
+      setUserEmail(data.session?.user?.email ?? null);
       setIsGuest(
         typeof window !== "undefined" &&
           window.localStorage.getItem("guest_mode") === "true"
@@ -38,21 +33,19 @@ export default function SettingsModal({ open, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
     const root = ref.current!;
-    const focusables =
+    const els =
       root.querySelectorAll<HTMLElement>(
         'button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])'
       ) || [];
-    const first = focusables[0];
-    const last = focusables[focusables.length - 1];
+    const first = els[0];
+    const last = els[els.length - 1];
 
     const trap = (e: KeyboardEvent) => {
       if (e.key !== "Tab") return;
       if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        (last as HTMLElement)?.focus();
+        e.preventDefault(); (last as HTMLElement)?.focus();
       } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        (first as HTMLElement)?.focus();
+        e.preventDefault(); (first as HTMLElement)?.focus();
       }
     };
 
@@ -91,12 +84,10 @@ export default function SettingsModal({ open, onClose }: Props) {
 
   const clearLocalData = () => {
     try {
-      // Remove known keys only—safer than localStorage.clear()
       localStorage.removeItem("portfolio_items");
       localStorage.removeItem("guest_mode");
       setMessage("Local data cleared.");
       setConfirmingClear(false);
-      // optional: refresh dashboard if you're on it
     } catch {
       setMessage("Could not clear local data.");
     }
@@ -105,7 +96,6 @@ export default function SettingsModal({ open, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div ref={ref} className="modal w-full max-w-md p-6">
-        {/* Header */}
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-[22px] font-bold tracking-tight">Settings</h2>
           <button className="btn-ghost px-2 py-1 text-sm" onClick={onClose}>
@@ -113,16 +103,13 @@ export default function SettingsModal({ open, onClose }: Props) {
           </button>
         </div>
 
-        {/* Status line */}
         {message && (
           <div className="mb-4 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm">
             {message}
           </div>
         )}
 
-        {/* Body */}
         <div className="grid gap-4">
-          {/* Change password */}
           <div className="card p-4">
             <div className="mb-2 text-sm text-muted">
               Change password {isGuest && "(sign in required)"}
@@ -137,7 +124,6 @@ export default function SettingsModal({ open, onClose }: Props) {
             </button>
           </div>
 
-          {/* Clear data */}
           <div className="card p-4">
             {!confirmingClear ? (
               <div className="flex items-center justify-between gap-3">
@@ -154,8 +140,8 @@ export default function SettingsModal({ open, onClose }: Props) {
             ) : (
               <div className="grid gap-3">
                 <div className="text-sm">
-                  This will remove local items on <em>this device only</em>.
-                  Your cloud data won’t be affected.
+                  This will remove local items on <em>this device only</em>. Your
+                  cloud data won’t be affected.
                 </div>
                 <div className="flex items-center gap-2">
                   <button
