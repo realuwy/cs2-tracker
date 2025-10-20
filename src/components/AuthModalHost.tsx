@@ -1,3 +1,4 @@
+// src/components/AuthModalHost.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -22,14 +23,14 @@ export default function AuthModalHost() {
   const search = useSearchParams();
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  /* ---------- open/close helpers ---------- */
+  /* ---------- helpers ---------- */
   const openWith = (m: Mode) => {
     setMode(m);
     setErr(null);
     setOpen(true);
   };
 
-  // Listen for global trigger: window.dispatchEvent(new CustomEvent("auth:open",{detail:"signin"|"signup"|"chooser"}))
+  // Global trigger: window.dispatchEvent(new CustomEvent("auth:open",{detail:"chooser"|"signin"|"signup"}))
   useEffect(() => {
     const onOpen = (e: Event) => {
       const d = (e as CustomEvent).detail as Mode | undefined;
@@ -39,7 +40,7 @@ export default function AuthModalHost() {
     return () => window.removeEventListener("auth:open", onOpen as EventListener);
   }, []);
 
-  // URL trigger: /?auth=signin|signup|chooser
+  // URL trigger: /?auth=chooser|signin|signup
   useEffect(() => {
     const a = search.get("auth");
     if (a === "signin" || a === "signup" || a === "chooser") {
@@ -92,9 +93,7 @@ export default function AuthModalHost() {
 
   /* ---------- actions ---------- */
   const continueAsGuest = () => {
-    try {
-      localStorage.setItem("guest_mode", "true");
-    } catch {}
+    try { localStorage.setItem("guest_mode", "true"); } catch {}
     window.dispatchEvent(new Event("guest:enabled"));
     setOpen(false);
     router.push("/dashboard");
@@ -140,8 +139,7 @@ export default function AuthModalHost() {
     setErr(null);
     try {
       const res = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo:
-          typeof window !== "undefined" ? `${location.origin}/reset` : undefined,
+        redirectTo: typeof window !== "undefined" ? `${location.origin}/reset` : undefined,
       });
       if (res.error) throw res.error;
       setErr("If that email exists, a reset link has been sent.");
@@ -156,183 +154,152 @@ export default function AuthModalHost() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        className="modal w-full max-w-md"
-      >
+      <div ref={dialogRef} role="dialog" aria-modal="true" className="modal w-full max-w-md">
         {/* Header */}
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-2xl font-bold">
-            {mode === "chooser"
-              ? "Get Started"
-              : mode === "signin"
-              ? "Sign In"
-              : mode === "signup"
-              ? "Sign Up"
-              : "Forgot Password"}
+            {mode === "chooser" ? "Get Started" : mode === "signin" ? "Sign In" : mode === "signup" ? "Sign Up" : "Forgot Password"}
           </h2>
-          <button className="btn-ghost px-2 py-1 text-sm" onClick={() => setOpen(false)}>
-            Close
-          </button>
+          <button className="btn-ghost px-2 py-1 text-sm" onClick={() => setOpen(false)}>Close</button>
         </div>
 
         {err && (
-          <div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+          <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
             {err}
           </div>
         )}
 
-        {/* ------------- CHOOSER ------------- */}
+        {/* CHOOSER */}
         {mode === "chooser" && (
-          <div className="space-y-3">
-            <button className="btn-accent w-full" onClick={() => setMode("signin")}>
-              Sign In
-            </button>
-            <button className="btn-ghost w-full" onClick={() => setMode("signup")}>
-              Create an account
-            </button>
-            <button className="btn-ghost w-full" onClick={continueAsGuest}>
-              Continue as guest
-            </button>
+          <div className="grid gap-3">
+            <button className="btn-accent w-full" onClick={() => setMode("signin")}>Sign In</button>
+            <button className="btn-ghost w-full" onClick={() => setMode("signup")}>Create an account</button>
+            <button className="btn-ghost w-full" onClick={continueAsGuest}>Continue as guest</button>
           </div>
         )}
 
-        {/* ------------- SIGN IN ------------- */}
+        {/* SIGN IN */}
         {mode === "signin" && (
-          <>
-            <label className="label">Email</label>
-            <input
-              type="email"
-              autoCapitalize="off"
-              autoCorrect="off"
-              autoComplete="email"
-              inputMode="email"
-              className="input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-            />
+          <div className="grid gap-3">
+            <div className="grid gap-1">
+              <label className="label">Email</label>
+              <input
+                className="input"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                autoCapitalize="off"
+                autoCorrect="off"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
 
-            <label className="label mt-3">Password</label>
-            <input
-              type="password"
-              autoComplete="current-password"
-              className="input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="grid gap-1">
+              <label className="label">Password</label>
+              <input
+                className="input"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
 
-            <button
-              className="btn-accent mt-5 w-full"
-              onClick={onSignIn}
-              disabled={loading}
-            >
+            <button className="btn-accent mt-1 w-full" onClick={onSignIn} disabled={loading}>
               {loading ? "Signing in…" : "Sign In"}
             </button>
 
-            <div className="mt-4 space-y-2 text-center text-sm text-muted">
-              <button className="text-accent hover:underline" onClick={() => setMode("signup")}>
-                Create an account
-              </button>
-              <div>
-                <button className="hover:underline" onClick={continueAsGuest}>
-                  Continue as guest
-                </button>
-              </div>
-              <div>
-                <button className="hover:underline" onClick={() => setMode("forgot")}>
-                  Forgot password?
-                </button>
-              </div>
+            <div className="mt-1 grid gap-2 text-center text-sm text-muted">
+              <button className="text-accent hover:underline" onClick={() => setMode("signup")}>Create an account</button>
+              <button className="hover:underline" onClick={continueAsGuest}>Continue as guest</button>
+              <button className="hover:underline" onClick={() => setMode("forgot")}>Forgot password?</button>
             </div>
-          </>
+          </div>
         )}
 
-        {/* ------------- SIGN UP ------------- */}
+        {/* SIGN UP */}
         {mode === "signup" && (
-          <>
-            <label className="label">Username</label>
-            <input
-              className="input"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="uwy"
-            />
+          <div className="grid gap-3">
+            <div className="grid gap-1">
+              <label className="label">Username</label>
+              <input
+                className="input"
+                placeholder="uwy"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+            </div>
 
-            <label className="label mt-3">Email</label>
-            <input
-              type="email"
-              autoCapitalize="off"
-              autoCorrect="off"
-              autoComplete="email"
-              inputMode="email"
-              className="input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-            />
+            <div className="grid gap-1">
+              <label className="label">Email</label>
+              <input
+                className="input"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                autoCapitalize="off"
+                autoCorrect="off"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
 
-            <label className="label mt-3">Password</label>
-            <input
-              type="password"
-              autoComplete="new-password"
-              className="input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="grid gap-1">
+              <label className="label">Password</label>
+              <input
+                className="input"
+                type="password"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
 
-            <button
-              className="btn-accent mt-5 w-full"
-              onClick={onSignUp}
-              disabled={loading}
-            >
+            <button className="btn-accent mt-1 w-full" onClick={onSignUp} disabled={loading}>
               {loading ? "Creating…" : "Create account"}
             </button>
 
-            <div className="mt-4 text-center text-sm text-muted">
+            <div className="mt-1 text-center text-sm text-muted">
               Already have an account?{" "}
-              <button className="text-accent hover:underline" onClick={() => setMode("signin")}>
-                Sign In
-              </button>
+              <button className="text-accent hover:underline" onClick={() => setMode("signin")}>Sign In</button>
             </div>
-          </>
+          </div>
         )}
 
-        {/* ------------- FORGOT ------------- */}
+        {/* FORGOT */}
         {mode === "forgot" && (
-          <>
-            <label className="label">Email</label>
-            <input
-              type="email"
-              autoCapitalize="off"
-              autoCorrect="off"
-              autoComplete="email"
-              inputMode="email"
-              className="input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-            />
+          <div className="grid gap-3">
+            <div className="grid gap-1">
+              <label className="label">Email</label>
+              <input
+                className="input"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                autoCapitalize="off"
+                autoCorrect="off"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
 
-            <button
-              className="btn-accent mt-5 w-full"
-              onClick={onForgot}
-              disabled={loading}
-            >
+            <button className="btn-accent mt-1 w-full" onClick={onForgot} disabled={loading}>
               {loading ? "Sending…" : "Send reset link"}
             </button>
 
-            <div className="mt-4 text-center text-sm text-muted">
-              <button className="hover:underline" onClick={() => setMode("signin")}>
-                Back to sign in
-              </button>
+            <div className="mt-1 text-center text-sm text-muted">
+              <button className="hover:underline" onClick={() => setMode("signin")}>Back to sign in</button>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
   );
 }
+
+
 
