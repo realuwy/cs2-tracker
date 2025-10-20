@@ -1,26 +1,6 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@layer components {
-  /* Cards / shells */
-  .card { @apply rounded-2xl border border-border bg-surface/60 shadow-card; }
-  .menu { @apply rounded-xl border border-border bg-surface p-2 shadow-card; }
-  .modal { @apply rounded-2xl border border-border bg-surface p-6 text-text shadow-card; }
-
-  /* Buttons */
-  .btn        { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition; }
-  .btn:focus-visible { @apply outline-none ring-2 ring-accent/30; }
-  .btn:disabled { @apply opacity-60 cursor-not-allowed; }
-
-  .btn-accent { @apply btn bg-accent text-black hover:bg-accent-hover shadow-[0_0_0_1px_rgba(0,0,0,0.2),0_10px_26px_-12px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]; }
-  .btn-ghost  { @apply btn border border-border bg-surface2/70 hover:bg-surface; }
-  .btn-danger { @apply btn text-red-300 hover:bg-red-400/10; }
-
-  /* Inputs */
-  .input { @apply w-full rounded-xl border border-border bg-surface2/70 px-3 py-2 text-sm text-text outline-none focus:ring-2 focus:ring-accent/30; }
-  .select { @apply input pr-8; }
-  .label { @apply mb-1 block text-xs text-muted; }
-}
 
 /* ---- Base / Resets ---- */
 :root { color-scheme: dark; }
@@ -32,18 +12,17 @@ html, body { height: 100%; }
     @apply bg-bg text-text antialiased;
   }
 
-  /* smooth-ish default border color everywhere */
-  * {
-    @apply border-border;
-  }
+  /* Default border color everywhere so borders look consistent
+     (still respects border width utilities) */
+  * { @apply border-border; }
 
-  /* Selection to match neon accent */
+  /* Selection matches neon accent */
   ::selection {
     background: theme(colors.accent.DEFAULT / 0.25);
     color: theme(colors.text);
   }
 
-  /* Prefer reduced motion */
+  /* Respect reduced motion */
   @media (prefers-reduced-motion: reduce) {
     * {
       animation-duration: 0.01ms !important;
@@ -54,84 +33,67 @@ html, body { height: 100%; }
   }
 }
 
-/* ---- Components / Reusable Utilities ---- */
+/* ---- Components ---- */
 @layer components {
-  /* Cards & panels */
-  .card {
-    @apply rounded-2xl border border-border bg-surface/60 shadow-card;
-  }
-  .panel {
-    @apply rounded-xl border border-border bg-surface2/70;
-  }
-  .menu-panel {
-    @apply rounded-xl border border-border bg-surface p-2 shadow-xl;
-  }
+  /* Shells */
+  .card  { @apply rounded-2xl border bg-surface/60 shadow-card; }
+  .menu  { @apply rounded-xl  border bg-surface p-2 shadow-card; }
+  .modal { @apply rounded-2xl border bg-surface p-6 text-text shadow-card; }
+  .panel { @apply rounded-xl  border bg-surface2/70; }
+  .menu-panel { @apply rounded-xl border bg-surface p-2 shadow-xl; }
 
   /* Buttons */
-  .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 font-semibold transition
-           focus:outline-none focus:ring-2 focus:ring-accent/40;
-  }
-  .btn-ghost {
-    @apply btn border border-border bg-surface2/70 hover:bg-surface;
-  }
-  .btn-danger {
-    @apply btn text-red-300 hover:bg-red-400/10;
-  }
+  .btn               { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition; }
+  .btn:focus-visible { @apply outline-none ring-2 ring-accent/30; }
+  .btn:disabled      { @apply opacity-60 cursor-not-allowed; }
 
-  /* Primary neon CTA (used for Get Started) */
+  .btn-ghost  { @apply btn border bg-surface2/70 hover:bg-surface; }
+  .btn-danger { @apply btn text-red-300 hover:bg-red-400/10; }
+
+  /* Primary neon CTA */
   .btn-accent {
     @apply btn bg-accent text-black hover:bg-accent-hover;
-    /* soft neon glow */
     --tw-shadow-color: theme(colors.accent.glow);
     box-shadow: 0 0 18px var(--tw-shadow-color);
   }
 
-  /* Small badge (e.g., “alpha”, “Signed in”) */
-  .badge {
-    @apply inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium;
-  }
-  .badge-accent {
-    @apply badge bg-accent/15 text-accent;
-  }
+  /* Forms */
+  .input  { @apply w-full rounded-xl border bg-surface2/70 px-3 py-2 text-sm text-text outline-none focus:ring-2 focus:ring-accent/30; }
+  .select { @apply input pr-8; }
+  .label  { @apply mb-1 block text-xs text-muted; }
+
+  /* Badges */
+  .badge        { @apply inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium; }
+  .badge-accent { @apply badge bg-accent/15 text-accent; }
 
   /* Links */
-  .link-muted {
-    @apply text-muted hover:text-text transition;
-  }
+  .link-muted { @apply text-muted hover:text-text transition; }
 
-  /* Header active-link neon underline */
-  .neon-underline {
-    position: relative;
-  }
+  /* Header active-link underline */
+  .neon-underline { position: relative; }
   .neon-underline::after {
     content: "";
     position: absolute;
-    left: 0;
-    bottom: -1px;
-    height: 2px;
-    width: 100%;
+    left: 0; bottom: -1px;
+    height: 2px; width: 100%;
     border-radius: 9999px;
     background: theme(colors.accent.DEFAULT);
-    /* glow */
     --tw-shadow-color: theme(colors.accent.glow);
     box-shadow: 0 0 8px var(--tw-shadow-color);
   }
 }
 
-/* ---- Utilities (minor) ---- */
+/* ---- Utilities ---- */
 @layer utilities {
-  .text-muted { @apply text-muted; }
+  .text-muted   { @apply text-muted; }
   .surface-blur { @apply bg-surface/80 backdrop-blur supports-[backdrop-filter]:bg-surface/70; }
 
-  /* Scrollbar (subtle, optional) */
-  .thin-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: theme(colors.border) transparent;
-  }
-  .thin-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
+  /* Subtle custom scrollbar */
+  .thin-scrollbar { scrollbar-width: thin; scrollbar-color: theme(colors.border) transparent; }
+  .thin-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
   .thin-scrollbar::-webkit-scrollbar-thumb {
     background-color: theme(colors.border);
     border-radius: 9999px;
   }
 }
+
