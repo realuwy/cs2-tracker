@@ -447,16 +447,6 @@ export default function AppHeader() {
   </button>
 </li>
 
-  <button
-    className="block w-full rounded-lg px-3 py-2 text-left hover:bg-surface2/70"
-    onClick={() => {
-      setMenuOpen(false);
-      window.dispatchEvent(new Event("contact:open"));
-    }}
-  >
-    Contact
-  </button>
-</li>
 
                   </ul>
                 </div>
