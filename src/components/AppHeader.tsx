@@ -7,6 +7,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 
+const openContact = () => window.dispatchEvent(new Event("contact:open"));
+
 /* ---------- Small helpers ---------- */
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
@@ -290,13 +292,14 @@ export default function AppHeader() {
               <li><NavLink href="/privacy">Privacy</NavLink></li>
               <li>
   <button
-  onClick={() => window.dispatchEvent(new Event("contact:open"))}
-  className="hover:text-accent transition-colors"
->
-  Contact
-</button>
-
+    type="button"
+    onClick={openContact}
+    className="relative pb-1 transition-colors text-muted hover:text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 bg-transparent"
+  >
+    Contact
+  </button>
 </li>
+
 
             </ul>
           </nav>
@@ -434,6 +437,16 @@ export default function AppHeader() {
                       </Link>
                     </li>
                     <li>
+                      <li>
+  <button
+    type="button"
+    onClick={() => { setMenuOpen(false); openContact(); }}
+    className="block w-full text-left rounded-lg px-3 py-2 hover:bg-surface2/70"
+  >
+    Contact
+  </button>
+</li>
+
   <button
     className="block w-full rounded-lg px-3 py-2 text-left hover:bg-surface2/70"
     onClick={() => {
