@@ -62,36 +62,38 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Features */}
-      <section className="mx-auto max-w-6xl px-6 py-14">
-        <h2 className="text-2xl font-semibold">Why CS2 Tracker?</h2>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Feature
-            title="Guest or Account"
-            body="Start as a guest with local-only storage. Create an account anytime—your existing dashboard is synced to the cloud automatically."
-          />
-          <Feature
-            title="Smart pricing"
-            body="Skinport and Steam prices with sanity checks. Totals update automatically with quantity and live refresh."
-          />
-          <Feature
-            title="Manual add"
-            body='Type the base name and pick wear. Paste "AWP | Asiimov (Factory New) x2" — we’ll parse wear/qty.'
-          />
-          <Feature
-            title="Fast search"
-            body="Autocomplete shows base item names only (no wear spam). Pick a wear separately for clean entries."
-          />
-          <Feature
-            title="Every device"
-            body="With an account, your dashboard follows you to any device. As a guest, your data is saved locally."
-          />
-          <Feature
-            title="Privacy-first"
-            body="No email verification required to start. Password resets by email only when you need them."
-          />
-        </div>
-      </section>
+     {/* Features */}
+<section className="mx-auto max-w-6xl px-6 py-14">
+  <h2 className="text-2xl font-semibold">Why CS2 Tracker?</h2>
+
+  <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <Feature
+      title="Guest-first & offline"
+      body="Start instantly with local-only storage. No account needed. When you create an account later, your existing items merge and sync to the cloud."
+    />
+    <Feature
+      title="Manual add, smart parse"
+      body={`Type “AK-47 | Redline (FT) x2 #123” — we detect wear, quantity, and keep your pattern/float notes.`}
+    />
+    <Feature
+      title="Base-name autocomplete"
+      body="Search shows base item names only (no wear spam). Pick a wear separately for clean, consistent entries."
+    />
+    <Feature
+      title="Snapshot pricing"
+      body="Steam & Skinport snapshot totals with sanity checks. Treat as estimates; refresh when you need a new snapshot."
+    />
+    <Feature
+      title="Works everywhere"
+      body="Responsive neon UI that feels great on mobile and desktop. Signed-in dashboards follow you; guest data stays on this device."
+    />
+    <Feature
+      title="Your data, your controls"
+      body="Settings lets you clear local data on this device and send a password-reset email. No ads, no trackers."
+    />
+  </div>
+</section>
+
     </div>
   );
 }
