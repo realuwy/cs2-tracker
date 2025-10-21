@@ -77,6 +77,13 @@ export default function Footer() {
           <Link href="/privacy" className="text-muted transition-colors hover:text-accent">
             Privacy
           </Link>
+          <button
+  className="link-muted"
+  onClick={() => window.dispatchEvent(new Event("contact:open"))}
+>
+  Contact
+</button>
+
         </nav>
 
         {/* Social + copyright */}
