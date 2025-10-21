@@ -33,8 +33,7 @@ export default function ContactModalHost() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
-    const c = url.searchParams.get("contact");
-    if (c === "1") {
+    if (url.searchParams.get("contact") === "1") {
       url.searchParams.delete("contact");
       window.history.replaceState({}, "", url.toString());
       setOpen("form");
@@ -52,7 +51,6 @@ export default function ContactModalHost() {
     setErr(null);
 
     try {
-      // attach user id if available
       const sess = await supabase.auth.getSession();
       const userId = sess.data.session?.user?.id ?? null;
 
@@ -62,13 +60,12 @@ export default function ContactModalHost() {
         email: email || null,
         message,
       });
-
       if (error) throw error;
 
       setStatus("done");
       setOpen("sent");
     } catch {
-      // fallback: open mail client to Proton address
+      // Fallback: open the user's mail client to your Proton address
       try {
         const subject = encodeURIComponent("CS2 Tracker — Contact");
         const body = encodeURIComponent(
@@ -88,7 +85,7 @@ export default function ContactModalHost() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="modal w-full max-w-md">
+      <div className="modal w-full max-w-lg">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-2xl font-bold">
             {open === "sent" ? "Message sent" : "Contact"}
@@ -104,43 +101,53 @@ export default function ContactModalHost() {
         {open === "form" && (
           <>
             {err && (
-              <div className="mb-3 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+              <div className="mb-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
                 {err}
               </div>
             )}
 
-            <label className="label">Username (optional)</label>
-            <input
-              className="input mb-4"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="uwy"
-            />
+            {/* Proper grid layout: 1 col on mobile, 2 cols on sm+ */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="label">Username (optional)</label>
+                <input
+                  className="input"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="uwy"
+                />
+              </div>
+              <div>
+                <label className="label">Email (optional)</label>
+                <input
+                  className="input"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  type="email"
+                />
+              </div>
 
-            <label className="label">Email (optional)</label>
-            <input
-              className="input mb-4"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              type="email"
-            />
+              <div className="sm:col-span-2">
+                <label className="label">Message</label>
+                <textarea
+                  className="input min-h-[140px]"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="How can we help?"
+                />
+              </div>
 
-            <label className="label">Message</label>
-            <textarea
-              className="input mb-5 min-h-[120px]"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="How can we help?"
-            />
-
-            <button
-              className="btn-accent w-full"
-              disabled={status === "sending"}
-              onClick={submit}
-            >
-              {status === "sending" ? "Sending…" : "Send message"}
-            </button>
+              <div className="sm:col-span-2">
+                <button
+                  className="btn-accent w-full"
+                  disabled={status === "sending"}
+                  onClick={submit}
+                >
+                  {status === "sending" ? "Sending…" : "Send message"}
+                </button>
+              </div>
+            </div>
 
             <p className="mt-3 text-center text-xs text-muted">
               We’ll use your email only to reply. No spam.
@@ -150,9 +157,7 @@ export default function ContactModalHost() {
 
         {open === "sent" && (
           <div className="text-center">
-            <p className="text-sm text-muted">
-              Thanks! Your message has been sent.
-            </p>
+            <p className="text-sm text-muted">Thanks! Your message has been sent.</p>
             <button className="btn-ghost mt-4 w-full" onClick={close}>
               Done
             </button>
@@ -162,3 +167,4 @@ export default function ContactModalHost() {
     </div>
   );
 }
+
