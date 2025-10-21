@@ -288,6 +288,16 @@ export default function AppHeader() {
               <li><NavLink href="/dashboard">Dashboard</NavLink></li>
               <li><NavLink href="/about">About</NavLink></li>
               <li><NavLink href="/privacy">Privacy</NavLink></li>
+              <li>
+  <button
+    type="button"
+    onClick={() => window.dispatchEvent(new Event("contact:open"))}
+    className="link-muted"
+  >
+    Contact
+  </button>
+</li>
+
             </ul>
           </nav>
 
@@ -423,6 +433,18 @@ export default function AppHeader() {
                         Privacy
                       </Link>
                     </li>
+                    <li>
+  <button
+    className="block w-full rounded-lg px-3 py-2 text-left hover:bg-surface2/70"
+    onClick={() => {
+      setMenuOpen(false);
+      window.dispatchEvent(new Event("contact:open"));
+    }}
+  >
+    Contact
+  </button>
+</li>
+
                   </ul>
                 </div>
               )}
