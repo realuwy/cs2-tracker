@@ -114,7 +114,7 @@ export default function ContactModalHost() {
                   className="input"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="uwy"
+                  placeholder="username"
                 />
               </div>
               <div>
@@ -123,7 +123,7 @@ export default function ContactModalHost() {
                   className="input"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder="email@example.com"
                   type="email"
                 />
               </div>
