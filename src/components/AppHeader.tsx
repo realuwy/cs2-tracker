@@ -290,12 +290,12 @@ export default function AppHeader() {
               <li><NavLink href="/privacy">Privacy</NavLink></li>
               <li>
   <button
-    type="button"
-    onClick={() => window.dispatchEvent(new Event("contact:open"))}
-    className="link-muted"
-  >
-    Contact
-  </button>
+  onClick={() => window.dispatchEvent(new Event("contact:open"))}
+  className="hover:text-accent transition-colors"
+>
+  Contact
+</button>
+
 </li>
 
             </ul>
