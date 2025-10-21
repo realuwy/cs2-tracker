@@ -8,6 +8,7 @@ type SubmitState = "idle" | "sending" | "done" | "error";
 
 export default function ContactModalHost() {
   const supabase = getSupabaseClient();
+
   const [open, setOpen] = useState<Mode>("closed");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -65,7 +66,7 @@ export default function ContactModalHost() {
       setStatus("done");
       setOpen("sent");
     } catch {
-      // Fallback: open the user's mail client to your Proton address
+      // Fallback to mailto so users can still reach you
       try {
         const subject = encodeURIComponent("CS2 Tracker — Contact");
         const body = encodeURIComponent(
@@ -86,10 +87,13 @@ export default function ContactModalHost() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="modal w-full max-w-lg">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold">
-            {open === "sent" ? "Message sent" : "Contact"}
-          </h2>
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <h2 className="text-2xl font-extrabold">Contact</h2>
+            <p className="mt-1 text-sm text-muted">
+              We usually reply within 1–2 days.
+            </p>
+          </div>
           <button
             onClick={close}
             className="rounded-md border border-border px-2 py-1 text-sm hover:bg-surface2/70"
@@ -106,59 +110,62 @@ export default function ContactModalHost() {
               </div>
             )}
 
-            {/* Proper grid layout: 1 col on mobile, 2 cols on sm+ */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label className="label">Username (optional)</label>
-                <input
-                  className="input"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="username"
-                />
-              </div>
-              <div>
-                <label className="label">Email (optional)</label>
-                <input
-                  className="input"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="email@example.com"
-                  type="email"
-                />
+            {/* Single column like the auth modal; username/email side-by-side on sm+ */}
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="sr-only">Username (optional)</label>
+                  <input
+                    className="w-full h-12 rounded-full border border-border bg-surface2/70 px-5 text-sm text-text outline-none focus:ring-2 focus:ring-accent/30"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Username (optional)"
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label className="sr-only">Email (optional)</label>
+                  <input
+                    className="w-full h-12 rounded-full border border-border bg-surface2/70 px-5 text-sm text-text outline-none focus:ring-2 focus:ring-accent/30"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Email (optional)"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                  />
+                </div>
               </div>
 
-              <div className="sm:col-span-2">
-                <label className="label">Message</label>
+              <div>
+                <label className="sr-only">Message</label>
                 <textarea
-                  className="input min-h-[140px]"
+                  className="w-full min-h-[140px] rounded-2xl border border-border bg-surface2/70 px-4 py-3 text-sm text-text outline-none focus:ring-2 focus:ring-accent/30"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="How can we help?"
                 />
               </div>
 
-              <div className="sm:col-span-2">
-                <button
-                  className="btn-accent w-full"
-                  disabled={status === "sending"}
-                  onClick={submit}
-                >
-                  {status === "sending" ? "Sending…" : "Send message"}
-                </button>
-              </div>
-            </div>
+              <button
+                className="btn-accent w-full h-12 rounded-full text-base"
+                disabled={status === "sending"}
+                onClick={submit}
+              >
+                {status === "sending" ? "Sending…" : "Send message"}
+              </button>
 
-            <p className="mt-3 text-center text-xs text-muted">
-              We’ll use your email only to reply. No spam.
-            </p>
+              <p className="text-center text-xs text-muted">
+                We’ll use your email only to reply. No spam.
+              </p>
+            </div>
           </>
         )}
 
         {open === "sent" && (
           <div className="text-center">
             <p className="text-sm text-muted">Thanks! Your message has been sent.</p>
-            <button className="btn-ghost mt-4 w-full" onClick={close}>
+            <button className="btn-ghost mt-4 w-full h-11 rounded-full" onClick={close}>
               Done
             </button>
           </div>
@@ -167,4 +174,3 @@ export default function ContactModalHost() {
     </div>
   );
 }
-
