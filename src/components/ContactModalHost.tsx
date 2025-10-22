@@ -83,7 +83,7 @@ export default function ContactModalHost() {
               />
             </div>
             <div>
-              <label className="label">Email (optional)</label>
+              <label className="label">Email</label>
               <input
                 className="input"
                 type="email"
