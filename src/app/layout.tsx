@@ -6,23 +6,15 @@ import dynamic from "next/dynamic";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Inter, Manrope } from "next/font/google";
-import { Suspense } from "react";
-import dynamic from "next/dynamic";
 
-const ContactModalHost = dynamic(
-  () => import("@/components/ContactModalHost"),
-  { ssr: false }
-);
-
+// Fonts
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
 
-/** Browser-only components */
+// Browser-only components (no SSR)
 const AppHeader = dynamic(() => import("@/components/AppHeader"), { ssr: false });
 const AuthModalHost = dynamic(() => import("@/components/AuthModalHost"), { ssr: false });
 const ContactModalHost = dynamic(() => import("@/components/ContactModalHost"), { ssr: false });
-// If you add settings later, uncomment this:
-// const SettingsHost = dynamic(() => import("@/components/SettingsHost"), { ssr: false });
 
 import SiteFooter from "@/components/Footer";
 
@@ -38,18 +30,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <div className="min-h-screen flex flex-col">
           <AppHeader />
 
-          {/* Wrap CSR-only hosts in Suspense to satisfy useSearchParams bailout */}
+          {/* Wrap CSR-only modal hosts in Suspense to satisfy useSearchParams CSR bailout */}
           <Suspense fallback={null}>
             <AuthModalHost />
-            <ContactModalHost />
-            {/* <SettingsHost /> */}
           </Suspense>
-
-          {/* Also wrap route content in Suspense for any pages using useSearchParams */}
           <Suspense fallback={null}>
-            <main className="flex-1">{children}</main>
+            <ContactModalHost />
           </Suspense>
 
+          <main className="flex-1">{children}</main>
           <SiteFooter />
         </div>
 
