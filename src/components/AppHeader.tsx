@@ -172,36 +172,17 @@ export default function AppHeader() {
         </Link>
 
         {/* Center: primary nav (desktop only) */}
-        <nav className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 md:block">
-          <ul className="flex items-center gap-8 text-sm text-text">
-            <li>
-              <NavLink href="/">Home</NavLink>
-            </li>
-            <li>
-              <NavLink href="/dashboard">Dashboard</NavLink>
-            </li>
-            <li>
-              <NavLink href="/about">About</NavLink>
-            </li>
-            <li>
-              <NavLink href="/privacy">Privacy</NavLink>
-            </li>
-            {/* CONTACT — styled like other links, but opens modal (no active underline) */}
-           <li>
-  <button
-    type="button"
-    onClick={openContact}
-    // match NavLink metrics exactly
-    className="relative inline-block bg-transparent p-0 pb-1 text-sm text-muted leading-[1.2] 
-               transition-colors hover:text-text align-middle appearance-none
-               focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
-  >
-    Contact
-  </button>
-</li>
+     <nav className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 md:block">
+  <ul className="flex items-center gap-8 text-sm text-text">
+    <li><NavLink href="/">Home</NavLink></li>
+    <li><NavLink href="/dashboard">Dashboard</NavLink></li>
+    <li><NavLink href="/about">About</NavLink></li>
+    <li><NavLink href="/privacy">Privacy</NavLink></li>
+    {/* Use same NavLink styling so spacing/baseline match */}
+    <li><NavLink href="/?contact=1">Contact</NavLink></li>
+  </ul>
+</nav>
 
-          </ul>
-        </nav>
 
         {/* Right: actions */}
         <div className="flex items-center gap-2">
@@ -377,18 +358,16 @@ export default function AppHeader() {
                       Privacy
                     </Link>
                   </li>
-                  <li>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        openContact();
-                      }}
-                      className="block w-full text-left rounded-lg px-3 py-2 hover:bg-surface2/70"
-                    >
-                      Contact
-                    </button>
-                  </li>
+                <li>
+  <Link
+    href="/?contact=1"
+    className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
+    onClick={() => setMenuOpen(false)}
+  >
+    Contact
+  </Link>
+</li>
+
                 </ul>
               </div>
             )}
