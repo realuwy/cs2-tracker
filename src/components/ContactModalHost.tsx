@@ -5,14 +5,14 @@ import { useSearchParams } from "next/navigation";
 
 export default function ContactModalHost() {
   const [open, setOpen] = useState(false);
-  const [username, setUsername] = useState("");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
 
   const search = useSearchParams();
 
-  // Open from URL (?contact=1) or window event: window.dispatchEvent(new Event("contact:open"))
+  // open via `?contact=1`
   useEffect(() => {
     if (search.get("contact")) {
       setOpen(true);
@@ -22,13 +22,14 @@ export default function ContactModalHost() {
     }
   }, [search]);
 
+  // open via `window.dispatchEvent(new Event("contact:open"))`
   useEffect(() => {
     const onOpen = () => setOpen(true);
     window.addEventListener("contact:open", onOpen);
     return () => window.removeEventListener("contact:open", onOpen);
   }, []);
 
-  // Close on Escape
+  // esc to close
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
@@ -36,16 +37,15 @@ export default function ContactModalHost() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const onSend = async () => {
+  const onSend = () => {
     if (!message.trim()) return;
     setSending(true);
 
-    // Compose email to your Proton address
     const to = "cs2-tracker@proton.me";
     const subject = encodeURIComponent("CS2 Tracker – Contact");
     const body = encodeURIComponent(
       [
-        `From: ${username || "(anonymous)"}`,
+        `Name: ${fullName || "(anonymous)"}`,
         `Email: ${email || "(not provided)"}`,
         "",
         "Message:",
@@ -53,9 +53,8 @@ export default function ContactModalHost() {
       ].join("\n")
     );
 
-    // Best-effort: open mail client; keep the modal open so they can copy if needed
+    // open mail client (no backend required, same behavior as before)
     window.open(`mailto:${to}?subject=${subject}&body=${body}`, "_blank");
-
     setSending(false);
   };
 
@@ -63,55 +62,53 @@ export default function ContactModalHost() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-2xl border border-border bg-surface p-6 text-text shadow-card">
+      <div className="w-full max-w-xl rounded-2xl border border-border bg-surface p-7 shadow-card text-text">
         {/* Header */}
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-2xl font-extrabold tracking-tight">Contact</h2>
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-[28px] leading-none font-extrabold tracking-tight">
+              Let’s talk
+            </h2>
+            <p className="mt-2 text-sm text-muted">
+              Tell us what’s up. Leave an email if you’d like a reply.
+            </p>
+          </div>
           <button
             onClick={() => setOpen(false)}
-            className="rounded-lg border border-border bg-surface2/70 px-2 py-1 text-sm hover:bg-surface focus:outline-none focus:ring-2 focus:ring-accent/30"
+            className="mt-1 rounded-lg border border-border bg-surface2/70 px-2 py-1 text-sm hover:bg-surface focus:outline-none focus:ring-2 focus:ring-accent/30"
           >
             Close
           </button>
         </div>
 
-        {/* Subhead */}
-        <p className="mb-5 text-sm text-muted">
-          Send us a note. Include your email if you’d like a reply.
-        </p>
+        {/* Form – same “pill” feel as auth modal */}
+        <div className="mt-6 space-y-4">
+          <input
+            aria-label="Full name (optional)"
+            className="w-full h-12 rounded-full border border-border bg-surface2/70 px-5 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30"
+            placeholder="Full name (optional)"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
 
-        {/* Form – single column for consistency with Auth */}
-        <div className="space-y-4">
-          <label className="block">
-            <span className="label">Username (optional)</span>
-            <input
-              className="input"
-              placeholder="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-            />
-          </label>
+          <input
+            type="email"
+            aria-label="Email (optional)"
+            className="w-full h-12 rounded-full border border-border bg-surface2/70 px-5 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30"
+            placeholder="Enter your email (optional)"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
 
-          <label className="block">
-            <span className="label">Email (optional)</span>
-            <input
-              className="input"
-              type="email"
-              placeholder="email@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </label>
-
-          <label className="block">
-            <span className="label">Message</span>
+          <div>
             <textarea
-              className="input h-32 resize-none"
+              aria-label="Message"
+              className="w-full min-height-[140px] h-36 rounded-2xl border border-border bg-surface2/70 p-4 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 resize-vertical"
               placeholder="How can we help?"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
             />
-          </label>
+          </div>
 
           <button
             onClick={onSend}
@@ -121,7 +118,7 @@ export default function ContactModalHost() {
             {sending ? "Sending…" : "Send message"}
           </button>
 
-          <p className="mt-1 text-center text-xs text-muted">
+          <p className="text-center text-xs text-muted">
             We’ll use your email only to reply. No spam.
           </p>
         </div>
