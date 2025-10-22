@@ -84,18 +84,18 @@ export default function ContactModalHost() {
         {/* Form – same “pill” feel as auth modal */}
         <div className="mt-6 space-y-4">
           <input
-            aria-label="Full name (optional)"
+            aria-label="Username (optional)"
             className="w-full h-12 rounded-full border border-border bg-surface2/70 px-5 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30"
-            placeholder="Full name (optional)"
-            value={fullName}
+            placeholder="Username (optional)"
+            value={userName}
             onChange={(e) => setFullName(e.target.value)}
           />
 
           <input
             type="email"
-            aria-label="Email (optional)"
+            aria-label="Email"
             className="w-full h-12 rounded-full border border-border bg-surface2/70 px-5 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30"
-            placeholder="Enter your email (optional)"
+            placeholder="Enter your email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
