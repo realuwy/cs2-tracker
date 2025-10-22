@@ -187,15 +187,19 @@ export default function AppHeader() {
               <NavLink href="/privacy">Privacy</NavLink>
             </li>
             {/* CONTACT — styled like other links, but opens modal (no active underline) */}
-            <li>
-              <button
-                type="button"
-                onClick={openContact}
-                className="relative pb-1 transition-colors text-muted hover:text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 bg-transparent"
-              >
-                Contact
-              </button>
-            </li>
+           <li>
+  <button
+    type="button"
+    onClick={openContact}
+    // match NavLink metrics exactly
+    className="relative inline-block bg-transparent p-0 pb-1 text-sm text-muted leading-[1.2] 
+               transition-colors hover:text-text align-middle appearance-none
+               focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+  >
+    Contact
+  </button>
+</li>
+
           </ul>
         </nav>
 
