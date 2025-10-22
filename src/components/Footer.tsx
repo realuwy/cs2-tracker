@@ -1,119 +1,46 @@
-"use client";
+// src/components/Footer.tsx
 import Link from "next/link";
-import Image from "next/image";
 
-export default function Footer() {
-  const year = new Date().getFullYear();
+export default function SiteFooter() {
+  // Fire the same event the header uses
+  const openContact = () =>
+    window.dispatchEvent(new CustomEvent("contact:open"));
 
   return (
-    <footer className="border-t border-border bg-surface/90 backdrop-blur">
-      {/* -------- Desktop (md+) -------- */}
-      <div className="relative mx-auto hidden max-w-6xl items-center justify-between px-4 py-6 text-sm md:flex">
-        {/* Left: brand */}
-        <Link
-          href="/"
-          aria-label="CS2 Tracker home"
-          className="flex items-center gap-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
-        >
-          <Image
-            src="/logo-arrow.png"
-            alt=""
-            width={18}
-            height={18}
-            className="inline-block translate-y-[1px] select-none drop-shadow-[0_0_8px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]"
-          />
-          <span className="whitespace-nowrap font-medium text-text">CS2 Tracker</span>
-          <span className="ml-2 rounded-full bg-accent/15 px-2 py-0.5 text-[10px] leading-none text-accent">
-            alpha
+    <footer className="border-t border-border bg-surface/60">
+      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-6 text-sm text-muted md:flex-row">
+        {/* Left: brand + alpha */}
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center gap-2">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
+            <span className="text-text">CS2 Tracker</span>
           </span>
-        </Link>
+          <span className="badge badge-accent">alpha</span>
+        </div>
 
         {/* Center: links */}
-        <nav className="absolute inset-x-0 mx-auto flex w-fit items-center gap-6">
-          <Link href="/about" className="text-muted transition-colors hover:text-accent">
+        <nav className="flex items-center gap-6">
+          <Link href="/about" className="link-muted">
             About
           </Link>
-          <Link href="/privacy" className="text-muted transition-colors hover:text-accent">
-            Privacy
-          </Link>
-          <li>
-  <button
-    type="button"
-    onClick={openContact}
-    // make the button look like the links and align perfectly
-    className="relative inline-block bg-transparent p-0 pb-1 text-sm text-muted leading-[1.2]
-               transition-colors hover:text-text align-middle appearance-none
-               focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
-  >
-    Contact
-  </button>
-</li>
-
-        </nav>
-
-        {/* Right: social + copyright */}
-        <div className="ml-auto flex items-center gap-5 text-sm">
-          <a
-            href="https://x.com/cs2_tracker"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-muted underline-offset-4 hover:text-accent hover:underline"
-          >
-            Follow on X
-          </a>
-          <div className="text-muted">© {year} CS2 Tracker</div>
-        </div>
-      </div>
-
-      {/* -------- Mobile (below md) -------- */}
-      <div className="mx-auto px-4 py-6 text-sm md:hidden">
-        {/* Brand */}
-        <div className="flex items-center justify-center gap-2">
-          <Image
-            src="/logo-arrow.png"
-            alt=""
-            width={20}
-            height={20}
-            className="translate-y-[1px] select-none drop-shadow-[0_0_8px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]"
-          />
-          <span className="whitespace-nowrap font-medium text-text">CS2 Tracker</span>
-          <span className="ml-2 rounded-full bg-accent/15 px-2 py-0.5 text-[10px] leading-none text-accent">
-            alpha
-          </span>
-        </div>
-
-        {/* Links */}
-        <nav className="mt-4 flex items-center justify-center gap-6">
-          <Link href="/about" className="text-muted transition-colors hover:text-accent">
-            About
-          </Link>
-          <Link href="/privacy" className="text-muted transition-colors hover:text-accent">
+          <Link href="/privacy" className="link-muted">
             Privacy
           </Link>
           <button
-  className="link-muted"
-  onClick={() => window.dispatchEvent(new Event("contact:open"))}
->
-  Contact
-</button>
-
+            type="button"
+            onClick={openContact}
+            className="link-muted p-0 bg-transparent"
+          >
+            Contact
+          </button>
         </nav>
 
-        {/* Social + copyright */}
-        <div className="mt-4 flex flex-col items-center gap-2 text-muted">
-          <a
-            href="https://x.com/cs2_tracker"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline-offset-4 hover:text-accent hover:underline"
-          >
-            Follow on X
-          </a>
-          <div>© {year} CS2 Tracker</div>
+        {/* Right: credit */}
+        <div className="whitespace-nowrap">
+          © {new Date().getFullYear()} CS2 Tracker
         </div>
       </div>
     </footer>
   );
 }
-
 
