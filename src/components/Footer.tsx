@@ -1,8 +1,9 @@
 // src/components/Footer.tsx
+"use client";
+
 import Link from "next/link";
 
 export default function SiteFooter() {
-  // Fire the same event the header uses
   const openContact = () =>
     window.dispatchEvent(new CustomEvent("contact:open"));
 
@@ -20,12 +21,8 @@ export default function SiteFooter() {
 
         {/* Center: links */}
         <nav className="flex items-center gap-6">
-          <Link href="/about" className="link-muted">
-            About
-          </Link>
-          <Link href="/privacy" className="link-muted">
-            Privacy
-          </Link>
+          <Link href="/about" className="link-muted">About</Link>
+          <Link href="/privacy" className="link-muted">Privacy</Link>
           <button
             type="button"
             onClick={openContact}
