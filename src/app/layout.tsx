@@ -6,6 +6,13 @@ import dynamic from "next/dynamic";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Inter, Manrope } from "next/font/google";
+import { Suspense } from "react";
+import dynamic from "next/dynamic";
+
+const ContactModalHost = dynamic(
+  () => import("@/components/ContactModalHost"),
+  { ssr: false }
+);
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
