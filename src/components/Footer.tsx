@@ -36,6 +36,19 @@ export default function Footer() {
           <Link href="/privacy" className="text-muted transition-colors hover:text-accent">
             Privacy
           </Link>
+          <li>
+  <button
+    type="button"
+    onClick={openContact}
+    // make the button look like the links and align perfectly
+    className="relative inline-block bg-transparent p-0 pb-1 text-sm text-muted leading-[1.2]
+               transition-colors hover:text-text align-middle appearance-none
+               focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+  >
+    Contact
+  </button>
+</li>
+
         </nav>
 
         {/* Right: social + copyright */}
