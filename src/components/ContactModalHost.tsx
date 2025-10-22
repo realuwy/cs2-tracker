@@ -5,14 +5,14 @@ import { useSearchParams } from "next/navigation";
 
 export default function ContactModalHost() {
   const [open, setOpen] = useState(false);
-  const [fullName, setFullName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
 
   const search = useSearchParams();
 
-  // open via `?contact=1`
+  // Open via ?contact=1
   useEffect(() => {
     if (search.get("contact")) {
       setOpen(true);
@@ -22,14 +22,14 @@ export default function ContactModalHost() {
     }
   }, [search]);
 
-  // open via `window.dispatchEvent(new Event("contact:open"))`
+  // Open via window event
   useEffect(() => {
     const onOpen = () => setOpen(true);
     window.addEventListener("contact:open", onOpen);
     return () => window.removeEventListener("contact:open", onOpen);
   }, []);
 
-  // esc to close
+  // Close on Escape
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
@@ -38,22 +38,21 @@ export default function ContactModalHost() {
   }, [open]);
 
   const onSend = () => {
-    if (!message.trim()) return;
+    if (!message.trim() || !email.trim()) return;
     setSending(true);
 
     const to = "cs2-tracker@proton.me";
     const subject = encodeURIComponent("CS2 Tracker – Contact");
     const body = encodeURIComponent(
       [
-        `Name: ${fullName || "(anonymous)"}`,
-        `Email: ${email || "(not provided)"}`,
+        `Username: ${username || "(not provided)"}`,
+        `Email: ${email}`,
         "",
         "Message:",
         message.trim(),
       ].join("\n")
     );
 
-    // open mail client (no backend required, same behavior as before)
     window.open(`mailto:${to}?subject=${subject}&body=${body}`, "_blank");
     setSending(false);
   };
@@ -70,7 +69,7 @@ export default function ContactModalHost() {
               Let’s talk
             </h2>
             <p className="mt-2 text-sm text-muted">
-              Tell us what’s up. Leave an email if you’d like a reply.
+              Tell us what’s up. We’ll reply via your email.
             </p>
           </div>
           <button
@@ -81,38 +80,37 @@ export default function ContactModalHost() {
           </button>
         </div>
 
-        {/* Form – same “pill” feel as auth modal */}
+        {/* Form */}
         <div className="mt-6 space-y-4">
           <input
-            aria-label="Username (optional)"
+            aria-label="Username"
             className="w-full h-12 rounded-full border border-border bg-surface2/70 px-5 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30"
-            placeholder="Username (optional)"
-            value={userName}
-            onChange={(e) => setFullName(e.target.value)}
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
           />
 
           <input
             type="email"
             aria-label="Email"
+            required
             className="w-full h-12 rounded-full border border-border bg-surface2/70 px-5 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30"
             placeholder="Enter your email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
 
-          <div>
-            <textarea
-              aria-label="Message"
-              className="w-full min-height-[140px] h-36 rounded-2xl border border-border bg-surface2/70 p-4 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 resize-vertical"
-              placeholder="How can we help?"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-            />
-          </div>
+          <textarea
+            aria-label="Message"
+            className="w-full h-36 rounded-2xl border border-border bg-surface2/70 p-4 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 resize-vertical"
+            placeholder="How can we help?"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+          />
 
           <button
             onClick={onSend}
-            disabled={sending || !message.trim()}
+            disabled={sending || !message.trim() || !email.trim()}
             className="btn-accent w-full h-12 rounded-full text-base disabled:opacity-60"
           >
             {sending ? "Sending…" : "Send message"}
