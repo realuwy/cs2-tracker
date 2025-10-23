@@ -122,65 +122,58 @@ export default function ContactModalHost() {
           </div>
         )}
 
-        {/* Form */}
-        <form onSubmit={onSubmit} className="space-y-4">
-          {/* Honeypot (hidden) */}
-          <input
-            className="hidden"
-            autoComplete="off"
-            tabIndex={-1}
-            value={honey}
-            onChange={(e) => setHoney(e.target.value)}
-            name="website"
-          />
+      {/* Form */}
+<form
+  onSubmit={(e) => {
+    e.preventDefault();
+    onSend();
+  }}
+  className="mt-6 space-y-4"
+>
+  {/* Top Row */}
+  <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-4 sm:space-y-0">
+    <input
+      aria-label="Username"
+      placeholder="Username"
+      value={username}
+      onChange={(e) => setUsername(e.target.value)}
+      className="flex-1 h-12 rounded-full border border-border bg-surface2/70 px-5 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30"
+    />
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="label">Username</label>
-              <input
-                className="input h-12 rounded-2xl"
-                placeholder="uwy"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoComplete="nickname"
-              />
-            </div>
+    <input
+      type="email"
+      aria-label="Email"
+      required
+      placeholder="Email"
+      value={email}
+      onChange={(e) => setEmail(e.target.value)}
+      className="flex-1 h-12 rounded-full border border-border bg-surface2/70 px-5 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30"
+    />
+  </div>
 
-            <div>
-              <label className="label">Email</label>
-              <input
-                className="input h-12 rounded-2xl"
-                placeholder="you@example.com"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                required
-              />
-            </div>
-          </div>
+  {/* Message */}
+  <textarea
+    aria-label="Message"
+    placeholder="Write your message..."
+    value={message}
+    onChange={(e) => setMessage(e.target.value)}
+    className="w-full h-36 rounded-2xl border border-border bg-surface2/70 p-4 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 resize-none"
+  />
 
-          <div>
-            <label className="label">How can we help?</label>
-            <textarea
-              className="input h-40 rounded-2xl resize-vertical"
-              placeholder="Write your message…"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-            />
-            <p className="mt-2 text-xs text-muted">
-              We’ll use your email only to reply. No spam.
-            </p>
-          </div>
+  {/* Footer */}
+  <p className="text-xs text-muted text-center">
+    We’ll use your email only to reply. No spam.
+  </p>
 
-          <button
-            type="submit"
-            className="btn-accent w-full h-12 rounded-2xl"
-            disabled={submitting}
-          >
-            {submitting ? "Sending…" : "Send message"}
-          </button>
-        </form>
+  <button
+    type="submit"
+    disabled={sending || !email.trim() || !message.trim()}
+    className="btn-accent w-full h-12 rounded-full text-base font-semibold disabled:opacity-60"
+  >
+    {sending ? "Sending..." : "Send message"}
+  </button>
+</form>
+
       </div>
     </div>
   );
