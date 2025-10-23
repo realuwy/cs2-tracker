@@ -1,179 +1,187 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 
 export default function ContactModalHost() {
   const [open, setOpen] = useState(false);
+
+  // form fields
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
-  const [sending, setSending] = useState(false);
-  const [toast, setToast] = useState(false);
+  // hidden honeypot
+  const [honey, setHoney] = useState("");
 
-  const search = useSearchParams();
+  const [submitting, setSubmitting] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // open via ?contact=1
+  // Allow opening via URL (?contact=1) without useSearchParams (avoids Suspense requirement)
   useEffect(() => {
-    if (search.get("contact")) {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("contact")) {
       setOpen(true);
-      const url = new URL(window.location.href);
-      url.searchParams.delete("contact");
-      window.history.replaceState({}, "", url.toString());
+      params.delete("contact");
+      const url = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
+      window.history.replaceState({}, "", url);
     }
-  }, [search]);
-
-  // open via global event
-  useEffect(() => {
-    const onOpen = () => setOpen(true);
-    window.addEventListener("contact:open", onOpen);
-    return () => window.removeEventListener("contact:open", onOpen);
   }, []);
 
-  // esc to close
+  // Open via global event: window.dispatchEvent(new CustomEvent("contact:open"))
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+    const onOpen = () => {
+      setOpen(true);
+      setNotice(null);
+      setError(null);
+    };
+    window.addEventListener("contact:open", onOpen as EventListener);
+    return () => window.removeEventListener("contact:open", onOpen as EventListener);
+  }, []);
 
-  const onSend = async () => {
-  if (!message.trim() || !email.trim()) return;
-  setSending(true);
-
-  try {
-    const res = await fetch("/api/contact", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, email, message }),
-    });
-
-    const data = await res.json();
-    if (!res.ok || !data.ok) {
-      throw new Error(data.error || "Failed to send message.");
-    }
-
-    // success feedback
-    setToast(true);
-    setMessage("");
+  const resetForm = () => {
     setUsername("");
     setEmail("");
-    setTimeout(() => setToast(false), 3000);
-  } catch (err) {
-    alert("Error: " + (err instanceof Error ? err.message : "Unable to send."));
-  } finally {
-    setSending(false);
-  }
-};
-
-
-    // open mail client
-    window.open(`mailto:${to}?subject=${subject}&body=${body}`, "_blank");
-
-    // show toast
-    setToast(true);
-    setSending(false);
     setMessage("");
-    setTimeout(() => setToast(false), 3000);
+    setHoney("");
   };
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setNotice(null);
+
+    if (!email || !email.includes("@")) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+    if (!message || message.trim().length < 5) {
+      setError("Please write a short message (at least a few words).");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({ username, email, message, honey }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
+      setNotice("Thanks! We received your message and will get back to you.");
+      // Auto-close after a short delay
+      setTimeout(() => {
+        setOpen(false);
+        resetForm();
+        setNotice(null);
+      }, 1200);
+    } catch (err: any) {
+      setError(err?.message || "Failed to send message. Please try again later.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   if (!open) return null;
 
   return (
-    <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-        <div className="w-full max-w-xl rounded-2xl border border-border bg-surface p-7 shadow-card text-text">
-          {/* Header */}
-          <div className="flex items-start justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="w-full max-w-2xl rounded-2xl border border-border bg-surface p-6 text-text shadow-card">
+        {/* Header */}
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-extrabold tracking-tight">Let’s talk</h2>
+            <p className="mt-2 text-sm text-muted">
+              Tell us what’s up. Leave an email so we can reply.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              setOpen(false);
+              setTimeout(() => resetForm(), 150);
+            }}
+            className="btn-ghost !px-3 !py-1 text-sm"
+          >
+            Close
+          </button>
+        </div>
+
+        {/* Alerts */}
+        {error && (
+          <div className="mb-4 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+            {error}
+          </div>
+        )}
+        {notice && (
+          <div className="mb-4 rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
+            {notice}
+          </div>
+        )}
+
+        {/* Form */}
+        <form onSubmit={onSubmit} className="space-y-4">
+          {/* Honeypot (hidden) */}
+          <input
+            className="hidden"
+            autoComplete="off"
+            tabIndex={-1}
+            value={honey}
+            onChange={(e) => setHoney(e.target.value)}
+            name="website"
+          />
+
+          <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <h2 className="text-[28px] leading-none font-extrabold tracking-tight">
-                Let’s talk
-              </h2>
-              <p className="mt-2 text-sm text-muted">
-                Tell us what’s up. We’ll reply via your email.
-              </p>
+              <label className="label">Username</label>
+              <input
+                className="input h-12 rounded-2xl"
+                placeholder="uwy"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="nickname"
+              />
             </div>
-            <button
-              onClick={() => setOpen(false)}
-              className="mt-1 rounded-lg border border-border bg-surface2/70 px-2 py-1 text-sm hover:bg-surface focus:outline-none focus:ring-2 focus:ring-accent/30"
-            >
-              Close
-            </button>
+
+            <div>
+              <label className="label">Email</label>
+              <input
+                className="input h-12 rounded-2xl"
+                placeholder="you@example.com"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                required
+              />
+            </div>
           </div>
 
-          {/* Form */}
-          <div className="mt-6 space-y-4">
-            <input
-              aria-label="Username"
-              className="w-full h-12 rounded-full border border-border bg-surface2/70 px-5 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30"
-              placeholder="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-            />
-
-            <input
-              type="email"
-              aria-label="Email"
-              required
-              className="w-full h-12 rounded-full border border-border bg-surface2/70 px-5 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-
+          <div>
+            <label className="label">How can we help?</label>
             <textarea
-              aria-label="Message"
-              className="w-full h-36 rounded-2xl border border-border bg-surface2/70 p-4 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 resize-vertical"
-              placeholder="How can we help?"
+              className="input h-40 rounded-2xl resize-vertical"
+              placeholder="Write your message…"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
             />
-
-            <button
-              onClick={onSend}
-              disabled={sending || !message.trim() || !email.trim()}
-              className="btn-accent w-full h-12 rounded-full text-base disabled:opacity-60"
-            >
-              {sending ? "Sending…" : "Send message"}
-            </button>
-
-            <p className="text-center text-xs text-muted">
+            <p className="mt-2 text-xs text-muted">
               We’ll use your email only to reply. No spam.
             </p>
           </div>
-        </div>
+
+          <button
+            type="submit"
+            className="btn-accent w-full h-12 rounded-2xl"
+            disabled={submitting}
+          >
+            {submitting ? "Sending…" : "Send message"}
+          </button>
+        </form>
       </div>
-
-      {/* ✅ Toast */}
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 animate-fade-in rounded-full bg-accent text-black px-5 py-2 text-sm font-medium shadow-lg">
-          Message ready to send ✉️
-        </div>
-      )}
-
-      <style jsx global>{`
-        @keyframes fade-in {
-          0% {
-            opacity: 0;
-            transform: translate(-50%, 20px);
-          }
-          15% {
-            opacity: 1;
-            transform: translate(-50%, 0);
-          }
-          85% {
-            opacity: 1;
-          }
-          100% {
-            opacity: 0;
-            transform: translate(-50%, 10px);
-          }
-        }
-        .animate-fade-in {
-          animation: fade-in 3s ease forwards;
-        }
-      `}</style>
-    </>
+    </div>
   );
 }
