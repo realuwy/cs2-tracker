@@ -178,8 +178,13 @@ export default function AppHeader() {
     <li><NavLink href="/dashboard">Dashboard</NavLink></li>
     <li><NavLink href="/about">About</NavLink></li>
     <li><NavLink href="/privacy">Privacy</NavLink></li>
-    {/* Use same NavLink styling so spacing/baseline match */}
-    <li><NavLink href="/?contact=1">Contact</NavLink></li>
+   <button
+    type="button"
+    onClick={openContact}
+    className="relative inline-block bg-transparent p-0 pb-1 text-muted hover:text-text"
+  >
+    Contact
+  </button>
   </ul>
 </nav>
 
@@ -359,14 +364,16 @@ export default function AppHeader() {
                     </Link>
                   </li>
                 <li>
-  <Link
-    href="/?contact=1"
-    className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
-    onClick={() => setMenuOpen(false)}
+ <li>
+  <button
+    type="button"
+    onClick={() => { openContact(); setMenuOpen(false); }}
+    className="block w-full text-left rounded-lg px-3 py-2 hover:bg-surface2/70"
   >
     Contact
-  </Link>
+  </button>
 </li>
+
 
                 </ul>
               </div>
