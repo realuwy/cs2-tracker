@@ -38,21 +38,35 @@ export default function ContactModalHost() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const onSend = () => {
-    if (!message.trim() || !email.trim()) return;
-    setSending(true);
+  const onSend = async () => {
+  if (!message.trim() || !email.trim()) return;
+  setSending(true);
 
-    const to = "cs2-tracker@proton.me";
-    const subject = encodeURIComponent("CS2 Tracker – Contact");
-    const body = encodeURIComponent(
-      [
-        `Username: ${username || "(not provided)"}`,
-        `Email: ${email}`,
-        "",
-        "Message:",
-        message.trim(),
-      ].join("\n")
-    );
+  try {
+    const res = await fetch("/api/contact", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, email, message }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || "Failed to send message.");
+    }
+
+    // success feedback
+    setToast(true);
+    setMessage("");
+    setUsername("");
+    setEmail("");
+    setTimeout(() => setToast(false), 3000);
+  } catch (err) {
+    alert("Error: " + (err instanceof Error ? err.message : "Unable to send."));
+  } finally {
+    setSending(false);
+  }
+};
+
 
     // open mail client
     window.open(`mailto:${to}?subject=${subject}&body=${body}`, "_blank");
