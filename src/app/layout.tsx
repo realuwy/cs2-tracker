@@ -1,3 +1,4 @@
+// src/app/layout.tsx
 import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
@@ -7,7 +8,6 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Inter, Manrope } from "next/font/google";
 
-// Fonts
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
 
@@ -15,8 +15,7 @@ const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
 const AppHeader = dynamic(() => import("@/components/AppHeader"), { ssr: false });
 const AuthModalHost = dynamic(() => import("@/components/AuthModalHost"), { ssr: false });
 const ContactModalHost = dynamic(() => import("@/components/ContactModalHost"), { ssr: false });
-
-import SiteFooter from "@/components/Footer";
+const SiteFooter = dynamic(() => import("@/components/Footer"), { ssr: false });
 
 export const metadata: Metadata = {
   title: "CS2 Tracker",
@@ -30,15 +29,19 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <div className="min-h-screen flex flex-col">
           <AppHeader />
 
-          {/* Wrap CSR-only modal hosts in Suspense to satisfy useSearchParams CSR bailout */}
+          {/* Wrap modals & pages with Suspense (CSR bailout for useSearchParams, etc.) */}
           <Suspense fallback={null}>
             <AuthModalHost />
           </Suspense>
+
           <Suspense fallback={null}>
             <ContactModalHost />
           </Suspense>
 
-          <main className="flex-1">{children}</main>
+          <Suspense fallback={null}>
+            <main className="flex-1">{children}</main>
+          </Suspense>
+
           <SiteFooter />
         </div>
 
