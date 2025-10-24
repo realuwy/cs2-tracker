@@ -1,3 +1,4 @@
+// src/components/AppHeader.tsx
 "use client";
 
 import Link from "next/link";
@@ -6,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 
+/** Global helper to open the Contact modal */
 function openContact() {
   window.dispatchEvent(new CustomEvent("contact:open"));
 }
@@ -14,17 +16,30 @@ function openContact() {
 function NavLink({
   href,
   children,
+  onClick,
 }: {
   href: string;
   children: React.ReactNode;
+  onClick?: (e: React.MouseEvent) => void;
 }) {
   const pathname = usePathname();
+  const isHash = href.startsWith("#");
+
+  // active underline for real routes only (not for #contact)
   const active =
-    pathname === href || (href !== "/" && pathname?.startsWith(href));
+    !isHash && (pathname === href || (href !== "/" && pathname?.startsWith(href)));
 
   return (
     <Link
       href={href}
+      // If an onClick is provided (like Contact), prevent navigation and fire handler
+      onClick={(e) => {
+        if (onClick) {
+          e.preventDefault();
+          onClick(e);
+        }
+      }}
+      prefetch={false}
       className={[
         "relative pb-1 transition-colors",
         active
@@ -84,8 +99,6 @@ export default function AppHeader() {
     window.dispatchEvent(new CustomEvent("auth:open", { detail: "signin" }));
   const openSignUp = () =>
     window.dispatchEvent(new CustomEvent("auth:open", { detail: "signup" }));
-  const openContact = () =>
-    window.dispatchEvent(new Event("contact:open"));
 
   const continueAsGuest = () => {
     try {
@@ -176,17 +189,16 @@ export default function AppHeader() {
         </Link>
 
         {/* Center: primary nav (desktop only) */}
-     <nav className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 md:block">
-  <ul className="flex items-center gap-8 text-sm text-text">
-    <li><NavLink href="/">Home</NavLink></li>
-    <li><NavLink href="/dashboard">Dashboard</NavLink></li>
-    <li><NavLink href="/about">About</NavLink></li>
-    <li><NavLink href="/privacy">Privacy</NavLink></li>
-    {/* Use same NavLink styling so spacing/baseline match */}
-    <li><NavLink href="/?contact=1">Contact</NavLink></li>
-  </ul>
-</nav>
-
+        <nav className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 md:block">
+          <ul className="flex items-center gap-8 text-sm text-text">
+            <li><NavLink href="/">Home</NavLink></li>
+            <li><NavLink href="/dashboard">Dashboard</NavLink></li>
+            <li><NavLink href="/about">About</NavLink></li>
+            <li><NavLink href="/privacy">Privacy</NavLink></li>
+            {/* Contact opens modal, no navigation */}
+            <li><NavLink href="#contact" onClick={() => openContact()}>Contact</NavLink></li>
+          </ul>
+        </nav>
 
         {/* Right: actions */}
         <div className="flex items-center gap-2">
@@ -362,16 +374,19 @@ export default function AppHeader() {
                       Privacy
                     </Link>
                   </li>
-                <li>
-  <Link
-    href="/?contact=1"
-    className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
-    onClick={() => setMenuOpen(false)}
-  >
-    Contact
-  </Link>
-</li>
-
+                  <li>
+                    <Link
+                      href="#contact"
+                      className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        openContact();
+                        setMenuOpen(false);
+                      }}
+                    >
+                      Contact
+                    </Link>
+                  </li>
                 </ul>
               </div>
             )}
