@@ -1,4 +1,3 @@
-// src/components/ContactModalHost.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -11,19 +10,19 @@ export default function ContactModalHost() {
   const [sending, setSending] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  // Open/close through window events
+  // Open/close via window events
   useEffect(() => {
     const onOpen = () => setOpen(true);
     const onClose = () => setOpen(false);
-    window.addEventListener("contact:open", onOpen as EventListener);
-    window.addEventListener("contact:close", onClose as EventListener);
+    window.addEventListener("contact:open", onOpen);
+    window.addEventListener("contact:close", onClose);
     return () => {
-      window.removeEventListener("contact:open", onOpen as EventListener);
-      window.removeEventListener("contact:close", onClose as EventListener);
+      window.removeEventListener("contact:open", onOpen);
+      window.removeEventListener("contact:close", onClose);
     };
   }, []);
 
-  // Optional: ESC to close
+  // ESC to close
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
@@ -38,29 +37,26 @@ export default function ContactModalHost() {
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: username.trim() || undefined,
-          email: email.trim(),
-          message,
-        }),
+        body: JSON.stringify({ username, email, message }),
+        cache: "no-store",
       });
 
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j?.error || "Failed to send message.");
+        throw new Error(data?.error || "Failed to send message.");
       }
 
-      setToast("Message sent — we’ll reply by email.");
-      // Clear and optionally close after a moment
+      setToast("Thanks! We’ll be in touch soon.");
       setUsername("");
       setEmail("");
       setMessage("");
-      setTimeout(() => setOpen(false), 900);
+      setTimeout(() => setToast(null), 3000);
+      setOpen(false);
     } catch (err: any) {
-      setToast(err?.message || "Could not send your message.");
+      setToast(err?.message || "Something went wrong.");
+      setTimeout(() => setToast(null), 3000);
     } finally {
       setSending(false);
-      setTimeout(() => setToast(null), 2500);
     }
   }
 
@@ -92,7 +88,7 @@ export default function ContactModalHost() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              void handleSend();
+              handleSend();
             }}
             className="mt-6 space-y-4"
           >
@@ -139,7 +135,6 @@ export default function ContactModalHost() {
         </div>
       </div>
 
-      {/* Toast */}
       {toast && (
         <div className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-full bg-accent text-black px-5 py-2 text-sm font-medium shadow-lg">
           {toast}
@@ -148,4 +143,5 @@ export default function ContactModalHost() {
     </>
   );
 }
+
 
