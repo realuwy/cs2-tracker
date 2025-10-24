@@ -101,17 +101,7 @@ export default function PrivacyPage() {
             • <span className="text-text">Reset password:</span> open{" "}
             <span className="text-text">Settings → Send password reset</span>.
           </li>
-          <li>
-            • <span className="text-text">Cloud data deletion:</span> open a{" "}
-            <Link
-              href="https://github.com/realuwy/cs2-tracker/issues"
-              className="underline hover:no-underline"
-            >
-              GitHub issue
-            </Link>{" "}
-            with your account email and request deletion (we’ll remove your{" "}
-            <code className="px-1 rounded bg-white/5">account_rows</code> data).
-          </li>
+        
         </ul>
       </section>
 
