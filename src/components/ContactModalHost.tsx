@@ -112,7 +112,7 @@ export default function ContactModalHost() {
                 aria-label="Email"
                 required
                 className="w-full h-12 rounded-full border border-border bg-surface2/70 px-5 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30"
-                placeholder="Enter your email"
+                placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
