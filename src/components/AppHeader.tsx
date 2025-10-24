@@ -6,6 +6,10 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 
+function openContact() {
+  window.dispatchEvent(new CustomEvent("contact:open"));
+}
+
 /** Small link style for the center-nav */
 function NavLink({
   href,
