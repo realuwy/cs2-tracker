@@ -10,7 +10,7 @@ export default function ContactModalHost() {
   const [sending, setSending] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  // Open/close via window events
+  // Open/close through window events
   useEffect(() => {
     const onOpen = () => setOpen(true);
     const onClose = () => setOpen(false);
@@ -22,7 +22,7 @@ export default function ContactModalHost() {
     };
   }, []);
 
-  // ESC to close
+  // Optional: ESC to close
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
@@ -32,28 +32,28 @@ export default function ContactModalHost() {
 
   async function handleSend() {
     if (!email.trim() || !message.trim()) return;
-    setSending(true);
     try {
-      const res = await fetch("/api/contact", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, email, message }),
-        cache: "no-store",
-      });
+      setSending(true);
 
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        throw new Error(data?.error || "Failed to send message.");
-      }
+      const body = encodeURIComponent(
+        [
+          username ? `Username: ${username}` : null,
+          `Email: ${email}`,
+          "",
+          message,
+        ]
+          .filter(Boolean)
+          .join("\n")
+      );
+      const subject = encodeURIComponent("CS2 Tracker – Contact");
 
-      setToast("Thanks! We’ll be in touch soon.");
-      setUsername("");
-      setEmail("");
-      setMessage("");
-      setTimeout(() => setToast(null), 3000);
-      setOpen(false);
-    } catch (err: any) {
-      setToast(err?.message || "Something went wrong.");
+      // open mail app in new tab
+      window.open(
+        `mailto:cs2-tracker@proton.me?subject=${subject}&body=${body}`,
+        "_blank"
+      );
+
+      setToast("Your mail app has opened — message ready to send.");
       setTimeout(() => setToast(null), 3000);
     } finally {
       setSending(false);
@@ -69,9 +69,7 @@ export default function ContactModalHost() {
           {/* Header */}
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-[28px] leading-none font-extrabold tracking-tight">
-                Let’s talk
-              </h2>
+              <h2 className="text-[28px] leading-none font-extrabold tracking-tight">Let’s talk</h2>
               <p className="mt-2 text-sm text-muted">
                 Tell us what’s up. Leave an email so we can reply.
               </p>
@@ -120,21 +118,20 @@ export default function ContactModalHost() {
               onChange={(e) => setMessage(e.target.value)}
             />
 
-            <p className="text-xs text-muted">
-              We’ll use your email only to reply. No spam.
-            </p>
+            <p className="text-xs text-muted">We’ll use your email only to reply. No spam.</p>
 
             <button
               type="submit"
               disabled={sending || !email.trim() || !message.trim()}
               className="btn-accent w-full h-12 rounded-full text-base disabled:opacity-60"
             >
-              {sending ? "Sending…" : "Send message"}
+              {sending ? "Opening…" : "Send message"}
             </button>
           </form>
         </div>
       </div>
 
+      {/* Toast */}
       {toast && (
         <div className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-full bg-accent text-black px-5 py-2 text-sm font-medium shadow-lg">
           {toast}
