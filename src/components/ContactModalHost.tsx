@@ -1,7 +1,7 @@
 // src/components/ContactModalHost.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function ContactModalHost() {
   const [open, setOpen] = useState(false);
@@ -15,11 +15,11 @@ export default function ContactModalHost() {
   useEffect(() => {
     const onOpen = () => setOpen(true);
     const onClose = () => setOpen(false);
-    window.addEventListener("contact:open", onOpen);
-    window.addEventListener("contact:close", onClose);
+    window.addEventListener("contact:open", onOpen as EventListener);
+    window.addEventListener("contact:close", onClose as EventListener);
     return () => {
-      window.removeEventListener("contact:open", onOpen);
-      window.removeEventListener("contact:close", onClose);
+      window.removeEventListener("contact:open", onOpen as EventListener);
+      window.removeEventListener("contact:close", onClose as EventListener);
     };
   }, []);
 
@@ -33,39 +33,34 @@ export default function ContactModalHost() {
 
   async function handleSend() {
     if (!email.trim() || !message.trim()) return;
+    setSending(true);
     try {
-      setSending(true);
-
-      // TODO: replace this with your API route if desired
-      // For now we use a safe mailto fallback that *stays* in the modal:
-      const body = encodeURIComponent(
-        [
-          username ? `Username: ${username}` : null,
-          `Email: ${email}`,
-          "",
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: username.trim() || undefined,
+          email: email.trim(),
           message,
-        ]
-          .filter(Boolean)
-          .join("\n")
-      );
-      const subject = encodeURIComponent("CS2 Tracker – Contact");
+        }),
+      });
 
-      // Create an invisible link and click it without leaving the current page
-      const a = document.createElement("a");
-      a.href = `mailto:cs2-tracker@proton.me?subject=${subject}&body=${body}`;
-      a.style.display = "none";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.error || "Failed to send message.");
+      }
 
-      setToast("Message ready to send in your mail app.");
-      setTimeout(() => setToast(null), 3000);
-
-      // keep the modal open so users see the toast; clear fields optionally:
-      // setOpen(false);
-      // setUsername(""); setEmail(""); setMessage("");
+      setToast("Message sent — we’ll reply by email.");
+      // Clear and optionally close after a moment
+      setUsername("");
+      setEmail("");
+      setMessage("");
+      setTimeout(() => setOpen(false), 900);
+    } catch (err: any) {
+      setToast(err?.message || "Could not send your message.");
     } finally {
       setSending(false);
+      setTimeout(() => setToast(null), 2500);
     }
   }
 
@@ -78,7 +73,9 @@ export default function ContactModalHost() {
           {/* Header */}
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-[28px] leading-none font-extrabold tracking-tight">Let’s talk</h2>
+              <h2 className="text-[28px] leading-none font-extrabold tracking-tight">
+                Let’s talk
+              </h2>
               <p className="mt-2 text-sm text-muted">
                 Tell us what’s up. Leave an email so we can reply.
               </p>
@@ -95,7 +92,7 @@ export default function ContactModalHost() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              handleSend();
+              void handleSend();
             }}
             className="mt-6 space-y-4"
           >
@@ -127,7 +124,9 @@ export default function ContactModalHost() {
               onChange={(e) => setMessage(e.target.value)}
             />
 
-            <p className="text-xs text-muted">We’ll use your email only to reply. No spam.</p>
+            <p className="text-xs text-muted">
+              We’ll use your email only to reply. No spam.
+            </p>
 
             <button
               type="submit"
@@ -149,3 +148,4 @@ export default function ContactModalHost() {
     </>
   );
 }
+
