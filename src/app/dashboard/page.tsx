@@ -9,9 +9,6 @@ export const dynamic = "force-dynamic";
 import type React from "react";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { InvItem } from "@/lib/api"; // keep InvItem for Row typing
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import type { Session } from "@supabase/supabase-js";
-import { fetchUserRows, upsertUserRows } from "@/lib/rows";
 
 /* ----------------------------- constants ----------------------------- */
 
@@ -499,8 +496,6 @@ export default function DashboardPage() {
   const [spMap, setSpMap] = useState<Record<string, number>>({});
   const [sort, dispatchSort] = useReducer(sortReducer, { key: "item", dir: "asc" });
 
-  // Supabase client (auth-helpers)
-  const supabase = createClientComponentClient();
 
   // controls
   const [mName, setMName] = useState("");
@@ -518,28 +513,11 @@ export default function DashboardPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editRow, setEditRow] = useState<Row | null>(null);
 
-  const [session, setSession] = useState<Session | null>(null);
 
   /* =========================
      EFFECTS
      ========================= */
 
-  // Auth session
-  useEffect(() => {
-    let unsub: (() => void) | undefined;
-
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session ?? null);
-
-      const { data: sub } = supabase.auth.onAuthStateChange((_e, next) => {
-        setSession(next ?? null);
-      });
-      unsub = () => sub.subscription.unsubscribe();
-    })();
-
-    return () => unsub?.();
-  }, [supabase]);
 
   // Load legacy bookmarklet (optional)
   useEffect(() => {
@@ -549,69 +527,6 @@ export default function DashboardPage() {
     } catch {}
   }, []);
 
-  // Restore rows by merging local + account; then sync both sides
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      // 1) read local
-      let localRows: Row[] = [];
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        localRows = normalizeRows(raw ? JSON.parse(raw) : []);
-      } catch {}
-
-      // 2) read server (if logged in)
-      let serverRows: Row[] = [];
-      try {
-        if (session) {
-          const dbRowsRaw = await fetchUserRows(session);
-          serverRows = normalizeRows(dbRowsRaw);
-        }
-      } catch {
-        // ignore fetch error; we’ll just use local
-      }
-
-      // 3) merge + set
-      const merged = mergeLists(localRows, serverRows);
-      if (!cancelled) setRows(merged);
-
-      // 4) write back to both sides so they’re in sync
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-        localStorage.setItem(STORAGE_TS_KEY, String(Date.now()));
-      } catch {}
-      try {
-        if (session) await upsertUserRows(session, merged);
-      } catch {}
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [session]);
-
-  // Persist: whenever rows change, save to local and (if logged in) Supabase
-  const saveTimer = useRef<number | null>(null);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    saveTimer.current = window.setTimeout(async () => {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
-        localStorage.setItem(STORAGE_TS_KEY, String(Date.now()));
-      } catch {}
-
-      try {
-        if (session) await upsertUserRows(session, rows);
-      } catch {}
-    }, 300);
-
-    return () => {
-      if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    };
-  }, [rows, session]);
 
   // Skinport map + images
   async function refreshSkinport() {
