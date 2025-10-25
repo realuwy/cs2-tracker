@@ -633,52 +633,41 @@ export default function DashboardPage() {
     } catch {}
   }, []);
 
-  // restore rows (guest vs authed)
-  useEffect(() => {
-    let ignore = false;
-    (async () => {
+  // #region [EFFECTS] Restore rows (guest vs authed)
+useEffect(() => {
+  let ignore = false;
+
+  (async () => {
+    try {
+      // Guest or no session → load from localStorage
       if (isGuest || !session) {
-        try {
-          const raw = localStorage.getItem(STORAGE_KEY);
-          const parsed = raw ? (JSON.parse(raw) as Row[]) : [];
-          const normalized = parsed.map((r) => ({
-            ...r,
-            market_hash_name: r.market_hash_name ? stripNone(r.market_hash_name) : r.market_hash_name,
-            name: r.name ? stripNone(r.name) : r.name,
-            nameNoWear: r.nameNoWear ? stripNone(r.nameNoWear) : r.nameNoWear,
-            pattern: r.pattern && String(r.pattern).trim() !== "" ? r.pattern : undefined,
-            float: r.float && String(r.float).trim() !== "" ? r.float : undefined,
-            image: (r as any).image == null ? "" : (r as any).image,
-            skinportAUD: isMissingNum(r.skinportAUD) ? undefined : Number(r.skinportAUD),
-            steamAUD: isMissingNum(r.steamAUD) ? undefined : Number(r.steamAUD),
-            quantity: Math.max(1, Number(r.quantity ?? 1)),
-          }));
-          if (!ignore) setRows(normalized);
-        } catch {
-          if (!ignore) setRows([]);
-        }
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const parsed = raw ? (JSON.parse(raw) as any[]) : [];
+        if (!ignore) setRows(normalizeRows(parsed));
         return;
       }
 
-      // signed in → Supabase
-   try {
-  const dbRowsRaw = await fetchUserRows(session);  
-  if (!ignore) setRows(normalizeRows(dbRowsRaw));   
-} catch {
-  // fallback to local if DB fails
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? (JSON.parse(raw) as any[]) : [];
-    if (!ignore) setRows(normalizeRows(parsed));    
-  } catch {
-    if (!ignore) setRows([]);
-  }
+      // Signed in → load from Supabase
+      const dbRowsRaw = await fetchUserRows(session);
+      if (!ignore) setRows(normalizeRows(dbRowsRaw));
+    } catch {
+      // Fallback to local if DB fails
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const parsed = raw ? (JSON.parse(raw) as any[]) : [];
+        if (!ignore) setRows(normalizeRows(parsed));
+      } catch {
+        if (!ignore) setRows([]);
+      }
+    }
+  })();
 
-    })();
-    return () => {
-      ignore = true;
-    };
-  }, [session, isGuest]);
+  return () => {
+    ignore = true;
+  };
+}, [session, isGuest]);
+// #endregion
+
 
   // persist rows (guest → localStorage, authed → Supabase)
   const saveTimer = useRef<number | null>(null);
