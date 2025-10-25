@@ -1,13 +1,13 @@
 // src/components/AppHeader.tsx
 "use client";
 
+// imports (replace your current import block with this)
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getUserId, generateUserId, setUserId, clearAllLocalData } from "@/lib/id";
-import { usePathname } from "next/navigation";
-import { getUserId } from "@/lib/id";
+
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
   const pathname = usePathname();
