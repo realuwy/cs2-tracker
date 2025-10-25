@@ -2,6 +2,10 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
+import { Suspense } from "react";
+
+const OnboardingModalHost = dynamic(() => import("@/components/OnboardingModalHost"), { ssr: false });
 
 export default function SiteFooter() {
   const openContact = () => window.dispatchEvent(new CustomEvent("contact:open"));
@@ -40,6 +44,7 @@ export default function SiteFooter() {
         </div>
       </div>
     </footer>
+    <Suspense fallback={null}><OnboardingModalHost /></Suspense>
   );
 }
 
