@@ -1,4 +1,3 @@
-// src/lib/kv.ts
 import { Redis } from "@upstash/redis";
 
 export const kv = new Redis({
@@ -6,6 +5,6 @@ export const kv = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
-// Prefix keys so Preview data ≠ Prod data
+// keep prod/preview data separate
 export const envPrefix = process.env.VERCEL_ENV === "preview" ? "preview" : "prod";
 export const P = (k: string) => `${envPrefix}:${k}`;
