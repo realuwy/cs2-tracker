@@ -1,13 +1,12 @@
 // src/components/AppHeader.tsx
 "use client";
 
-// imports (replace your current import block with this)
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getUserId, generateUserId, setUserId, clearAllLocalData } from "@/lib/id";
-
+import QRCode from "qrcode";
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
   const pathname = usePathname();
@@ -51,9 +50,15 @@ function DotsButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
 
 export default function AppHeader() {
   const router = useRouter();
+  const pathname = usePathname();
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [userId, setUserIdState] = useState<string | null>(null);
+
+  // QR state
+  const [showQr, setShowQr] = useState(false);
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
 
   const menuRef = useRef<HTMLDivElement | null>(null);
   const acctRef = useRef<HTMLDivElement | null>(null);
@@ -62,34 +67,50 @@ export default function AppHeader() {
     setUserIdState(getUserId());
   }, []);
 
+  // refresh header ID when route changes
+  useEffect(() => {
+    setUserIdState(getUserId());
+  }, [pathname]);
+
+  // react to ID changes from elsewhere (onboarding, clear, replace)
+  useEffect(() => {
+    const onChange = (e: any) => {
+      setUserIdState(e?.detail?.userId ?? getUserId());
+    };
+    window.addEventListener("id:changed", onChange);
+    return () => window.removeEventListener("id:changed", onChange);
+  }, []);
+
   // click-outside to close menus
   useEffect(() => {
     const closeOnOutside = (e: MouseEvent) => {
       const t = e.target as Node;
       if (menuOpen && menuRef.current && !menuRef.current.contains(t)) setMenuOpen(false);
-      if (accountOpen && acctRef.current && !acctRef.current.contains(t)) setAccountOpen(false);
+      if (accountOpen && acctRef.current && !acctRef.current.contains(t)) {
+        setAccountOpen(false);
+        setShowQr(false);
+      }
     };
     window.addEventListener("mousedown", closeOnOutside);
     return () => window.removeEventListener("mousedown", closeOnOutside);
   }, [menuOpen, accountOpen]);
 
-  // refresh when the route changes (safe no-op)
-const pathname = usePathname();
-useEffect(() => {
-  setUserIdState(getUserId());
-}, [pathname]);
+  // generate QR when Account menu opens (and userId exists)
+  useEffect(() => {
+    async function makeQr() {
+      if (!accountOpen || !userId) return;
+      try {
+        const url = await QRCode.toDataURL(userId, { width: 160, margin: 1 });
+        setQrUrl(url);
+      } catch {
+        setQrUrl(null);
+      }
+    }
+    makeQr();
+  }, [accountOpen, userId]);
 
-// react to ID changes (from onboarding, clear, replace, etc.)
-useEffect(() => {
-  const onChange = (e: any) => {
-    setUserIdState(e?.detail?.userId ?? getUserId());
-  };
-  window.addEventListener("id:changed", onChange);
-  return () => window.removeEventListener("id:changed", onChange);
-}, []);
-  
-  const openOnboarding = () => window.dispatchEvent(new Event("onboard:open"));
-  const openContact = () => window.dispatchEvent(new Event("contact:open"));
+  const openOnboarding = (tab?: "create" | "paste" | "recover") =>
+    window.dispatchEvent(new CustomEvent("onboard:open", { detail: { tab } }));
 
   function copyId() {
     if (!userId) return;
@@ -106,7 +127,7 @@ useEffect(() => {
     clearAllLocalData();
     setUserIdState(null);
     router.push("/");
-    openOnboarding();
+    openOnboarding("create");
   }
 
   return (
@@ -141,8 +162,6 @@ useEffect(() => {
             <li><NavLink href="/dashboard">Dashboard</NavLink></li>
             <li><NavLink href="/about">About</NavLink></li>
             <li><NavLink href="/privacy">Privacy</NavLink></li>
-            <li>
-            </li>
           </ul>
         </nav>
 
@@ -152,7 +171,7 @@ useEffect(() => {
           <div className="relative" ref={acctRef}>
             <button
               type="button"
-              onClick={() => setAccountOpen((v) => !v)}
+              onClick={() => { setAccountOpen((v) => !v); if (accountOpen) setShowQr(false); }}
               aria-haspopup="menu"
               aria-expanded={accountOpen}
               className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface2/70 px-3 py-1.5 text-sm hover:bg-surface transition focus:outline-none focus:ring-2 focus:ring-accent/30"
@@ -191,7 +210,7 @@ useEffect(() => {
                   <button
                     role="menuitem"
                     className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                    onClick={() => { setAccountOpen(false); openOnboarding(); }}
+                    onClick={() => { setAccountOpen(false); openOnboarding("create"); }}
                   >
                     Generate ID
                   </button>
@@ -204,6 +223,49 @@ useEffect(() => {
                     >
                       Copy ID
                     </button>
+
+                    <button
+                      role="menuitem"
+                      className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
+                      onClick={() => setShowQr((v) => !v)}
+                    >
+                      {showQr ? "Hide QR" : "Show QR"}
+                    </button>
+
+                    {showQr && (
+                      <div className="mx-3 mt-2 rounded-lg border border-border bg-surface2/70 p-3 text-center">
+                        {qrUrl ? (
+                          <>
+                            <img
+                              src={qrUrl}
+                              alt="Your CS2 Tracker ID QR"
+                              className="mx-auto rounded-lg border border-border"
+                              width={160}
+                              height={160}
+                            />
+                            <div className="mt-2 flex items-center justify-center gap-2">
+                              <a
+                                href={qrUrl}
+                                download="cs2tracker-id.png"
+                                className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-surface/60"
+                              >
+                                Download PNG
+                              </a>
+                              <button
+                                className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-surface/60"
+                                onClick={() => navigator.clipboard.writeText(userId!)}
+                              >
+                                Copy ID text
+                              </button>
+                            </div>
+                            <p className="mt-1 text-[11px] text-muted">Scan to import your ID on another device.</p>
+                          </>
+                        ) : (
+                          <p className="text-xs text-muted">Generating QR…</p>
+                        )}
+                      </div>
+                    )}
+
                     <button
                       role="menuitem"
                       className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
@@ -220,6 +282,16 @@ useEffect(() => {
                     </button>
                   </>
                 )}
+
+                <hr className="my-2 border-border/70" />
+
+                <button
+                  role="menuitem"
+                  className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
+                  onClick={() => { setAccountOpen(false); openOnboarding("recover"); }}
+                >
+                  Recover ID
+                </button>
               </div>
             )}
           </div>
