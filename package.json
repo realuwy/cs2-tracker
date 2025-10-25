@@ -23,7 +23,7 @@
     "@vercel/speed-insights": "^1.0.0",
     "@upstash/redis": "^1.28.4",
     "resend": "^3.4.0",
-      "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@types/node": "20.14.12",
