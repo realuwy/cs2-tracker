@@ -125,9 +125,6 @@ export default function AppHeader() {
             <li><NavLink href="/about">About</NavLink></li>
             <li><NavLink href="/privacy">Privacy</NavLink></li>
             <li>
-              <button type="button" onClick={openContact} className="text-muted hover:text-text pb-1">
-                Contact
-              </button>
             </li>
           </ul>
         </nav>
@@ -220,7 +217,6 @@ export default function AppHeader() {
                   <li><Link href="/dashboard" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>Dashboard</Link></li>
                   <li><Link href="/about" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>About</Link></li>
                   <li><Link href="/privacy" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>Privacy</Link></li>
-                  <li><button onClick={() => { setMenuOpen(false); openContact(); }} className="block w-full rounded-lg px-3 py-2 text-left hover:bg-surface2/70">Contact</button></li>
                 </ul>
               </div>
             )}
