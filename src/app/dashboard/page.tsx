@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 /* =============================================================================
-   CS2 Tracker – Dashboard Page (with Dashboard Guard + mobile action fixes)
+   CS2 Tracker – Dashboard Page (with correct Dashboard Guard placement)
 ============================================================================= */
 
 import type React from "react";
@@ -369,7 +369,6 @@ function EditRowDialog({
               />
             </div>
           </div>
-
         </div>
 
         <div className="mt-6 flex justify-end gap-2">
@@ -491,10 +490,9 @@ function RowCard({
 /* ----------------------------- component ----------------------------- */
 
 export default function DashboardPage() {
-  // --- Dashboard Guard: render only after client mounts ---
+  // --- Dashboard Guard state (but don't early-return yet) ---
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
-  if (!ready) return null;
 
   // state
   const [rows, setRows] = useState<Row[]>([]);
@@ -989,7 +987,8 @@ export default function DashboardPage() {
   }
 
   /* ----------------------------- render ----------------------------- */
-
+ // ✅ Guard is here (after all hooks ran). Rendering-only guard is safe.
+  if (!ready) return null;
   return (
     <div className="mx-auto max-w-6xl p-6 space-y-6">
       {/* Top row: Left Manual Add / Right Stats */}
