@@ -6,7 +6,6 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getUserId, generateUserId, setUserId, clearAllLocalData } from "@/lib/id";
-import QRCode from "qrcode";
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
   const pathname = usePathname();
@@ -97,19 +96,20 @@ export default function AppHeader() {
 
   // generate QR when Account menu opens (and userId exists)
   useEffect(() => {
-  async function makeQr() {
-    if (!accountOpen || !userId) return;
-    try {
-      const QRCode = await import("qrcode"); // lazy-load on demand
-      const url = await QRCode.toDataURL(userId, { width: 160, margin: 1 });
-      setQrUrl(url);
-    } catch {
-      setQrUrl(null);
+    let mounted = true;
+    async function makeQr() {
+      if (!accountOpen || !userId) return;
+      try {
+        const QR = (await import("qrcode")).default; // lazy-load default
+        const url = await QR.toDataURL(userId, { width: 160, margin: 1 });
+        if (mounted) setQrUrl(url);
+      } catch {
+        if (mounted) setQrUrl(null);
+      }
     }
-  }
-  makeQr();
-}, [accountOpen, userId]);
-
+    makeQr();
+    return () => { mounted = false; };
+  }, [accountOpen, userId]);
 
   const openOnboarding = (tab?: "create" | "paste" | "recover") =>
     window.dispatchEvent(new CustomEvent("onboard:open", { detail: { tab } }));
