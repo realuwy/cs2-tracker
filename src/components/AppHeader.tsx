@@ -100,8 +100,8 @@ export default function AppHeader() {
     async function makeQr() {
       if (!accountOpen || !userId) return;
       try {
-        const QR = (await import("qrcode")).default; // lazy-load default
-        const url = await QR.toDataURL(userId, { width: 160, margin: 1 });
+       const { toDataURL } = await import("qrcode");
+const url = await toDataURL(userId, { width: 160, margin: 1 });
         if (mounted) setQrUrl(url);
       } catch {
         if (mounted) setQrUrl(null);
