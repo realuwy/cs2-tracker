@@ -58,6 +58,33 @@ export default function OnboardingModalHost() {
     setBusy(false);
     setTimeout(() => { close(); router.push("/dashboard"); }, 250);
   }
+async function createId() {
+  setBusy(true); setMsg("");
+  const id = generateUserId();
+  setUserId(id);
+
+  let info = "Your ID was created.";
+  if (email.trim()) {
+    try {
+      const res = await fetch("/api/register-id", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email, userId: id }),
+      });
+      if (res.status === 409) {
+        info = "That email is already linked to an ID. Use Recover to retrieve it.";
+      }
+    } catch {
+      // non-blocking: keep ID local, just inform user we couldn't link email now
+      info = "ID created locally. Couldn’t link email right now.";
+    }
+  }
+
+  setMsg(info);
+  setBusy(false);
+  setTimeout(() => { window.dispatchEvent(new Event("onboard:close")); }, 150);
+  setTimeout(() => { router.push("/dashboard"); }, 200);
+}
 
   function savePastedId() {
     const id = pasteId.trim();
