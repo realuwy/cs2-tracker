@@ -1,15 +1,14 @@
+// src/app/dashboard/page.tsx
 "use client";
 export const dynamic = "force-dynamic";
 
 /* =============================================================================
-   CS2 Tracker – Dashboard Page (clean merge + dual save)
+   CS2 Tracker – Dashboard Page (with Dashboard Guard + mobile action fixes)
 ============================================================================= */
 
 import type React from "react";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { InvItem } from "@/lib/api"; // keep InvItem for Row typing
-import ImportWizard from "@/components/ImportWizard";
-import { parseSteamInventory } from "@/lib/steam-parse";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import type { Session } from "@supabase/supabase-js";
 import { fetchUserRows, upsertUserRows } from "@/lib/rows";
@@ -132,45 +131,6 @@ function mergeRows(rows: Row[]): Row[] {
   }
 
   return Array.from(map.values());
-}
-
-function mapUploadedToRows(items: any[], spMap: Record<string, number>): Row[] {
-  return (items || []).map((it: any) => {
-    const rawName = String(it.name ?? it.market_hash_name ?? "Unknown");
-    const parsed = parseNameForWear(stripNone(rawName));
-    const nameNoWear = stripNone(parsed.nameNoWear);
-    // Prefer explicit exterior from upload; otherwise fall back to parsed wear.
-    const wear: WearCode =
-      (LABEL_TO_CODE[String(it.exterior || "").toLowerCase()] as WearCode) ??
-      ((parsed.wear as WearCode) || "");
-
-    const market_hash_name = stripNone(toMarketHash(nameNoWear, wear));
-    const spAUD = spMap[market_hash_name] ?? spMap[stripNone(market_hash_name)];
-    const priceAUD = typeof spAUD === "number" ? spAUD : undefined;
-
-    // Uploaded icon may be full economy URL or a path
-    const icon = String(it.icon || "");
-    const image = icon.startsWith("http")
-      ? icon
-      : icon
-      ? `https://steamcommunity-a.akamaihd.net/economy/image/${icon}`
-      : "";
-
-    return {
-      market_hash_name,
-      name: market_hash_name,
-      nameNoWear,
-      wear,
-      image,
-      inspectLink: "",
-      quantity: Number(it.quantity ?? 1),
-      skinportAUD: spAUD,
-      steamAUD: undefined,
-      priceAUD,
-      totalAUD: priceAUD ? priceAUD * Number(it.quantity ?? 1) : undefined,
-      source: "steam",
-    } as Row;
-  });
 }
 
 const wearRank = (code?: string) => (code ? WEAR_TO_RANK[code] ?? 99 : 99);
@@ -410,26 +370,17 @@ function EditRowDialog({
             </div>
           </div>
 
-          <div>
-            <label className="mb-1 block text-sm text-muted">Quantity</label>
-            <input
-              type="number"
-              min={1}
-              className="w-full rounded-lg border border-border bg-surface2 px-3 py-2"
-              value={qty}
-              onChange={(e) => setQty(Math.max(1, Number(e.target.value)))}
-            />
-          </div>
         </div>
 
         <div className="mt-6 flex justify-end gap-2">
           <button
+            type="button"
             className="rounded-lg border border-border bg-surface2 px-4 py-2 hover:bg-surface"
             onClick={onClose}
           >
             Cancel
           </button>
-          <button className="btn-accent px-4 py-2" onClick={apply}>
+          <button type="button" className="btn-accent px-4 py-2" onClick={apply}>
             Save
           </button>
         </div>
@@ -440,7 +391,15 @@ function EditRowDialog({
 
 /* ----------------------------- Mobile card ----------------------------- */
 
-function RowCard({ r }: { r: Row }) {
+function RowCard({
+  r,
+  onEdit,
+  onDelete,
+}: {
+  r: Row;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   return (
     <div className="rounded-2xl border border-border bg-surface/60 p-3">
       <div className="flex items-start gap-3">
@@ -488,9 +447,10 @@ function RowCard({ r }: { r: Row }) {
         </div>
         <div className="flex items-center justify-end gap-2">
           <button
+            type="button"
             className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-surface2 text-muted hover:bg-surface"
             title="Edit"
-            onClick={() => (window as any).__dash_openEdit?.(r)}
+            onClick={onEdit}
           >
             <svg
               viewBox="0 0 24 24"
@@ -504,9 +464,10 @@ function RowCard({ r }: { r: Row }) {
             </svg>
           </button>
           <button
+            type="button"
             className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-surface2 text-muted hover:bg-surface"
             title="Delete"
-            onClick={() => (window as any).__dash_deleteRow?.(r)}
+            onClick={onDelete}
           >
             <svg
               viewBox="0 0 24 24"
@@ -530,6 +491,11 @@ function RowCard({ r }: { r: Row }) {
 /* ----------------------------- component ----------------------------- */
 
 export default function DashboardPage() {
+  // --- Dashboard Guard: render only after client mounts ---
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
+  if (!ready) return null;
+
   // state
   const [rows, setRows] = useState<Row[]>([]);
   const [spMap, setSpMap] = useState<Record<string, number>>({});
@@ -577,7 +543,7 @@ export default function DashboardPage() {
     return () => unsub?.();
   }, [supabase]);
 
-  // Load bookmarklet (optional legacy)
+  // Load legacy bookmarklet (optional)
   useEffect(() => {
     try {
       const raw = localStorage.getItem("cs2_items");
@@ -1009,6 +975,7 @@ export default function DashboardPage() {
     const arrow = active ? (sort.dir === "asc" ? "▲" : "▼") : "";
     return (
       <button
+        type="button"
         onClick={() => dispatchSort({ type: "toggle", key: k })}
         className={`rounded-full border px-2.5 py-1 text-xs transition ${
           active
@@ -1147,6 +1114,7 @@ export default function DashboardPage() {
                 </div>
 
                 <button
+                  type="button"
                   onClick={addManual}
                   disabled={!mName.trim()}
                   className="btn-accent h-12 flex-1 disabled:opacity-60"
@@ -1354,6 +1322,7 @@ export default function DashboardPage() {
                     <td className="px-4 py-2 text-right">
                       <div className="flex justify-end gap-2">
                         <button
+                          type="button"
                           className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-surface2 text-muted hover:bg-surface"
                           title="Edit"
                           onClick={() => {
@@ -1374,6 +1343,7 @@ export default function DashboardPage() {
                         </button>
 
                         <button
+                          type="button"
                           className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-surface2 text-muted hover:bg-surface"
                           title="Delete"
                           onClick={() => removeRow(orig)}
@@ -1408,7 +1378,17 @@ export default function DashboardPage() {
             No items yet. Use <span className="underline">Search &amp; add item</span> or import from Steam.
           </div>
         ) : (
-          sorted.map((r) => <RowCard key={r.market_hash_name + "|card"} r={r} />)
+          sorted.map((r) => {
+            const orig = origIndexMap.get(r)!;
+            return (
+              <RowCard
+                key={r.market_hash_name + "|card|" + orig}
+                r={r}
+                onEdit={() => { setEditRow(r); setEditOpen(true); }}
+                onDelete={() => removeRow(orig)}
+              />
+            );
+          })
         )}
       </div>
 
@@ -1451,4 +1431,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
