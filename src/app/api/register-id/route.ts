@@ -20,9 +20,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, message: "KV not configured" }, { status: 202 });
     }
 
+    const existing = await kv.get<string>(P(`email:${em}`));
+    if (existing && existing !== userId) {
+      return NextResponse.json(
+        { ok: false, code: "EMAIL_EXISTS", message: "Email already linked to an existing ID." },
+        { status: 409 }
+      );
+    }
+
     await kv.set(P(`email:${em}`), userId);
     await kv.set(P(`uid:${userId}`), em);
-    return NextResponse.json({ ok: true });
+
+    return NextResponse.json({ ok: true, message: existing ? "Already linked" : "Linked" });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? "Internal error" }, { status: 500 });
   }
