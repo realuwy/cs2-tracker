@@ -100,8 +100,8 @@ export default function AppHeader() {
   async function makeQr() {
     if (!accountOpen || !userId) return;
     try {
-      const { toDataURL } = await import("qrcode"); // lazy-load
-      const url = await toDataURL(userId, { width: 160, margin: 1 });
+      const QRCode = await import("qrcode"); // lazy-load on demand
+      const url = await QRCode.toDataURL(userId, { width: 160, margin: 1 });
       setQrUrl(url);
     } catch {
       setQrUrl(null);
@@ -109,6 +109,7 @@ export default function AppHeader() {
   }
   makeQr();
 }, [accountOpen, userId]);
+
 
   const openOnboarding = (tab?: "create" | "paste" | "recover") =>
     window.dispatchEvent(new CustomEvent("onboard:open", { detail: { tab } }));
