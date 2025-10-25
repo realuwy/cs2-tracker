@@ -7,8 +7,13 @@ const LS = {
   settings: "cs2.settings",
 };
 
-export function generateUserId() { return crypto.randomUUID(); }
-export function getUserId() { if (typeof window === "undefined") return null; return localStorage.getItem(LS.userId); }
+export function generateUserId() {
+  return crypto.randomUUID();
+}
+export function getUserId() {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(LS.userId);
+}
 export function setUserId(id: string) {
   if (typeof window === "undefined") return;
   localStorage.setItem(LS.userId, id);
