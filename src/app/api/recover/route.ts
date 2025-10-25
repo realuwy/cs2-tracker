@@ -18,7 +18,6 @@ export async function POST(req: Request) {
     const em = norm(email);
     if (!em) return NextResponse.json({ error: "Email required" }, { status: 400 });
 
-    // Guard envs so we don't crash when incomplete
     if (
       !process.env.UPSTASH_REDIS_REST_URL ||
       !process.env.UPSTASH_REDIS_REST_TOKEN ||
@@ -27,9 +26,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, message: "Recovery not configured" }, { status: 202 });
     }
 
-    // Look up id (empty string if not found)
     const uid = (await kv.get<string>(P(`email:${em}`))) || "";
-
     const text = uid
       ? `Here is your CS2 Tracker ID:\n\n${uid}\n\nPaste it in the app to access your data.\n`
       : `If an ID is linked to this email, you’ll receive it shortly. Otherwise, open CS2 Tracker and create a new ID.`;
