@@ -1,3 +1,4 @@
+// src/app/api/recover/route.ts
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { kv, P } from "@/lib/kv";
@@ -45,3 +46,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e?.message ?? "Internal error" }, { status: 500 });
   }
 }
+
