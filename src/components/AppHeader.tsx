@@ -97,17 +97,18 @@ export default function AppHeader() {
 
   // generate QR when Account menu opens (and userId exists)
   useEffect(() => {
-    async function makeQr() {
-      if (!accountOpen || !userId) return;
-      try {
-        const url = await QRCode.toDataURL(userId, { width: 160, margin: 1 });
-        setQrUrl(url);
-      } catch {
-        setQrUrl(null);
-      }
+  async function makeQr() {
+    if (!accountOpen || !userId) return;
+    try {
+      const { toDataURL } = await import("qrcode"); // lazy-load
+      const url = await toDataURL(userId, { width: 160, margin: 1 });
+      setQrUrl(url);
+    } catch {
+      setQrUrl(null);
     }
-    makeQr();
-  }, [accountOpen, userId]);
+  }
+  makeQr();
+}, [accountOpen, userId]);
 
   const openOnboarding = (tab?: "create" | "paste" | "recover") =>
     window.dispatchEvent(new CustomEvent("onboard:open", { detail: { tab } }));
