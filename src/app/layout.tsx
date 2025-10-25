@@ -11,11 +11,10 @@ import { Inter, Manrope } from "next/font/google";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
 
-// Browser-only components (no SSR)
 const AppHeader = dynamic(() => import("@/components/AppHeader"), { ssr: false });
-const AuthModalHost = dynamic(() => import("@/components/AuthModalHost"), { ssr: false });
 const ContactModalHost = dynamic(() => import("@/components/ContactModalHost"), { ssr: false });
-const SiteFooter = dynamic(() => import("@/components/Footer"), { ssr: false });
+const OnboardingModalHost = dynamic(() => import("@/components/OnboardingModalHost"), { ssr: false });
+import SiteFooter from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "CS2 Tracker",
@@ -28,27 +27,22 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className={`${inter.variable} ${manrope.variable} font-sans bg-bg text-text`}>
         <div className="min-h-screen flex flex-col">
           <AppHeader />
-
-          {/* Wrap modals & pages with Suspense (CSR bailout for useSearchParams, etc.) */}
           <Suspense fallback={null}>
-            <AuthModalHost />
+            <OnboardingModalHost />
           </Suspense>
-
           <Suspense fallback={null}>
             <ContactModalHost />
           </Suspense>
-
           <Suspense fallback={null}>
             <main className="flex-1">{children}</main>
           </Suspense>
-
           <SiteFooter />
         </div>
-
         <Analytics />
         <SpeedInsights />
       </body>
     </html>
   );
 }
+
 
