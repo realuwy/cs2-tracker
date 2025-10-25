@@ -1,4 +1,3 @@
-// src/app/api/recover/route.ts
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { kv, P } from "@/lib/kv";
@@ -19,6 +18,7 @@ export async function POST(req: Request) {
     const em = norm(email);
     if (!em) return NextResponse.json({ error: "Email required" }, { status: 400 });
 
+    // Guard envs so we don't crash when incomplete
     if (
       !process.env.UPSTASH_REDIS_REST_URL ||
       !process.env.UPSTASH_REDIS_REST_TOKEN ||
@@ -27,6 +27,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, message: "Recovery not configured" }, { status: 202 });
     }
 
+    // Look up id (empty string if not found)
     const uid = (await kv.get<string>(P(`email:${em}`))) || "";
 
     const text = uid
@@ -46,4 +47,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e?.message ?? "Internal error" }, { status: 500 });
   }
 }
+
 
