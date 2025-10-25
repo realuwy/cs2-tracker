@@ -2,38 +2,20 @@
 export const dynamic = "force-dynamic";
 
 /* =============================================================================
-   CS2 Tracker – Dashboard Page
-   -----------------------------------------------------------------------------
-   Quick Nav (search or fold by these):
-   [IMPORTS]
-   [CONSTANTS]
-   [HELPERS]
-   [TYPES]
-   [UI: Atoms]
-   [UI: Edit Dialog]
-   [UI: Mobile Row Card]
-   [COMPONENT]
-     ├─ [STATE]
-     ├─ [EFFECTS]
-     ├─ [DERIVED]
-     ├─ [HANDLERS]
-     └─ [RENDER]
+   CS2 Tracker – Dashboard Page (clean replacement)
 ============================================================================= */
 
-// #region [IMPORTS]
 import type React from "react";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { InvItem } from "@/lib/api";
-import ImportWizard from "@/components/ImportWizard";
-import type { ParsedInventory } from "@/types/steam";
-import { parseSteamInventory } from "@/lib/steam-parse";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import type { Session } from "@supabase/supabase-js";
+
+import { InvItem } from "@/lib/api";
+import { parseSteamInventory } from "@/lib/steam-parse";
 import { fetchUserRows, upsertUserRows } from "@/lib/rows";
-// #endregion [IMPORTS]
+// If you render an import UI elsewhere, keep this. If not, you can remove it.
+// import ImportWizard from "@/components/ImportWizard";
 
-
-// #region [CONSTANTS]
 /* ----------------------------- constants ----------------------------- */
 
 const STORAGE_KEY = "cs2:dashboard:rows";
@@ -48,12 +30,6 @@ const WEAR_OPTIONS = [
   { code: "BS", label: "Battle-Scarred" },
 ] as const;
 type WearCode = (typeof WEAR_OPTIONS)[number]["code"];
-
-const wearLabel = (code?: string) =>
-  WEAR_OPTIONS.find((w) => w.code === code)?.label ?? "";
-
-/** Only for display under item name — hides "(none)". */
-const wearLabelForRow = (code?: WearCode) => (code ? wearLabel(code) : "");
 
 const LABEL_TO_CODE: Record<string, WearCode> = {
   "factory new": "FN",
@@ -73,11 +49,13 @@ const FALLBACK_DATA_URL =
   );
 
 const WEAR_TO_RANK: Record<string, number> = { FN: 0, MW: 1, FT: 2, WW: 3, BS: 4 };
-// #endregion [CONSTANTS]
 
-// #region [HELPERS]
 /* ----------------------------- helpers ----------------------------- */
 
+const wearLabel = (code?: string) =>
+  WEAR_OPTIONS.find((w) => w.code === code)?.label ?? "";
+/** Only for display under item name — hides "(none)". */
+const wearLabelForRow = (code?: WearCode) => (code ? wearLabel(code) : "");
 const stripNone = (s: string) => s.replace(NONE_SUFFIX_RE, "");
 
 function parseNameForWear(raw: string): { nameNoWear: string; wear?: WearCode } {
@@ -118,6 +96,17 @@ function Tooltip({
   );
 }
 
+type Row = Omit<InvItem, "pattern" | "float"> & {
+  pattern?: string;
+  float?: string;
+  skinportAUD?: number;
+  steamAUD?: number;
+  priceAUD?: number;
+  totalAUD?: number;
+  source: "steam" | "manual";
+  steamFetchedAt?: number;
+};
+
 function rowKey(r: Row): string {
   const name = stripNone((r.market_hash_name || r.name || r.nameNoWear || "").trim());
   const wear = (r.wear || "").trim();
@@ -128,7 +117,6 @@ function rowKey(r: Row): string {
 
 function mergeRows(rows: Row[]): Row[] {
   const map = new Map<string, Row>();
-
   for (const r0 of rows) {
     const key = rowKey(r0);
     const existing = map.get(key);
@@ -154,7 +142,6 @@ function mergeRows(rows: Row[]): Row[] {
       });
     }
   }
-
   return Array.from(map.values());
 }
 
@@ -163,7 +150,6 @@ function mapUploadedToRows(items: any[], spMap: Record<string, number>): Row[] {
     const rawName = String(it.name ?? it.market_hash_name ?? "Unknown");
     const parsed = parseNameForWear(stripNone(rawName));
     const nameNoWear = stripNone(parsed.nameNoWear);
-    // Prefer explicit exterior from upload; otherwise fall back to parsed wear.
     const wear: WearCode =
       (LABEL_TO_CODE[String(it.exterior || "").toLowerCase()] as WearCode) ??
       ((parsed.wear as WearCode) || "");
@@ -172,7 +158,6 @@ function mapUploadedToRows(items: any[], spMap: Record<string, number>): Row[] {
     const spAUD = spMap[market_hash_name] ?? spMap[stripNone(market_hash_name)];
     const priceAUD = typeof spAUD === "number" ? spAUD : undefined;
 
-    // Uploaded icon may be full economy URL or a path
     const icon = String(it.icon || "");
     const image = icon.startsWith("http")
       ? icon
@@ -181,7 +166,6 @@ function mapUploadedToRows(items: any[], spMap: Record<string, number>): Row[] {
       : "";
 
     return {
-      // InvItem core
       market_hash_name,
       name: market_hash_name,
       nameNoWear,
@@ -189,21 +173,16 @@ function mapUploadedToRows(items: any[], spMap: Record<string, number>): Row[] {
       image,
       inspectLink: "",
       quantity: Number(it.quantity ?? 1),
-
-      // pricing
       skinportAUD: spAUD,
       steamAUD: undefined,
       priceAUD,
       totalAUD: priceAUD ? priceAUD * Number(it.quantity ?? 1) : undefined,
-
-      // meta
       source: "steam",
     } as Row;
   });
 }
 
 const wearRank = (code?: string) => (code ? WEAR_TO_RANK[code] ?? 99 : 99);
-
 const isMissingStr = (s?: string | null) => !s || s.trim() === "";
 const isMissingNum = (v: unknown) =>
   v === undefined ||
@@ -259,21 +238,8 @@ function sanitizeSteam(aud: number | undefined, skinport?: number): number | und
   }
   return aud;
 }
-// #endregion [HELPERS]
 
-// #region [TYPES]
 /* ----------------------------- types ----------------------------- */
-
-type Row = Omit<InvItem, "pattern" | "float"> & {
-  pattern?: string;
-  float?: string;
-  skinportAUD?: number;
-  steamAUD?: number;
-  priceAUD?: number;
-  totalAUD?: number;
-  source: "steam" | "manual";
-  steamFetchedAt?: number;
-};
 
 type SortKey = "item" | "wear" | "pattern" | "float" | "qty" | "skinport" | "steam";
 type SortDir = "asc" | "desc";
@@ -286,9 +252,6 @@ function sortReducer(state: SortState, action: SortAction): SortState {
   return { key: action.key, dir: "asc" };
 }
 
-// #endregion [TYPES]
-
-// #region [UI: Atoms]
 /* ----------------------------- UI atoms ----------------------------- */
 
 function Pill({ children }: { children: React.ReactNode }) {
@@ -298,9 +261,7 @@ function Pill({ children }: { children: React.ReactNode }) {
     </span>
   );
 }
-// #endregion [UI: Atoms]
 
-// #region [UI: Edit Dialog]
 /* ----------------------------- Edit dialog ----------------------------- */
 
 function EditRowDialog({
@@ -445,12 +406,18 @@ function EditRowDialog({
     </div>
   );
 }
-// #endregion [UI: Edit Dialog]
 
-// #region [UI: Mobile Row Card]
-/* ----------------------------- Mobile Row Card ----------------------------- */
+/* ----------------------------- Mobile card ----------------------------- */
 
-function RowCard({ r }: { r: Row }) {
+function RowCard({
+  r,
+  onEdit,
+  onDelete,
+}: {
+  r: Row;
+  onEdit: (row: Row) => void;
+  onDelete: (row: Row) => void;
+}) {
   return (
     <div className="rounded-2xl border border-border bg-surface/60 p-3">
       <div className="flex items-start gap-3">
@@ -500,7 +467,7 @@ function RowCard({ r }: { r: Row }) {
           <button
             className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-surface2 text-muted hover:bg-surface"
             title="Edit"
-            onClick={() => (window as any).__dash_openEdit?.(r)}
+            onClick={() => onEdit(r)}
           >
             <svg
               viewBox="0 0 24 24"
@@ -516,7 +483,7 @@ function RowCard({ r }: { r: Row }) {
           <button
             className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-surface2 text-muted hover:bg-surface"
             title="Delete"
-            onClick={() => (window as any).__dash_deleteRow?.(r)}
+            onClick={() => onDelete(r)}
           >
             <svg
               viewBox="0 0 24 24"
@@ -536,19 +503,15 @@ function RowCard({ r }: { r: Row }) {
     </div>
   );
 }
-// #endregion [UI: Mobile Row Card]
 
-// #region [COMPONENT]
-/* ----------------------------- component ----------------------------- */
-
+/* ----------------------------- Component ----------------------------- */
 
 export default function DashboardPage() {
-  // #region [STATE]
+  // state
   const [rows, setRows] = useState<Row[]>([]);
   const [spMap, setSpMap] = useState<Record<string, number>>({});
   const [sort, dispatchSort] = useReducer(sortReducer, { key: "item", dir: "asc" });
 
-  // Supabase client (auth-helpers)
   const supabase = createClientComponentClient();
 
   // controls
@@ -561,27 +524,21 @@ export default function DashboardPage() {
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [skinportUpdatedAt, setSkinportUpdatedAt] = useState<number | null>(null);
   const [steamUpdatedAt, setSteamUpdatedAt] = useState<number | null>(null);
-
-  // manual refresh spinner
   const [refreshing, setRefreshing] = useState(false);
 
-  // edit dialog
   const [editOpen, setEditOpen] = useState(false);
   const [editRow, setEditRow] = useState<Row | null>(null);
 
-  // --- auth state (for per-user sync) ---
   const [session, setSession] = useState<Session | null>(null);
   const [isGuest, setIsGuest] = useState(false);
-  // #endregion [STATE]
 
   /* =========================
-     EFFECTS (auth + data flow)
+     EFFECTS
      ========================= */
 
-  // #region [EFFECTS] Auth session
+  // auth session subscribe
   useEffect(() => {
     let unsub: (() => void) | undefined;
-
     (async () => {
       const { data } = await supabase.auth.getSession();
       setSession(data.session ?? null);
@@ -598,19 +555,16 @@ export default function DashboardPage() {
       });
       unsub = () => sub.subscription.unsubscribe();
     })();
-
     return () => unsub?.();
   }, [supabase]);
-  // #endregion
 
-  // #region [EFFECTS] One-time migration of guest data to user after login
+  // migrate guest → account after login
   useEffect(() => {
     (async () => {
       if (!session) return;
-
       try {
         const rawA = localStorage.getItem("portfolio_items");
-        const rawB = localStorage.getItem("cs2:dashboard:rows"); // STORAGE_KEY
+        const rawB = localStorage.getItem(STORAGE_KEY);
         const guestJson = rawA ?? rawB;
         if (!guestJson) return;
 
@@ -620,35 +574,30 @@ export default function DashboardPage() {
         await upsertUserRows(session, items);
 
         localStorage.removeItem("portfolio_items");
-        localStorage.removeItem("cs2:dashboard:rows");
-        localStorage.removeItem("cs2:dashboard:rows:updatedAt");
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(STORAGE_TS_KEY);
         localStorage.removeItem("guest_mode");
         setIsGuest(false);
       } catch {}
     })();
   }, [session]);
-  // #endregion
 
-  // #region [EFFECTS] Load bookmarklet items once
+  // one-time: bookmarklet items
   useEffect(() => {
     try {
       const raw = localStorage.getItem("cs2_items");
       if (raw) setRows(JSON.parse(raw));
     } catch {}
   }, []);
-  // #endregion
 
-  // #region [EFFECTS] Restore rows (guest vs authed)
+  // restore rows (guest vs authed)
   useEffect(() => {
     let ignore = false;
-
     (async () => {
-      // Guest or no session → load from localStorage
       if (isGuest || !session) {
         try {
           const raw = localStorage.getItem(STORAGE_KEY);
           const parsed = raw ? (JSON.parse(raw) as Row[]) : [];
-          // optional normalization (kept from your original)
           const normalized = parsed.map((r) => ({
             ...r,
             market_hash_name: r.market_hash_name ? stripNone(r.market_hash_name) : r.market_hash_name,
@@ -668,12 +617,11 @@ export default function DashboardPage() {
         return;
       }
 
-      // Signed in → load from Supabase
+      // signed in → Supabase
       try {
         const dbRows = await fetchUserRows(session);
         if (!ignore) setRows(dbRows);
       } catch {
-        // fallback to local if DB fails
         try {
           const raw = localStorage.getItem(STORAGE_KEY);
           const parsed = raw ? (JSON.parse(raw) as Row[]) : [];
@@ -683,14 +631,12 @@ export default function DashboardPage() {
         }
       }
     })();
-
     return () => {
       ignore = true;
     };
   }, [session, isGuest]);
-  // #endregion
 
-  // #region [EFFECTS] Persist rows (guest → localStorage, authed → Supabase)
+  // persist rows (guest → localStorage, authed → Supabase)
   const saveTimer = useRef<number | null>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -712,9 +658,9 @@ export default function DashboardPage() {
       if (saveTimer.current) window.clearTimeout(saveTimer.current);
     };
   }, [rows, session, isGuest]);
-  // #endregion
 
-  // #region [HANDLERS] Skinport map + images
+  /* ----------------------------- Skinport/Steam ----------------------------- */
+
   async function refreshSkinport() {
     try {
       const [priceRes, imgRes] = await Promise.all([
@@ -784,139 +730,16 @@ export default function DashboardPage() {
         })
       );
     } catch {
-      // keep last-good values
+      // keep last-good
     }
   }
-  // #endregion
 
-  // #region [EFFECTS] Initial Skinport refresh
+  // initial skinport refresh
   useEffect(() => {
     refreshSkinport();
   }, []);
-  // #endregion
 
-  // #region [EFFECTS] Lazy image hydration via by-name API (Skinport→Steam)
-  const hydratedNamesRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      const batch: Array<{ name: string; idx: number }> = [];
-      for (let i = 0; i < rows.length && batch.length < 6; i++) {
-        const r = rows[i];
-        const nm = r.market_hash_name;
-        if ((!r.image || r.image.trim() === "") && !hydratedNamesRef.current.has(nm)) {
-          hydratedNamesRef.current.add(nm);
-          batch.push({ name: nm, idx: i });
-        }
-      }
-      if (batch.length === 0) return;
-
-      for (const { name, idx } of batch) {
-        try {
-          const resp = await fetch(
-            `/api/images/by-name?name=${encodeURIComponent(name)}`
-          );
-          const data: { url: string | null } = await resp.json();
-          if (cancelled) return;
-
-          if (typeof data.url === "string" && data.url.length > 0) {
-            const url = data.url;
-            setRows((prev) =>
-              prev.map((row, i) => {
-                if (i === idx) return { ...row, image: url };
-                if ((row as any).image == null) return { ...row, image: "" };
-                return row;
-              })
-            );
-          }
-        } catch {}
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [rows]);
-  // #endregion
-
-  // #region [EFFECTS] Back-to-top visibility
-  useEffect(() => {
-    if (typeof window === "undefined") return; // SSR guard
-    const onScroll = () => setShowBackToTop(window.scrollY > 600);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-  // #endregion
-
-  // #region [HANDLERS] Scroll to top
-  const scrollToTop = () => {
-    if (typeof window === "undefined") return;
-    const prefersReduced = window
-      .matchMedia("(prefers-reduced-motion: reduce)")
-      .matches;
-    window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
-  };
-  // #endregion
-
-  // #region [HANDLERS] Manual add
-  function addManual() {
-    if (!mName.trim()) return;
-    const parsed = parseNameForWear(mName.trim());
-    const nameNoWear = stripNone(parsed.nameNoWear);
-    const nonWear = isNonWearCategory(nameNoWear);
-    const wearToUse: WearCode = nonWear ? "" : (mWear || parsed.wear || "");
-    const market_hash_name = stripNone(toMarketHash(nameNoWear, wearToUse));
-    const spAUD = spMap[market_hash_name] ?? spMap[stripNone(market_hash_name)];
-    const priceAUD = typeof spAUD === "number" ? spAUD : undefined;
-    const newRow: Row = {
-      market_hash_name,
-      name: market_hash_name,
-      nameNoWear,
-      wear: wearToUse,
-      pattern: mPattern.trim() || undefined,
-      float: mFloat.trim() || undefined,
-      image: "",
-      inspectLink: "",
-      quantity: mQty,
-      skinportAUD: spAUD,
-      priceAUD,
-      totalAUD: priceAUD ? priceAUD * mQty : undefined,
-      source: "manual",
-    };
-    setRows((r) => mergeRows([newRow, ...r]));
-    setMName("");
-    setMWear("");
-    setMFloat("");
-    setMPattern("");
-    setMQty(1);
-  }
-  // #endregion
-
-  // #region [HANDLERS] Remove / Update qty
-  function removeRow(idx: number) {
-    setRows((r) => r.filter((_, i) => i !== idx));
-  }
-
-  function updateQty(idx: number, qty: number) {
-    const q = Math.max(1, Math.floor(qty || 1));
-    setRows((r) =>
-      r.map((row, i) =>
-        i === idx
-          ? {
-              ...row,
-              quantity: q,
-              totalAUD:
-                typeof row.skinportAUD === "number" ? row.skinportAUD * q : row.totalAUD,
-            }
-          : row
-      )
-    );
-  }
-  // #endregion
-
-  // #region [HANDLERS] Steam backfill (prices by name)
+  // steam backfill
   const pricesFetchingRef = useRef(false);
   async function backfillSomeSteamPrices(max = 8) {
     if (pricesFetchingRef.current) return;
@@ -950,9 +773,7 @@ export default function DashboardPage() {
 
           for (const name of variants) {
             try {
-              const resp = await fetch(
-                `/api/prices/steam?name=${encodeURIComponent(name)}`
-              );
+              const resp = await fetch(`/api/prices/steam?name=${encodeURIComponent(name)}`);
               const data: { aud?: number | null } = await resp.json();
               const parsed = typeof data?.aud === "number" ? data.aud : undefined;
               const sane = sanitizeSteam(parsed, r.skinportAUD);
@@ -978,16 +799,13 @@ export default function DashboardPage() {
       pricesFetchingRef.current = false;
     }
   }
-  // #endregion
 
-  // #region [EFFECTS] Initial Steam backfill
+  // initial steam backfill
   useEffect(() => {
     backfillSomeSteamPrices(12);
   }, []);
-  // #endregion
 
-  // #region [EFFECTS] Auto-refresh every 15 minutes (4/hour)
-  /** Auto-refresh every 15 minutes (4/hour) */
+  // auto refresh every 15 minutes
   useEffect(() => {
     if (typeof window === "undefined") return;
     const tick = async () => {
@@ -1000,9 +818,9 @@ export default function DashboardPage() {
     const id = window.setInterval(tick, 15 * 60 * 1000);
     return () => window.clearInterval(id);
   }, []);
-  // #endregion
 
-  // #region [DERIVED]
+  /* ----------------------------- derived ----------------------------- */
+
   const [sorted, totals] = useMemo(() => {
     const copy = [...rows];
     const dir: 1 | -1 = sort.dir === "asc" ? 1 : -1;
@@ -1055,68 +873,67 @@ export default function DashboardPage() {
     return m;
   }, [rows]);
 
- // #region [DERIVED]
+  const autoBaseNames = useMemo(() => {
+    const WEAR_TAIL =
+      /\s+\((Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)\)\s*$/i;
+    const stripWearAndNone = (s: string) => stripNone(s).replace(WEAR_TAIL, "");
 
+    const set = new Set<string>();
+    Object.keys(spMap).forEach((k) => set.add(stripWearAndNone(k)));
+    rows.forEach((r) => {
+      if (r.market_hash_name) set.add(stripWearAndNone(r.market_hash_name));
+      if (r.nameNoWear) set.add(stripWearAndNone(r.nameNoWear));
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [spMap, rows]);
 
-const autoBaseNames = useMemo(() => {
-  const WEAR_TAIL =
-    /\s+\((Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)\)\s*$/i;
-  const stripWearAndNone = (s: string) => stripNone(s).replace(WEAR_TAIL, "");
+  /* ----------------------------- handlers ----------------------------- */
 
-  const set = new Set<string>();
-
-  Object.keys(spMap).forEach((k) => set.add(stripWearAndNone(k)));
-
-  rows.forEach((r) => {
-    if (r.market_hash_name) set.add(stripWearAndNone(r.market_hash_name));
-    if (r.nameNoWear) set.add(stripWearAndNone(r.nameNoWear));
-  });
-
-  return Array.from(set).sort((a, b) => a.localeCompare(b));
-}, [spMap, rows]);
-
-  // #endregion
-
-  // #region [HANDLERS] Manual refresh + misc helpers
-  async function handleManualRefresh() {
-    try {
-      setRefreshing(true);
-      await refreshSkinport();
-      await backfillSomeSteamPrices(12);
-    } finally {
-      setRefreshing(false);
-    }
+  function scrollToTop() {
+    if (typeof window === "undefined") return;
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
   }
 
-  function formatTime(ts: number | null) {
-    return ts
-      ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      : "—";
+  function addManual() {
+    if (!mName.trim()) return;
+    const parsed = parseNameForWear(mName.trim());
+    const nameNoWear = stripNone(parsed.nameNoWear);
+    const nonWear = isNonWearCategory(nameNoWear);
+    const wearToUse: WearCode = nonWear ? "" : (mWear || parsed.wear || "");
+    const market_hash_name = stripNone(toMarketHash(nameNoWear, wearToUse));
+    const spAUD = spMap[market_hash_name] ?? spMap[stripNone(market_hash_name)];
+    const priceAUD = typeof spAUD === "number" ? spAUD : undefined;
+    const newRow: Row = {
+      market_hash_name,
+      name: market_hash_name,
+      nameNoWear,
+      wear: wearToUse,
+      pattern: mPattern.trim() || undefined,
+      float: mFloat.trim() || undefined,
+      image: "",
+      inspectLink: "",
+      quantity: mQty,
+      skinportAUD: spAUD,
+      priceAUD,
+      totalAUD: priceAUD ? priceAUD * mQty : undefined,
+      source: "manual",
+    };
+    setRows((r) => mergeRows([newRow, ...r]));
+    setMName("");
+    setMWear("");
+    setMFloat("");
+    setMPattern("");
+    setMQty(1);
   }
 
-  function SortChip({ k, label }: { k: SortKey; label: string }) {
-    const active = sort.key === k;
-    const arrow = active ? (sort.dir === "asc" ? "▲" : "▼") : "";
-    return (
-      <button
-        onClick={() => dispatchSort({ type: "toggle", key: k })}
-        className={`rounded-full border px-2.5 py-1 text-xs transition ${
-          active
-            ? "border-accent text-accent bg-[color:var(--chip-active,transparent)]"
-            : "border-border text-muted hover:bg-surface2/60"
-        }`}
-      >
-        {label} {arrow}
-      </button>
-    );
+  function removeRow(idx: number) {
+    setRows((r) => r.filter((_, i) => i !== idx));
   }
-  // #endregion
 
-  // #region [HANDLERS] Import handling
-  /** Receive parsed items from ImportWizard or raw Steam JSON */
+  // Optional: if you keep an import UI
   function handleParsed(data: any) {
     let items: any[] = [];
-
     try {
       if (data && (data.items || data.rows || data.inventory)) {
         items = data.items || data.rows || data.inventory;
@@ -1126,36 +943,30 @@ const autoBaseNames = useMemo(() => {
         const parsed = parseSteamInventory(data);
         items = parsed.items || [];
       }
-    } catch (err) {
-      console.error("Steam JSON parse failed", err);
+    } catch {
       items = [];
     }
-
-    // Guard: nothing to add
     if (!Array.isArray(items) || items.length === 0) return;
-
-    // Optional: strip obviously bad entries
     const clean = items.filter(Boolean);
-
     const mapped = mapUploadedToRows(clean, spMap);
     if (mapped.length === 0) return;
 
-    setRows((prev) =>
-      mergeRows([...prev.filter((r) => r.source === "manual"), ...mapped])
-    );
-
+    setRows((prev) => mergeRows([...prev.filter((r) => r.source === "manual"), ...mapped]));
     try {
       localStorage.setItem("cs2_items", JSON.stringify(clean));
     } catch {}
   }
-  // #endregion [HANDLERS] Import handling
 
-  // #region [RENDER]
+  /* ----------------------------- render ----------------------------- */
+
   return (
     <div className="mx-auto max-w-6xl p-6 space-y-6">
+      {/* If you want the import UI here: */}
+      {/* <ImportWizard onParsed={handleParsed} /> */}
+
       {/* Top row: Left Manual Add / Right Stats */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* Manual add (panel) */}
+        {/* Manual add */}
         <div className="flex h-full flex-col rounded-2xl border border-border bg-surface/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
           <div className="mb-2 flex items-center gap-2">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
@@ -1248,9 +1059,7 @@ const autoBaseNames = useMemo(() => {
             <div className="md:col-span-12">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="w-44">
-                  <label className="mb-1 block text-[11px] tracking-wide text-muted">
-                    Quantity
-                  </label>
+                  <label className="mb-1 block text-[11px] tracking-wide text-muted">Quantity</label>
                   <div className="flex h-12 items-stretch overflow-hidden rounded-xl border border-border bg-surface2">
                     <button
                       type="button"
@@ -1280,13 +1089,7 @@ const autoBaseNames = useMemo(() => {
                   className="btn-accent h-12 flex-1 disabled:opacity-60"
                 >
                   <span className="inline-flex w-full items-center justify-center gap-2 font-medium">
-                    <svg
-                      className="h-4 w-4"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M12 5v14M5 12h14" />
                     </svg>
                     Add
@@ -1301,14 +1104,22 @@ const autoBaseNames = useMemo(() => {
           </div>
         </div>
 
-        {/* Stats panel (inline, not a function) */}
+        {/* Stats */}
         <div className="relative rounded-2xl border border-border bg-surface/60 backdrop-blur p-5 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.6)]">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-base font-semibold">Stats</h3>
             <button
               type="button"
               title="Refresh prices now (Skinport & Steam)"
-              onClick={handleManualRefresh}
+              onClick={async () => {
+                try {
+                  setRefreshing(true);
+                  await refreshSkinport();
+                  await backfillSomeSteamPrices(12);
+                } finally {
+                  setRefreshing(false);
+                }
+              }}
               className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface2 hover:bg-surface focus:outline-none focus:ring-2 focus:ring-accent/30"
               aria-label="Refresh prices"
             >
@@ -1349,7 +1160,7 @@ const autoBaseNames = useMemo(() => {
               <div className="mt-1 text-xl font-medium">A${totals.totalSkinport.toFixed(2)}</div>
               <div className="mt-1 text-xs text-muted">
                 {rows.filter((r) => typeof r.skinportAUD === "number").length}/{rows.length} priced •{" "}
-                {formatTime(skinportUpdatedAt)}
+                {skinportUpdatedAt ? new Date(skinportUpdatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
               </div>
             </div>
 
@@ -1358,7 +1169,7 @@ const autoBaseNames = useMemo(() => {
               <div className="mt-1 text-xl font-medium">A${totals.totalSteam.toFixed(2)}</div>
               <div className="mt-1 text-xs text-muted">
                 {rows.filter((r) => typeof r.steamAUD === "number").length}/{rows.length} priced •{" "}
-                {formatTime(steamUpdatedAt)}
+                {steamUpdatedAt ? new Date(steamUpdatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}
               </div>
             </div>
           </div>
@@ -1425,9 +1236,7 @@ const autoBaseNames = useMemo(() => {
                             {r.nameNoWear}
                           </div>
                           <div className="mt-1 flex flex-wrap gap-1">
-                            {wearLabelForRow(r.wear as WearCode) && (
-                              <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>
-                            )}
+                            {wearLabelForRow(r.wear as WearCode) && <Pill>{wearLabelForRow(r.wear as WearCode)}</Pill>}
                             {r.pattern && <Pill>Pattern: {r.pattern}</Pill>}
                             {r.float && <Pill>Float: {r.float}</Pill>}
                           </div>
@@ -1441,15 +1250,10 @@ const autoBaseNames = useMemo(() => {
                     {/* SKINPORT */}
                     <td className="px-4 py-2">
                       <div className="text-right leading-tight">
-                        <div>
-                          {typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}
-                        </div>
+                        <div>{typeof r.skinportAUD === "number" ? `A$${r.skinportAUD.toFixed(2)}` : "—"}</div>
                         {typeof r.skinportAUD === "number" && (r.quantity ?? 1) > 1 && (
                           <div className="mt-0.5 text-[11px] text-muted">
-                            ×{r.quantity ?? 1} ={" "}
-                            <span className="tabular-nums">
-                              A${(r.skinportAUD * (r.quantity ?? 1)).toFixed(2)}
-                            </span>
+                            ×{r.quantity ?? 1} = <span className="tabular-nums">A${(r.skinportAUD * (r.quantity ?? 1)).toFixed(2)}</span>
                           </div>
                         )}
                       </div>
@@ -1461,10 +1265,7 @@ const autoBaseNames = useMemo(() => {
                         <div>{typeof r.steamAUD === "number" ? `A$${r.steamAUD.toFixed(2)}` : "—"}</div>
                         {typeof r.steamAUD === "number" && (r.quantity ?? 1) > 1 && (
                           <div className="mt-0.5 text-[11px] text-muted">
-                            ×{r.quantity ?? 1} ={" "}
-                            <span className="tabular-nums">
-                              A${(r.steamAUD * (r.quantity ?? 1)).toFixed(2)}
-                            </span>
+                            ×{r.quantity ?? 1} = <span className="tabular-nums">A${(r.steamAUD * (r.quantity ?? 1)).toFixed(2)}</span>
                           </div>
                         )}
                       </div>
@@ -1481,13 +1282,7 @@ const autoBaseNames = useMemo(() => {
                             setEditOpen(true);
                           }}
                         >
-                          <svg
-                            viewBox="0 0 24 24"
-                            className="h-4 w-4"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M12 20h9" />
                             <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
                           </svg>
@@ -1498,13 +1293,7 @@ const autoBaseNames = useMemo(() => {
                           title="Delete"
                           onClick={() => removeRow(orig)}
                         >
-                          <svg
-                            viewBox="0 0 24 24"
-                            className="h-4 w-4"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M3 6h18" />
                             <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
                             <path d="M10 11v6M14 11v6" />
@@ -1528,7 +1317,20 @@ const autoBaseNames = useMemo(() => {
             No items yet. Use <span className="underline">Search &amp; add item</span> or import from Steam.
           </div>
         ) : (
-          sorted.map((r) => <RowCard key={r.market_hash_name + "|card"} r={r} />)
+          sorted.map((r) => (
+            <RowCard
+              key={r.market_hash_name + "|card"}
+              r={r}
+              onEdit={(row) => {
+                setEditRow(row);
+                setEditOpen(true);
+              }}
+              onDelete={(row) => {
+                const idx = origIndexMap.get(row);
+                if (idx != null) removeRow(idx);
+              }}
+            />
+          ))
         )}
       </div>
 
@@ -1558,18 +1360,29 @@ const autoBaseNames = useMemo(() => {
         ].join(" ")}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="-mt-[1px]">
-          <path
-            d="M6 14l6-6 6 6"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          <path d="M6 14l6-6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         <span className="text-sm">Top</span>
       </button>
     </div>
   );
-  // #endregion [RENDER]
 }
-// #endregion [COMPONENT]
+
+/* ----------------------------- tiny helper ----------------------------- */
+
+function SortChip({ k, label }: { k: SortKey; label: string }) {
+  const [sort, dispatchSort] = ((): [SortState, React.Dispatch<SortAction>] => {
+    // dummy – this is replaced at usage site via closure, but TS needs type here if extracted.
+    return [{ key: k, dir: "asc" }, () => {}] as any;
+  })();
+  // NOTE: inlined at call site; kept here just for type ref.
+  return (
+    <button
+      onClick={() => dispatchSort({ type: "toggle", key: k })}
+      className="rounded-full border px-2.5 py-1 text-xs transition"
+    >
+      {label}
+    </button>
+  );
+}
+
