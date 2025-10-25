@@ -5,6 +5,6 @@ export const kv = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
-// keep prod/preview data separate
+// Keep Preview data separate from Production
 export const envPrefix = process.env.VERCEL_ENV === "preview" ? "preview" : "prod";
 export const P = (k: string) => `${envPrefix}:${k}`;
