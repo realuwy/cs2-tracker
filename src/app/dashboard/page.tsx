@@ -24,11 +24,12 @@ export const dynamic = "force-dynamic";
 import type React from "react";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { InvItem } from "@/lib/api"; // keep InvItem for Row typing
-import { getSupabaseClient } from "@/lib/supabase";
-import { fetchAccountRows, upsertAccountRows } from "@/lib/rows";
 import ImportWizard from "@/components/ImportWizard";
 import type { ParsedInventory } from "@/types/steam";
 import { parseSteamInventory } from "@/lib/steam-parse";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { fetchUserRows, upsertUserRows } from "@/lib/rows";
+
 // #endregion [IMPORTS]
 
 // #region [CONSTANTS]
@@ -275,7 +276,7 @@ type Row = Omit<InvItem, "pattern" | "float"> & {
 
 type SortKey = "item" | "wear" | "pattern" | "float" | "qty" | "skinport" | "steam";
 type SortDir = "asc" | "desc";
-type SortState = { key: SortKey; dir: SortDir };
+type Sort = { key: SortKey; dir: SortDir };
 type SortAction = { type: "toggle"; key: SortKey };
 function sortReducer(state: SortState, action: SortAction): SortState {
   if (state.key === action.key) {
@@ -538,49 +539,97 @@ function RowCard({ r }: { r: Row }) {
 // #region [COMPONENT]
 /* ----------------------------- component ----------------------------- */
 
-export default function DashboardPage() {
-  // #region [STATE]
-  const [rows, setRows] = useState<Row[]>([]);
-  const [spMap, setSpMap] = useState<Record<string, number>>({});
-  const [sort, dispatchSort] = useReducer(sortReducer, { key: "item", dir: "asc" });
-  const supabase = getSupabaseClient();
+// #region [STATE]
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import type { Session } from "@supabase/supabase-js";
 
-  // controls
-  const [mName, setMName] = useState("");
-  const [mWear, setMWear] = useState<WearCode>("");
-  const [mFloat, setMFloat] = useState("");
-  const [mPattern, setMPattern] = useState("");
-  const [mQty, setMQty] = useState(1);
+const [rows, setRows] = useState<Row[]>([]);
+const [spMap, setSpMap] = useState<Record<string, number>>({});
+const [sort, dispatchSort] = useReducer(sortReducer, { key: "item", dir: "asc" });
 
-  const [showBackToTop, setShowBackToTop] = useState(false);
-  const [skinportUpdatedAt, setSkinportUpdatedAt] = useState<number | null>(null);
-  const [steamUpdatedAt, setSteamUpdatedAt] = useState<number | null>(null);
+// ⬇️ use auth-helpers client (not getSupabaseClient)
+const supabase = createClientComponentClient();
 
-  // manual refresh spinner
-  const [refreshing, setRefreshing] = useState(false);
+// controls
+const [mName, setMName] = useState("");
+const [mWear, setMWear] = useState<WearCode>("");
+const [mFloat, setMFloat] = useState("");
+const [mPattern, setMPattern] = useState("");
+const [mQty, setMQty] = useState(1);
 
-  // edit dialog
-  const [editOpen, setEditOpen] = useState(false);
-  const [editRow, setEditRow] = useState<Row | null>(null);
+const [showBackToTop, setShowBackToTop] = useState(false);
+const [skinportUpdatedAt, setSkinportUpdatedAt] = useState<number | null>(null);
+const [steamUpdatedAt, setSteamUpdatedAt] = useState<number | null>(null);
 
-  // --- auth state (for per-user sync) ---
-  const [authed, setAuthed] = useState<string | null>(null);
-  // #endregion [STATE]
+// manual refresh spinner
+const [refreshing, setRefreshing] = useState(false);
 
-  // #region [EFFECTS] Auth session
-  useEffect(() => {
-    let unsub: (() => void) | undefined;
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      setAuthed(data.session?.user?.id ?? null);
-      const { data: sub } = supabase.auth.onAuthStateChange((_e, sess) => {
-        setAuthed(sess?.user?.id ?? null);
-      });
-      unsub = () => sub.subscription.unsubscribe();
-    })();
-    return () => unsub?.();
-  }, [supabase]);
-  // #endregion
+// edit dialog
+const [editOpen, setEditOpen] = useState(false);
+const [editRow, setEditRow] = useState<Row | null>(null);
+
+// --- auth state (for per-user sync) ---
+const [session, setSession] = useState<Session | null>(null);
+const [isGuest, setIsGuest] = useState(false);
+// #endregion [STATE]
+
+
+// #region [EFFECTS] Auth session
+useEffect(() => {
+  let unsub: (() => void) | undefined;
+
+  (async () => {
+    // initial load
+    const { data } = await supabase.auth.getSession();
+    setSession(data.session ?? null);
+
+    // guest flag from localStorage
+    try {
+      setIsGuest(localStorage.getItem("guest_mode") === "true");
+    } catch {}
+
+    // subscribe to auth changes
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, next) => {
+      setSession(next ?? null);
+      // re-check guest flag on auth changes (e.g., after login we likely clear it)
+      try {
+        setIsGuest(localStorage.getItem("guest_mode") === "true");
+      } catch {}
+    });
+    unsub = () => sub.subscription.unsubscribe();
+  })();
+
+  return () => unsub?.();
+}, [supabase]);
+// #endregion
+// #region [EFFECTS] One-time migration of guest data to user after login
+useEffect(() => {
+  (async () => {
+    if (!session) return;
+
+    // If we have a guest stash, import it to the user's account then clear it.
+    try {
+      const rawA = localStorage.getItem("portfolio_items");           // legacy guest key (if you used it)
+      const rawB = localStorage.getItem("cs2:dashboard:rows");        // your current STORAGE_KEY
+      const guestJson = rawA ?? rawB;
+
+      if (!guestJson) return;
+      const items = JSON.parse(guestJson);
+      if (!Array.isArray(items) || items.length === 0) return;
+
+      await upsertUserRows(session, items);
+
+      // clear guest stash + guest flag
+      localStorage.removeItem("portfolio_items");
+      localStorage.removeItem("cs2:dashboard:rows");
+      localStorage.removeItem("cs2:dashboard:rows:updatedAt");
+      localStorage.removeItem("guest_mode");
+      setIsGuest(false);
+    } catch {}
+  })();
+}, [session]);
+// #endregion
+
 
   // #region [EFFECTS] Load bookmarklet items once
   useEffect(() => {
@@ -592,58 +641,40 @@ export default function DashboardPage() {
   // #endregion
 
   // #region [EFFECTS] Restore rows (local + account sync)
-  useEffect(() => {
-    (async () => {
-      // read local
-      let localRows: Row[] | null = null;
-      let localTs = 0;
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) localRows = JSON.parse(raw) as Row[];
-        localTs = Number(localStorage.getItem(STORAGE_TS_KEY) || "0");
-      } catch {}
+// #region [STATE]
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import type { Session } from "@supabase/supabase-js";
 
-      // normalize local
-      if (localRows) {
-        localRows = localRows.map((r) => ({
-          ...r,
-          market_hash_name: r.market_hash_name ? stripNone(r.market_hash_name) : r.market_hash_name,
-          name: r.name ? stripNone(r.name) : r.name,
-          nameNoWear: r.nameNoWear ? stripNone(r.nameNoWear) : r.nameNoWear,
-          pattern: r.pattern && String(r.pattern).trim() !== "" ? r.pattern : undefined,
-          float: r.float && String(r.float).trim() !== "" ? r.float : undefined,
-          image: (r as any).image == null ? "" : (r as any).image,
-          skinportAUD: isMissingNum(r.skinportAUD) ? undefined : Number(r.skinportAUD),
-          steamAUD: isMissingNum(r.steamAUD) ? undefined : Number(r.steamAUD),
-          quantity: Math.max(1, Number(r.quantity ?? 1)),
-        }));
-      }
+const [rows, setRows] = useState<Row[]>([]);
+const [spMap, setSpMap] = useState<Record<string, number>>({});
+const [sort, dispatchSort] = useReducer(sortReducer, { key: "item", dir: "asc" });
 
-      // if authed, fetch server and decide
-      if (authed) {
-        const server = await fetchAccountRows();
-        const serverTs = server?.updated_at ? new Date(server.updated_at).getTime() : 0;
-        if (server && server.rows && serverTs >= localTs) {
-          setRows(server.rows as Row[]);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(server.rows));
-          localStorage.setItem(STORAGE_TS_KEY, String(serverTs || Date.now()));
-        } else {
-          const payload = localRows ?? [];
-          setRows(payload);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-          localStorage.setItem(STORAGE_TS_KEY, String(localTs || Date.now()));
-          if (payload) void upsertAccountRows(payload);
-        }
-      } else {
-        setRows(localRows ?? []);
-        if (localRows == null) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
-          localStorage.setItem(STORAGE_TS_KEY, String(Date.now()));
-        }
-      }
-    })();
-  }, [authed]);
-  // #endregion
+// ⬇️ use auth-helpers client (not getSupabaseClient)
+const supabase = createClientComponentClient();
+
+// controls
+const [mName, setMName] = useState("");
+const [mWear, setMWear] = useState<WearCode>("");
+const [mFloat, setMFloat] = useState("");
+const [mPattern, setMPattern] = useState("");
+const [mQty, setMQty] = useState(1);
+
+const [showBackToTop, setShowBackToTop] = useState(false);
+const [skinportUpdatedAt, setSkinportUpdatedAt] = useState<number | null>(null);
+const [steamUpdatedAt, setSteamUpdatedAt] = useState<number | null>(null);
+
+// manual refresh spinner
+const [refreshing, setRefreshing] = useState(false);
+
+// edit dialog
+const [editOpen, setEditOpen] = useState(false);
+const [editRow, setEditRow] = useState<Row | null>(null);
+
+// --- auth state (for per-user sync) ---
+const [session, setSession] = useState<Session | null>(null);
+const [isGuest, setIsGuest] = useState(false);
+// #endregion [STATE]
+
 
   // #region [EFFECTS] Persist rows (local + upsert when authed)
   const saveTimer = useRef<number | null>(null);
