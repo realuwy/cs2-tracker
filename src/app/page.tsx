@@ -31,9 +31,8 @@ export default function HomePage() {
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 {/* Open auth modal in "chooser" (Sign in / Sign up / Guest) */}
-                <Link href="/?auth=chooser" className="btn-accent">
-                  Get Started
-                </Link>
+               <Link href="/?onboard=1" className="btn-accent">Get Started</Link>
+
               </div>
 
               <p className="mt-3 text-xs text-muted">
