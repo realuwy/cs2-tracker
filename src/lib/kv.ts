@@ -6,6 +6,6 @@ export const kv = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
-// namespace keys so Preview data != Production data
+// Prefix keys so Preview data ≠ Prod data
 export const envPrefix = process.env.VERCEL_ENV === "preview" ? "preview" : "prod";
 export const P = (k: string) => `${envPrefix}:${k}`;
