@@ -2,19 +2,12 @@
 "use client";
 
 import Link from "next/link";
-import dynamic from "next/dynamic";
-import { Suspense } from "react";
-
-const OnboardingModalHost = dynamic(() => import("@/components/OnboardingModalHost"), { ssr: false });
 
 export default function SiteFooter() {
   const openContact = () => window.dispatchEvent(new CustomEvent("contact:open"));
 
   return (
-    <footer
-      role="contentinfo"
-      className="flex-shrink-0 border-t border-border bg-surface/60"
-    >
+    <footer role="contentinfo" className="flex-shrink-0 border-t border-border bg-surface/60">
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-6 text-sm text-muted md:flex-row">
         {/* Left: brand + alpha */}
         <div className="flex items-center gap-3">
@@ -29,22 +22,15 @@ export default function SiteFooter() {
         <nav className="flex items-center gap-6">
           <Link href="/about" className="link-muted">About</Link>
           <Link href="/privacy" className="link-muted">Privacy</Link>
-          <button
-            type="button"
-            onClick={openContact}
-            className="link-muted bg-transparent p-0"
-          >
+          <button type="button" onClick={openContact} className="link-muted bg-transparent p-0">
             Contact
           </button>
         </nav>
 
         {/* Right: credit */}
-        <div className="whitespace-nowrap">
-          © {new Date().getFullYear()} CS2 Tracker
-        </div>
+        <div className="whitespace-nowrap">© {new Date().getFullYear()} CS2 Tracker</div>
       </div>
     </footer>
-    <Suspense fallback={null}><OnboardingModalHost /></Suspense>
   );
 }
 
