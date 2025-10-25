@@ -1,3 +1,4 @@
+// src/app/api/register-id/route.ts
 import { NextResponse } from "next/server";
 import { kv, P } from "@/lib/kv";
 
