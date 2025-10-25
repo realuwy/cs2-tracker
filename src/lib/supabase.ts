@@ -1,20 +1,21 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+// src/lib/supabase.ts
+// Temporary stub while migrating off Supabase.
+// This file intentionally avoids importing '@supabase/supabase-js'.
 
-let _client: SupabaseClient | null = null;
+export type Session = null; // minimal placeholder
 
-export function getSupabaseClient(): SupabaseClient {
-  if (_client) return _client;
+export function getSession(): Promise<{ session: Session }> {
+  return Promise.resolve({ session: null });
+}
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-  _client = createClient(url, anon, {
+// If any code expects a client, return a no-op object.
+export function createClient() {
+  return {
     auth: {
-      autoRefreshToken: true,
-      persistSession: typeof window !== "undefined",
-      storage: typeof window !== "undefined" ? window.localStorage : (undefined as any),
+      // No-op auth interface
+      getSession: async () => ({ data: { session: null } }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+      signOut: async () => ({ error: null }),
     },
-  });
-
-  return _client;
+  };
 }
