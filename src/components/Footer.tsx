@@ -4,11 +4,13 @@
 import Link from "next/link";
 
 export default function SiteFooter() {
-  const openContact = () =>
-    window.dispatchEvent(new CustomEvent("contact:open"));
+  const openContact = () => window.dispatchEvent(new CustomEvent("contact:open"));
 
   return (
-    <footer className="border-t border-border bg-surface/60">
+    <footer
+      role="contentinfo"
+      className="flex-shrink-0 border-t border-border bg-surface/60"
+    >
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-6 text-sm text-muted md:flex-row">
         {/* Left: brand + alpha */}
         <div className="flex items-center gap-3">
@@ -26,7 +28,7 @@ export default function SiteFooter() {
           <button
             type="button"
             onClick={openContact}
-            className="link-muted p-0 bg-transparent"
+            className="link-muted bg-transparent p-0"
           >
             Contact
           </button>
