@@ -6,6 +6,8 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getUserId, generateUserId, setUserId, clearAllLocalData } from "@/lib/id";
+import { usePathname } from "next/navigation";
+import { getUserId } from "@/lib/id";
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
   const pathname = usePathname();
@@ -71,6 +73,21 @@ export default function AppHeader() {
     return () => window.removeEventListener("mousedown", closeOnOutside);
   }, [menuOpen, accountOpen]);
 
+  // refresh when the route changes (safe no-op)
+const pathname = usePathname();
+useEffect(() => {
+  setUserIdState(getUserId());
+}, [pathname]);
+
+// react to ID changes (from onboarding, clear, replace, etc.)
+useEffect(() => {
+  const onChange = (e: any) => {
+    setUserIdState(e?.detail?.userId ?? getUserId());
+  };
+  window.addEventListener("id:changed", onChange);
+  return () => window.removeEventListener("id:changed", onChange);
+}, []);
+  
   const openOnboarding = () => window.dispatchEvent(new Event("onboard:open"));
   const openContact = () => window.dispatchEvent(new Event("contact:open"));
 
