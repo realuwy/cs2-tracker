@@ -51,6 +51,49 @@ const FALLBACK_DATA_URL =
 const WEAR_TO_RANK: Record<string, number> = { FN: 0, MW: 1, FT: 2, WW: 3, BS: 4 };
 
 /* ----------------------------- helpers ----------------------------- */
+function normalizeRows(rowsAny: any[]): Row[] {
+  return (rowsAny || []).map((r0: any) => {
+    // prefer market_hash_name → else name → else nameNoWear
+    const base = String(r0.market_hash_name ?? r0.name ?? r0.nameNoWear ?? "").trim();
+    const parsed = parseNameForWear(stripNone(base));
+
+    const wear = (r0.wear as WearCode) ?? (parsed.wear as WearCode) ?? "";
+    const nameNoWear = stripNone(String(r0.nameNoWear ?? parsed.nameNoWear ?? base));
+    const market_hash_name = stripNone(toMarketHash(nameNoWear, wear));
+
+    const quantity = Math.max(1, Number(r0.quantity ?? 1));
+    const image =
+      r0.image == null ? "" : String(r0.image);
+    const skinportAUD = isMissingNum(r0.skinportAUD) ? undefined : Number(r0.skinportAUD);
+    const steamAUD = isMissingNum(r0.steamAUD) ? undefined : Number(r0.steamAUD);
+    const priceAUD = typeof skinportAUD === "number" ? skinportAUD : undefined;
+
+    return {
+      // InvItem-ish core
+      market_hash_name,
+      name: market_hash_name,
+      nameNoWear,
+      wear,
+      image,
+      inspectLink: String(r0.inspectLink ?? ""),
+
+      // optional notes
+      pattern: r0.pattern && String(r0.pattern).trim() !== "" ? String(r0.pattern) : undefined,
+      float: r0.float && String(r0.float).trim() !== "" ? String(r0.float) : undefined,
+
+      // pricing
+      skinportAUD,
+      steamAUD,
+      priceAUD,
+      totalAUD: priceAUD ? priceAUD * quantity : undefined,
+
+      // misc
+      quantity,
+      source: (r0.source === "manual" ? "manual" : "steam") as Row["source"],
+      steamFetchedAt: r0.steamFetchedAt ? Number(r0.steamFetchedAt) : undefined,
+    } as Row;
+  });
+}
 
 const wearLabel = (code?: string) =>
   WEAR_OPTIONS.find((w) => w.code === code)?.label ?? "";
@@ -618,18 +661,19 @@ export default function DashboardPage() {
       }
 
       // signed in → Supabase
-      try {
-        const dbRows = await fetchUserRows(session);
-        if (!ignore) setRows(dbRows);
-      } catch {
-        try {
-          const raw = localStorage.getItem(STORAGE_KEY);
-          const parsed = raw ? (JSON.parse(raw) as Row[]) : [];
-          if (!ignore) setRows(parsed);
-        } catch {
-          if (!ignore) setRows([]);
-        }
-      }
+   try {
+  const dbRowsRaw = await fetchUserRows(session);  
+  if (!ignore) setRows(normalizeRows(dbRowsRaw));   
+} catch {
+  // fallback to local if DB fails
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const parsed = raw ? (JSON.parse(raw) as any[]) : [];
+    if (!ignore) setRows(normalizeRows(parsed));    
+  } catch {
+    if (!ignore) setRows([]);
+  }
+
     })();
     return () => {
       ignore = true;
