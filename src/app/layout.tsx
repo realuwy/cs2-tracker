@@ -10,13 +10,11 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
 
-// ⬇️ Import all browser-only shells as client-only (no SSR).
-// This prevents passing any event handlers across the server boundary.
+// Client-only shells (no SSR)
 const AppHeader = dynamic(() => import("@/components/AppHeader"), { ssr: false });
 const SiteFooter = dynamic(() => import("@/components/Footer"), { ssr: false });
 const AuthModalHost = dynamic(() => import("@/components/AuthModalHost"), { ssr: false });
 const ContactModalHost = dynamic(() => import("@/components/ContactModalHost"), { ssr: false });
-// If you add Settings later, also do: ssr:false
 
 export const metadata: Metadata = {
   title: "CS2 Tracker",
@@ -26,16 +24,17 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${manrope.variable} bg-body text-text antialiased`}>
-        {/* Client shells – rendered only in the browser */}
+      {/* Sticky-footer layout: flex column, main grows */}
+      <body className={`${inter.variable} ${manrope.variable} min-h-dvh flex flex-col bg-body text-text antialiased`}>
         <AppHeader />
-        <main>{children}</main>
+        <main id="main-content" className="flex-1">
+          {children}
+        </main>
         <SiteFooter />
 
-        {/* Modal hosts (also client-only) */}
+        {/* Modal hosts (client-only) */}
         <AuthModalHost />
         <ContactModalHost />
-        {/* <SettingsHost /> */}
 
         {/* Analytics */}
         <Analytics />
