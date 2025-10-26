@@ -27,118 +27,6 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
   );
 }
 
-/* ----------------------- OpenOnPhoneButton (Modal) ----------------------- */
-/** Shows a modal with a QR that opens /pair?id=<ID>&r=<route> on the phone.
- *  No server pairing — the phone sets localStorage and redirects.
- */
-function OpenOnPhoneButton() {
-  const [open, setOpen] = useState(false);
-  const [status, setStatus] = useState<"idle" | "pending" | "claimed">("idle");
-  const [qrText, setQrText] = useState<string>("");
-
-  const id = typeof window !== "undefined" ? localStorage.getItem("cs2:id") : null;
-
-  // Desktop sees a "claimed" ping if the phone touched /pair recently
-  useEffect(() => {
-    if (!open) return;
-    const iv = setInterval(() => {
-      const ts = Number(localStorage.getItem("cs2:lastPairAt") || 0);
-      if (ts && Date.now() - ts < 60_000) {
-        setStatus("claimed");
-        clearInterval(iv);
-      }
-    }, 1500);
-    return () => clearInterval(iv);
-  }, [open]);
-
-  const begin = () => {
-    if (!id) return;
-    const origin = window.location.origin;
-    const r = window.location.pathname + window.location.search;
-    const url = `${origin}/pair?id=${encodeURIComponent(id)}&r=${encodeURIComponent(r)}`;
-    setQrText(url);
-    setOpen(true);
-    setStatus("pending");
-  };
-
-  return (
-    <>
-      <button
-        onClick={begin}
-        className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-      >
-        Open on phone (QR)
-      </button>
-
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl bg-zinc-900 p-6 text-white shadow-xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Scan to continue on phone</h2>
-              <button
-                onClick={() => setOpen(false)}
-                className="rounded-md px-2 py-1 text-zinc-300 hover:bg-zinc-800"
-              >
-                ✕
-              </button>
-            </div>
-
-            {qrText ? (
-              <div className="flex flex-col items-center gap-3">
-                <img
-                  alt="QR"
-                  className="rounded-lg bg-white p-2"
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
-                    qrText
-                  )}`}
-                  width={220}
-                  height={220}
-                />
-                <p className="break-all text-sm text-zinc-300">{qrText}</p>
-              </div>
-            ) : (
-              <p className="text-sm text-zinc-400">Generating QR…</p>
-            )}
-
-            <div className="mt-4 rounded-lg border border-zinc-800 p-3 text-sm">
-              {status === "pending" && (
-                <span className="text-amber-300">Waiting for your phone…</span>
-              )}
-              {status === "claimed" && (
-                <span className="text-emerald-400">Connected! You can close this.</span>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
-/* ----------------------------- DotsButton ----------------------------- */
-
-function DotsButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return (
-    <button
-      type="button"
-      {...props}
-      className={[
-        "inline-flex h-9 w-9 items-center justify-center rounded-lg border",
-        "border-border bg-surface2/70 hover:bg-surface transition",
-        "focus:outline-none focus:ring-2 focus:ring-accent/30",
-        props.className || "",
-      ].join(" ")}
-    >
-      <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden>
-        <circle cx="8" cy="8" r="1.75" />
-        <circle cx="16" cy="8" r="1.75" />
-        <circle cx="8" cy="16" r="1.75" />
-        <circle cx="16" cy="16" r="1.75" />
-      </svg>
-    </button>
-  );
-}
-
 /* ------------------------------ AppHeader ------------------------------ */
 
 export default function AppHeader() {
@@ -149,7 +37,7 @@ export default function AppHeader() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [userId, setUserIdState] = useState<string | null>(null);
 
-  // QR shown inside the Account dropdown (PNG data URL)
+  // Single QR (shown inside Account dropdown)
   const [showQr, setShowQr] = useState(false);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
 
@@ -189,12 +77,11 @@ export default function AppHeader() {
     return () => window.removeEventListener("mousedown", closeOnOutside);
   }, [menuOpen, accountOpen]);
 
-  // generate QR (as PNG) when Account menu opens and userId exists
-  // IMPORTANT: this now encodes a URL (/pair?id=<ID>&r=<route>), not the raw ID
+  // Generate QR when toggled on (encodes /pair?id=<ID>&r=<route>)
   useEffect(() => {
     let mounted = true;
     async function makeQr() {
-      if (!accountOpen || !userId) return;
+      if (!accountOpen || !userId || !showQr) return;
       try {
         const { toDataURL } = await import("qrcode");
         const origin = window.location.origin;
@@ -210,7 +97,7 @@ export default function AppHeader() {
     return () => {
       mounted = false;
     };
-  }, [accountOpen, userId]);
+  }, [accountOpen, userId, showQr]);
 
   const openOnboarding = (tab?: "create" | "paste" | "recover") =>
     window.dispatchEvent(new CustomEvent("onboard:open", { detail: { tab } }));
@@ -261,18 +148,10 @@ export default function AppHeader() {
         {/* center nav (desktop) */}
         <nav className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 md:block">
           <ul className="flex items-center gap-8 text-sm text-text">
-            <li>
-              <NavLink href="/">Home</NavLink>
-            </li>
-            <li>
-              <NavLink href="/dashboard">Dashboard</NavLink>
-            </li>
-            <li>
-              <NavLink href="/about">About</NavLink>
-            </li>
-            <li>
-              <NavLink href="/privacy">Privacy</NavLink>
-            </li>
+            <li><NavLink href="/">Home</NavLink></li>
+            <li><NavLink href="/dashboard">Dashboard</NavLink></li>
+            <li><NavLink href="/about">About</NavLink></li>
+            <li><NavLink href="/privacy">Privacy</NavLink></li>
           </ul>
         </nav>
 
@@ -282,10 +161,7 @@ export default function AppHeader() {
           <div className="relative" ref={acctRef}>
             <button
               type="button"
-              onClick={() => {
-                setAccountOpen((v) => !v);
-                if (accountOpen) setShowQr(false);
-              }}
+              onClick={() => { setAccountOpen((v) => !v); if (accountOpen) setShowQr(false); }}
               aria-haspopup="menu"
               aria-expanded={accountOpen}
               className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface2/70 px-3 py-1.5 text-sm hover:bg-surface transition focus:outline-none focus:ring-2 focus:ring-accent/30"
@@ -299,25 +175,13 @@ export default function AppHeader() {
                 </span>
               )}
               <svg viewBox="0 0 24 24" width="14" height="14" className="opacity-70">
-                <path
-                  d="M6 9l6 6 6-6"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
 
             {accountOpen && (
-              <div
-                role="menu"
-                className="absolute right-0 mt-2 w-72 rounded-xl border border-border bg-surface p-2 shadow-xl"
-              >
-                <div className="px-2 pb-2 pt-1 text-[10px] uppercase tracking-wider text-muted">
-                  Identity
-                </div>
+              <div role="menu" className="absolute right-0 mt-2 w-72 rounded-xl border border-border bg-surface p-2 shadow-xl">
+                <div className="px-2 pb-2 pt-1 text-[10px] uppercase tracking-wider text-muted">Identity</div>
 
                 {userId ? (
                   <div className="px-3 pb-2 text-xs text-muted">
@@ -336,10 +200,7 @@ export default function AppHeader() {
                   <button
                     role="menuitem"
                     className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                    onClick={() => {
-                      setAccountOpen(false);
-                      openOnboarding("create");
-                    }}
+                    onClick={() => { setAccountOpen(false); openOnboarding("create"); }}
                   >
                     Generate ID
                   </button>
@@ -353,15 +214,13 @@ export default function AppHeader() {
                       Copy ID
                     </button>
 
-                    {/* New: instant handoff modal */}
-                    <OpenOnPhoneButton />
-
+                    {/* Single QR entry */}
                     <button
                       role="menuitem"
                       className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
                       onClick={() => setShowQr((v) => !v)}
                     >
-                      {showQr ? "Hide QR" : "Show QR"}
+                      {showQr ? "Hide QR code" : "Show QR code"}
                     </button>
 
                     {showQr && (
@@ -370,7 +229,7 @@ export default function AppHeader() {
                           <>
                             <img
                               src={qrUrl}
-                              alt="QR for opening on phone"
+                              alt="Scan to open on phone"
                               className="mx-auto rounded-lg border border-border"
                               width={160}
                               height={160}
@@ -386,14 +245,10 @@ export default function AppHeader() {
                               <button
                                 className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-surface/60"
                                 onClick={() => {
-                                  // Copy the URL embedded in this QR for sharing
                                   try {
                                     const origin = window.location.origin;
-                                    const r =
-                                      window.location.pathname + window.location.search;
-                                    const url = `${origin}/pair?id=${encodeURIComponent(
-                                      userId!
-                                    )}&r=${encodeURIComponent(r)}`;
+                                    const r = window.location.pathname + window.location.search;
+                                    const url = `${origin}/pair?id=${encodeURIComponent(userId!)}&r=${encodeURIComponent(r)}`;
                                     navigator.clipboard.writeText(url);
                                   } catch {}
                                 }}
@@ -402,7 +257,7 @@ export default function AppHeader() {
                               </button>
                             </div>
                             <p className="mt-1 text-[11px] text-muted">
-                              Scan to open this on your phone with your ID.
+                              Scan on your phone — it opens with this same ID and page.
                             </p>
                           </>
                         ) : (
@@ -433,10 +288,7 @@ export default function AppHeader() {
                 <button
                   role="menuitem"
                   className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                  onClick={() => {
-                    setAccountOpen(false);
-                    openOnboarding("recover");
-                  }}
+                  onClick={() => { setAccountOpen(false); openOnboarding("recover"); }}
                 >
                   Recover ID
                 </button>
@@ -446,46 +298,30 @@ export default function AppHeader() {
 
           {/* mobile dots menu */}
           <div className="relative md:hidden" ref={menuRef}>
-            <DotsButton onClick={() => setMenuOpen((v) => !v)} aria-label="Open menu" />
+            <button
+              type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-label="Open menu"
+              className={[
+                "inline-flex h-9 w-9 items-center justify-center rounded-lg border",
+                "border-border bg-surface2/70 hover:bg-surface transition",
+                "focus:outline-none focus:ring-2 focus:ring-accent/30",
+              ].join(" ")}
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden>
+                <circle cx="8" cy="8" r="1.75" />
+                <circle cx="16" cy="8" r="1.75" />
+                <circle cx="8" cy="16" r="1.75" />
+                <circle cx="16" cy="16" r="1.75" />
+              </svg>
+            </button>
             {menuOpen && (
               <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-surface p-2 shadow-xl">
                 <ul className="space-y-1 text-sm">
-                  <li>
-                    <Link
-                      href="/"
-                      className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Home
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/dashboard"
-                      className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Dashboard
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/about"
-                      className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      About
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/privacy"
-                      className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Privacy
-                    </Link>
-                  </li>
+                  <li><Link href="/" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>Home</Link></li>
+                  <li><Link href="/dashboard" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>Dashboard</Link></li>
+                  <li><Link href="/about" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>About</Link></li>
+                  <li><Link href="/privacy" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>Privacy</Link></li>
                 </ul>
               </div>
             )}
@@ -495,3 +331,4 @@ export default function AppHeader() {
     </header>
   );
 }
+
