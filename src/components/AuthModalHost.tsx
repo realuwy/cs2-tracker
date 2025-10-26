@@ -12,47 +12,61 @@ export default function AuthModalHost() {
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // open/close via window events so buttons can trigger it
   useEffect(() => {
-    const openHandler = () => setOpen(true);
-    const closeHandler = () => setOpen(false);
-    window.addEventListener("onboard:open", openHandler);
-    window.addEventListener("onboard:close", closeHandler);
+    const onOpen = () => { setOpen(true); setStep("email"); setMsg(null); setCode(""); };
+    const onClose = () => setOpen(false);
+    window.addEventListener("auth:open", onOpen);
+    window.addEventListener("auth:close", onClose);
     return () => {
-      window.removeEventListener("onboard:open", openHandler);
-      window.removeEventListener("onboard:close", closeHandler);
+      window.removeEventListener("auth:open", onOpen);
+      window.removeEventListener("auth:close", onClose);
     };
   }, []);
 
-  const sendCode = async () => {
+  async function sendCode() {
     setBusy(true); setMsg(null);
-    const res = await fetch("/api/auth/send-code", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-    const data = await res.json();
-    setBusy(false);
-    if (!res.ok) { setMsg(data?.error || "Failed to send code"); return; }
-    setStep("code");
-    setMsg("We emailed you a 6-digit code.");
-  };
+    try {
+      const res = await fetch("/api/auth/send-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to send code");
+      setStep("code");
+      setMsg("We emailed you a 6-digit code. It expires in 10 minutes.");
+    } catch (e: any) {
+      setMsg(e.message || "Could not send code");
+    } finally {
+      setBusy(false);
+    }
+  }
 
-  const verifyCode = async () => {
+  async function verifyCode() {
     setBusy(true); setMsg(null);
-    const res = await fetch("/api/auth/verify-code", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, code }),
-    });
-    const data = await res.json();
-    setBusy(false);
-    if (!res.ok) { setMsg(data?.error || "Invalid code"); return; }
-    localStorage.setItem("cs2:email", email.toLowerCase());
-    localStorage.setItem("cs2:token", data.token);
-    window.dispatchEvent(new Event("auth:changed"));
-    setOpen(false);
-    router.replace("/dashboard");
-  };
+    try {
+      const res = await fetch("/api/auth/verify-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Invalid code");
+
+      // store simple auth
+      localStorage.setItem("cs2:email", email.trim().toLowerCase());
+      localStorage.setItem("cs2:token", data.token);
+      window.dispatchEvent(new Event("auth:changed"));
+
+      setOpen(false);
+      router.replace("/dashboard");
+    } catch (e: any) {
+      setMsg(e.message || "Could not verify code");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   if (!open) return null;
 
@@ -63,7 +77,12 @@ export default function AuthModalHost() {
           <h2 className="text-xl font-semibold">
             {step === "email" ? "Sign in with email" : "Enter your code"}
           </h2>
-          <button className="rounded-md px-2 py-1 text-zinc-300 hover:bg-zinc-800" onClick={() => setOpen(false)}>✕</button>
+          <button
+            className="rounded-md px-2 py-1 text-zinc-300 hover:bg-zinc-800"
+            onClick={() => setOpen(false)}
+          >
+            ✕
+          </button>
         </div>
 
         {step === "email" ? (
@@ -108,11 +127,19 @@ export default function AuthModalHost() {
             />
             {msg && <p className="mt-2 text-sm text-amber-300">{msg}</p>}
             <div className="mt-4 flex items-center justify-between">
-              <button disabled={busy} onClick={() => setStep("email")} className="rounded-lg px-3 py-2 text-sm hover:bg-zinc-800">
+              <button
+                disabled={busy}
+                onClick={() => setStep("email")}
+                className="rounded-lg px-3 py-2 text-sm hover:bg-zinc-800"
+              >
                 Change email
               </button>
               <div className="flex gap-2">
-                <button disabled={busy} onClick={sendCode} className="rounded-lg px-3 py-2 text-sm hover:bg-zinc-800">
+                <button
+                  disabled={busy}
+                  onClick={sendCode}
+                  className="rounded-lg px-3 py-2 text-sm hover:bg-zinc-800"
+                >
                   Resend
                 </button>
                 <button
@@ -130,3 +157,4 @@ export default function AuthModalHost() {
     </div>
   );
 }
+
