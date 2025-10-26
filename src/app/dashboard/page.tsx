@@ -505,12 +505,19 @@ export default function DashboardPage() {
 const [userId, setUserId] = useState<string | null>(null);
 
 useEffect(() => {
-  setUserId(getExistingId());
+  // when another part of the app changes the ID, reflect it here
+  const onChange = (e: CustomEvent<{ userId?: string }>) => {
+    const next = e && e.detail && e.detail.userId ? e.detail.userId : getExistingId();
+    setUserIdState(next);
+  };
+
+  // TS needs EventListener type here
+  const handler = onChange as unknown as EventListener;
+
+  window.addEventListener("id:changed", handler);
+  return () => window.removeEventListener("id:changed", handler);
 }, []);
-    const onChange = (e: any) => setUserIdState(e?.detail?.userId ?? getExistingId());
-    window.addEventListener("id:changed", onChange);
-    return () => window.removeEventListener("id:changed", onChange);
-  }, []);
+
 
   // manual add controls
   const [mName, setMName] = useState("");
