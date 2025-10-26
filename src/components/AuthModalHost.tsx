@@ -1,21 +1,11 @@
-// src/components/AuthModalHost.tsx
+// src/components/auth-modal.tsx
 "use client";
 
 /**
- * Legacy Supabase auth modal placeholder.
- * We’ve migrated to OnboardingModalHost (ID-based flow),
- * so this renders nothing but keeps any old imports harmless.
- *
- * Bonus: if some old code dispatches `auth:open`, we translate it
- * into the new onboarding modal open event.
+ * Deprecated Supabase auth modal.
+ * We’ve migrated to ID-based onboarding (OnboardingModalHost),
+ * so this stub renders nothing and keeps imports from breaking.
  */
-export default function AuthModalHost() {
-  // Translate legacy open events to the new onboarding modal (optional)
-  if (typeof window !== "undefined") {
-    const handler = () =>
-      window.dispatchEvent(new CustomEvent("onboard:open", { detail: { tab: "create" } }));
-    window.addEventListener("auth:open", handler);
-    return () => window.removeEventListener("auth:open", handler);
-  }
+export default function AuthModal() {
   return null;
 }
