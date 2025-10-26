@@ -1,44 +1,114 @@
 // src/app/open/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { setUserId } from "@/lib/id";
-
 export const dynamic = "force-dynamic";
 
-export default function OpenOnPhonePage() {
-  const params = useSearchParams();
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { setUserId } from "@/lib/id";
+
+/**
+ * We must wrap useSearchParams() usage in <Suspense>.
+ */
+export default function OpenPage() {
+  return (
+    <Suspense fallback={<LoadingUI />}>
+      <OpenInner />
+    </Suspense>
+  );
+}
+
+function LoadingUI() {
+  return (
+    <div className="mx-auto max-w-md p-6 text-center">
+      <div className="mb-3 text-lg font-semibold">Opening…</div>
+      <p className="text-muted">Preparing your session.</p>
+    </div>
+  );
+}
+
+// Keep these keys consistent with the dashboard page
+const STORAGE_KEY = "cs2:dashboard:rows";
+const STORAGE_TS_KEY = "cs2:dashboard:rows:updatedAt";
+
+function OpenInner() {
   const router = useRouter();
-  const [state, setState] = useState<"loading" | "ok" | "invalid">("loading");
+  const params = useSearchParams();
+
+  const [phase, setPhase] = useState<"idle" | "ok" | "err">("idle");
+  const [msg, setMsg] = useState<string>("");
 
   useEffect(() => {
-    const id = params.get("id")?.trim();
-    if (!id || id.length < 8) {
-      setState("invalid");
-      return;
-    }
+    const run = async () => {
+      try {
+        // u = userId we encoded into the QR link
+        // r = optional return path (defaults to /dashboard)
+        const u = params.get("u")?.trim();
+        const r = params.get("r")?.trim() || "/dashboard";
 
-    try {
-      setUserId(id);
-      // let header / others know immediately
-      window.dispatchEvent(new CustomEvent("id:changed", { detail: { userId: id } }));
-      setState("ok");
-      router.replace("/dashboard");
-    } catch {
-      setState("invalid");
-    }
-  }, [params, router]);
+        if (!u) {
+          setPhase("err");
+          setMsg("Missing user ID in link.");
+          return;
+        }
+
+        // 1) Set the local userId used across the app
+        setUserId(u);
+        window.dispatchEvent(new CustomEvent("id:changed", { detail: { userId: u } }));
+
+        // 2) Try to hydrate their rows from the server (best effort)
+        try {
+          const res = await fetch(`/api/rows/get?uid=${encodeURIComponent(u)}`, {
+            cache: "no-store",
+          });
+          if (res.ok) {
+            const data = await res.json();
+            // Expecting { rows?: any[], ts?: number } from our API
+            if (Array.isArray(data?.rows)) {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(data.rows));
+            }
+            if (typeof data?.ts === "number") {
+              localStorage.setItem(STORAGE_TS_KEY, String(data.ts));
+            } else {
+              localStorage.setItem(STORAGE_TS_KEY, String(Date.now()));
+            }
+          }
+        } catch {
+          // ignore — user will still have their ID set
+        }
+
+        setPhase("ok");
+        setMsg("Linked! Redirecting…");
+
+        // 3) Navigate them in-app
+        // Use a tiny delay to ensure localStorage/event have flushed
+        setTimeout(() => router.push(r), 350);
+      } catch (e) {
+        setPhase("err");
+        setMsg("Failed to open link.");
+      }
+    };
+
+    run();
+    // We only want to run once on mount for the current URL
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <div className="mx-auto max-w-md p-8 text-center">
-      <h1 className="mb-2 text-3xl font-bold">Open on Phone</h1>
-      {state === "loading" && <p>Linking your ID…</p>}
-      {state === "ok" && <p>Linked! Redirecting…</p>}
-      {state === "invalid" && <p>Invalid link.</p>}
-      <p className="mt-6 text-sm text-muted">
-        If this takes too long, close and rescan the QR.
-      </p>
+    <div className="mx-auto max-w-md p-6 text-center">
+      <div className="mb-3 text-lg font-semibold">
+        {phase === "ok" ? "Success" : phase === "err" ? "Oops" : "Opening…"}
+      </div>
+      <p className="text-muted">{msg || "Preparing your session."}</p>
+      {phase === "err" && (
+        <p className="mt-3 text-sm text-muted">
+          Try scanning a fresh QR from your Account menu, or open{" "}
+          <a className="underline" href="/dashboard">
+            /dashboard
+          </a>
+          .
+        </p>
+      )}
     </div>
   );
 }
