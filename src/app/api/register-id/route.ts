@@ -1,38 +1,30 @@
+// src/app/api/register-id/route.ts
 import { NextResponse } from "next/server";
-import { kv, P } from "@/lib/kv";
+import { kv, emailKey, idEmailKey } from "@/lib/kv";
 
-export const runtime = "edge";
-
-type Body = { email?: string; userId: string };
-const norm = (e?: string) => (e || "").trim().toLowerCase();
-const isUuidV4 = (id: string) =>
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const { email, userId } = (await req.json()) as Body;
-    if (!isUuidV4(userId)) return NextResponse.json({ error: "Invalid userId" }, { status: 400 });
-
-    const em = norm(email);
-    if (!em) return NextResponse.json({ ok: true, message: "Local-only: no email linked" });
-
-    if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-      return NextResponse.json({ ok: false, message: "KV not configured" }, { status: 202 });
+    const { email, id, failIfExists } = await req.json().catch(() => ({}));
+    if (!email || typeof email !== "string" || !id || typeof id !== "string") {
+      return NextResponse.json({ error: "Missing email or id" }, { status: 400 });
     }
 
-    const existing = await kv.get<string>(P(`email:${em}`));
-    if (existing && existing !== userId) {
-      return NextResponse.json(
-        { ok: false, code: "EMAIL_EXISTS", message: "Email already linked to an existing ID." },
-        { status: 409 }
-      );
+    const ek = emailKey(email);
+    const existing = await kv.get<string>(ek);
+
+    if (existing && failIfExists) {
+      return NextResponse.json({ error: "Email already linked" }, { status: 409 });
     }
 
-    await kv.set(P(`email:${em}`), userId);
-    await kv.set(P(`uid:${userId}`), em);
+    // Create/overwrite email -> id and id -> email
+    await kv.set(ek, id);
+    await kv.set(idEmailKey(id), email);
 
-    return NextResponse.json({ ok: true, message: existing ? "Already linked" : "Linked" });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Internal error" }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: "register-id failed" }, { status: 500 });
   }
 }
+
