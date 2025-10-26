@@ -511,14 +511,6 @@ useEffect(() => {
     setUserIdState(next);
   };
 
-  // TS needs EventListener type here
-  const handler = onChange as unknown as EventListener;
-
-  window.addEventListener("id:changed", handler);
-  return () => window.removeEventListener("id:changed", handler);
-}, []);
-
-
   // manual add controls
   const [mName, setMName] = useState("");
   const [mWear, setMWear] = useState<WearCode>("");
