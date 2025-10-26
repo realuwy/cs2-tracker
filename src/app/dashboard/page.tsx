@@ -518,6 +518,23 @@ export default function DashboardPage() {
      EFFECTS
      ========================= */
 
+async function loadData() {
+  const token = localStorage.getItem("cs2:token") || "";
+  const res = await fetch("/api/data/load", { headers: { Authorization: `Bearer ${token}` } });
+  if (res.status === 401) throw new Error("not-auth");
+  return res.json();
+}
+
+async function saveData(data: any) {
+  const token = localStorage.getItem("cs2:token") || "";
+  const res = await fetch("/api/data/save", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("save-failed");
+  return res.json();
+}
 
   // Load legacy bookmarklet (optional)
   useEffect(() => {
