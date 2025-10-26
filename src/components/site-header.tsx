@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import AuthModal from "@/components/auth-modal";
+
 
 export function SiteHeader() {
   const pathname = usePathname();
@@ -73,7 +73,7 @@ export function SiteHeader() {
         </div>
       </div>
 
-      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+     
     </header>
   );
 }
