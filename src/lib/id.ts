@@ -1,35 +1,46 @@
-"use client";
+// src/lib/id.ts
+// Small utility for handling anonymous user IDs in localStorage.
+// NOTE: getExistingId() never creates an ID. Use generateUserId() to create one explicitly.
 
-const LS = {
-  userId: "cs2.userId",
-  items: "cs2.portfolio.items",
-  meta: "cs2.portfolio.meta",
-  settings: "cs2.settings",
-};
+const KEY = "cs2:user:id";
 
-export function generateUserId() {
-  return crypto.randomUUID();
+export function getExistingId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const id = window.localStorage.getItem(KEY);
+    return id && id.trim() ? id : null;
+  } catch {
+    return null;
+  }
 }
 
-export function getUserId() {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(LS.userId);
+export function generateUserId(): string {
+  const id = crypto.randomUUID();
+  setUserId(id);
+  return id;
 }
 
 export function setUserId(id: string) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(LS.userId, id);
-  localStorage.setItem(LS.meta, JSON.stringify({ updatedAt: Date.now() }));
-  // 🔔 tell the app the ID changed
-  window.dispatchEvent(new CustomEvent("id:changed", { detail: { userId: id } }));
+  try {
+    window.localStorage.setItem(KEY, id);
+  } catch {}
+  // notify listeners
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("id:changed", { detail: { userId: id } }));
+  }
 }
 
-export function clearAllLocalData(keepUserId = false) {
+export function clearAllLocalData() {
   if (typeof window === "undefined") return;
-  if (!keepUserId) localStorage.removeItem(LS.userId);
-  localStorage.removeItem(LS.items);
-  localStorage.removeItem(LS.meta);
-  localStorage.removeItem(LS.settings);
-  const next = keepUserId ? localStorage.getItem(LS.userId) : null;
-  window.dispatchEvent(new CustomEvent("id:changed", { detail: { userId: next } }));
+  try {
+    // wipe the ID and any app-local caches
+    window.localStorage.removeItem(KEY);
+    window.localStorage.removeItem("cs2:dashboard:rows");
+    window.localStorage.removeItem("cs2:dashboard:rows:updatedAt");
+    window.localStorage.removeItem("cs2_items"); // legacy
+  } catch {}
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("id:changed", { detail: { userId: null } }));
+  }
 }
