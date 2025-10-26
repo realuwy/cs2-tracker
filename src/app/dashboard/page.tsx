@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 import type React from "react";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { InvItem } from "@/lib/api";
-import { getUserId } from "@/lib/id";
+import { getExistingId } from "@/lib/id";
 import { fetchRemoteRows, saveRemoteRows } from "@/lib/rows-sync";
 
 /* ----------------------------- constants ----------------------------- */
@@ -502,10 +502,12 @@ export default function DashboardPage() {
   const [sort, dispatchSort] = useReducer(sortReducer, { key: "item", dir: "asc" });
 
   // device ID for cloud sync
-  const [userId, setUserIdState] = useState<string | null>(null);
-  useEffect(() => {
-    setUserIdState(getUserId());
-    const onChange = (e: any) => setUserIdState(e?.detail?.userId ?? getUserId());
+const [userId, setUserId] = useState<string | null>(null);
+
+useEffect(() => {
+  setUserId(getExistingId());
+}, []);
+    const onChange = (e: any) => setUserIdState(e?.detail?.userId ?? getExistingId());
     window.addEventListener("id:changed", onChange);
     return () => window.removeEventListener("id:changed", onChange);
   }, []);
