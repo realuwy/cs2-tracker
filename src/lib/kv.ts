@@ -1,69 +1,72 @@
 // src/lib/kv.ts
-// Upstash Redis helpers + namespaced keys + simple rate limiter
-
 import { Redis } from "@upstash/redis";
 
-// Env vars required on Vercel:
-//   UPSTASH_REDIS_REST_URL
-//   UPSTASH_REDIS_REST_TOKEN
-export const kv = Redis.fromEnv();
-// Some older files import `redis` — keep a compatible alias:
+// --- Client -----------------------------------------------------------------
+export const kv = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
+
+// Some files import `redis`, so alias it for safety.
 export const redis = kv;
 
-const NS = "cs2"; // namespace prefix
+// --- Key helpers -------------------------------------------------------------
+const ns = (...parts: (string | number | undefined | null)[]) =>
+  parts.filter(Boolean).join(":");
 
-/* -------------------------- key helpers -------------------------- */
+// Email login code (magic code) storage
+export const codeKey = (email: string) => ns("auth", "code", email.toLowerCase());
 
-// email-based auth code storage
-export const codeKey = (email: string) =>
-  `${NS}:auth:code:${email.trim().toLowerCase()}`;
+// Per-user metadata (e.g., createdAt, lastLogin, etc.)
+export const userMetaKey = (email: string) => ns("user", "meta", email.toLowerCase());
 
-// per-email user meta (e.g., link userId <-> email)
-export const userMetaKey = (email: string) =>
-  `${NS}:user:meta:${email.trim().toLowerCase()}`;
+// Inventory rows blob (JSON) and a timestamp alongside it
+export const rowsKey = (userId: string) => ns("rows", userId);
+export const rowsTsKey = (userId: string) => ns("rows", userId, "ts");
 
-// id-based inventory blob (JSON string)
-export const userDataKey = (userId: string) =>
-  `${NS}:data:${userId.trim()}`;
+// Optionally used by data load/save endpoints
+export const userDataKey = (userId: string) => ns("data", userId);
 
-// new: id-based “rows” (inventory rows) + last-updated timestamp
-export const rowsKey = (userId: string) =>
-  `${NS}:rows:${userId.trim()}`;
-export const rowsTsKey = (userId: string) =>
-  `${NS}:rows:${userId.trim()}:ts`;
+// Rate-limit keys
+export const rlKeyIP = (ip: string) => ns("rl", "ip", ip);
+export const rlKeySend = (email: string) => ns("rl", "send", email.toLowerCase());
 
-// rate-limit buckets
-export const rlKeyIP = (ip: string) => `${NS}:rl:ip:${ip}`;
-export const rlKeySend = (email: string) =>
-  `${NS}:rl:send:${email.trim().toLowerCase()}`;
-
-/* ------------------------ rate limiter -------------------------- */
-
-export type RateResult = {
-  ok: boolean;       // within limit?
-  count: number;     // current hits in window
-  remaining: number; // how many left
-  resetAt: number;   // epoch ms when bucket resets
+// --- Simple sliding-window-ish rate limiter ---------------------------------
+type RateResult = {
+  allowed: boolean;
+  remaining: number;
+  resetSec: number;
+  count: number;
 };
 
 /**
- * Simple window limiter using INCR + EXPIRE.
- * First hit sets TTL; subsequent hits share it.
+ * Increment a counter and set an expiry for the key on first hit.
+ * `limit` = max requests in `windowSec`.
  */
 export async function rlBump(
   key: string,
   limit: number,
   windowSec: number
 ): Promise<RateResult> {
-  const count = (await kv.incr<number>(key)) ?? 0;
+  // NOTE: `incr` has no generic type parameter.
+  const count = (await kv.incr(key)) ?? 0;
+
+  // First hit in window → set TTL
   if (count === 1) {
     await kv.expire(key, windowSec);
   }
-  const ttlSec = (await kv.ttl<number>(key)) ?? windowSec;
+
+  const remaining = Math.max(0, limit - count);
+
+  // Upstash returns TTL in seconds; -1 = no expire, -2 = no key
+  const ttl = await kv.ttl(key);
+  const resetSec =
+    typeof ttl === "number" ? (ttl < 0 ? 0 : ttl) : windowSec;
+
   return {
-    ok: count <= limit,
+    allowed: count <= limit,
+    remaining,
+    resetSec,
     count,
-    remaining: Math.max(0, limit - count),
-    resetAt: Date.now() + Math.max(0, ttlSec) * 1000,
   };
 }
