@@ -29,6 +29,7 @@ export default function GetStartedButton({
     <button type="button" className={className} onClick={onClick}>
       Get Started
     </button>
+    export { getExistingId as getUserId };
   );
 }
-export { getExistingId as getUserId };
+
