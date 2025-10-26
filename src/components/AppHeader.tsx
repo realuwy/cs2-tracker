@@ -37,6 +37,10 @@ export default function AppHeader() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [userId, setUserIdState] = useState<string | null>(null);
 
+  // auth state (email login)
+  const [authedEmail, setAuthedEmail] = useState<string | null>(null);
+  const [hasToken, setHasToken] = useState(false);
+
   // Single QR (shown inside Account dropdown)
   const [showQr, setShowQr] = useState(false);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
@@ -44,9 +48,20 @@ export default function AppHeader() {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const acctRef = useRef<HTMLDivElement | null>(null);
 
-  // load initial ID
+  // helpers
+  const openAuth = () => window.dispatchEvent(new Event("auth:open"));
+
+  const readAuth = () => {
+    const email = typeof window !== "undefined" ? localStorage.getItem("cs2:email") : null;
+    const token = typeof window !== "undefined" ? localStorage.getItem("cs2:token") : null;
+    setAuthedEmail(email);
+    setHasToken(!!token);
+  };
+
+  // load initial ID + auth snapshot
   useEffect(() => {
     setUserIdState(getUserId());
+    readAuth();
   }, []);
 
   // refresh header ID when route changes
@@ -54,13 +69,18 @@ export default function AppHeader() {
     setUserIdState(getUserId());
   }, [pathname]);
 
-  // react to ID changes from elsewhere (onboarding, clear, replace)
+  // react to ID changes from elsewhere (legacy)
   useEffect(() => {
-    const onChange = (e: any) => {
-      setUserIdState(e?.detail?.userId ?? getUserId());
-    };
+    const onChange = (e: any) => setUserIdState(e?.detail?.userId ?? getUserId());
     window.addEventListener("id:changed", onChange);
     return () => window.removeEventListener("id:changed", onChange);
+  }, []);
+
+  // react to auth changes (email OTP flow)
+  useEffect(() => {
+    const onAuth = () => readAuth();
+    window.addEventListener("auth:changed", onAuth);
+    return () => window.removeEventListener("auth:changed", onAuth);
   }, []);
 
   // click-outside to close menus
@@ -94,13 +114,8 @@ export default function AppHeader() {
       }
     }
     makeQr();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [accountOpen, userId, showQr]);
-
-  const openOnboarding = (tab?: "create" | "paste" | "recover") =>
-    window.dispatchEvent(new CustomEvent("onboard:open", { detail: { tab } }));
 
   function copyId() {
     if (!userId) return;
@@ -113,18 +128,26 @@ export default function AppHeader() {
     setUserIdState(next);
   }
 
+  // Legacy clear + now open the email auth modal
   function resetLocal() {
     clearAllLocalData();
+    localStorage.removeItem("cs2:email");
+    localStorage.removeItem("cs2:token");
+    setAuthedEmail(null);
+    setHasToken(false);
     setUserIdState(null);
     router.push("/");
-    openOnboarding("create");
+    openAuth();
   }
-function signOut(router: any) {
-  localStorage.removeItem("cs2:email");
-  localStorage.removeItem("cs2:token");
-  window.dispatchEvent(new Event("auth:changed"));
-  router.push("/");
-}
+
+  function signOut() {
+    localStorage.removeItem("cs2:email");
+    localStorage.removeItem("cs2:token");
+    setAuthedEmail(null);
+    setHasToken(false);
+    window.dispatchEvent(new Event("auth:changed"));
+    router.push("/");
+  }
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
@@ -173,7 +196,11 @@ function signOut(router: any) {
               className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface2/70 px-3 py-1.5 text-sm hover:bg-surface transition focus:outline-none focus:ring-2 focus:ring-accent/30"
             >
               <span>Account</span>
-              {userId ? (
+              {hasToken ? (
+                <span className="rounded bg-emerald-400/15 px-1.5 py-[1px] text-[10px] text-emerald-300">
+                  Signed in
+                </span>
+              ) : userId ? (
                 <span className="badge badge-accent">ID ready</span>
               ) : (
                 <span className="rounded bg-amber-400/15 px-1.5 py-[1px] text-[10px] text-amber-300">
@@ -189,38 +216,121 @@ function signOut(router: any) {
               <div role="menu" className="absolute right-0 mt-2 w-72 rounded-xl border border-border bg-surface p-2 shadow-xl">
                 <div className="px-2 pb-2 pt-1 text-[10px] uppercase tracking-wider text-muted">Identity</div>
 
-                {userId ? (
+                {hasToken ? (
                   <div className="px-3 pb-2 text-xs text-muted">
-                    Your ID:
+                    Signed in as:
+                    <div className="mt-1 select-all rounded-lg bg-surface2/70 px-2 py-1 font-mono text-[11px] text-text">
+                      {authedEmail}
+                    </div>
+                  </div>
+                ) : userId ? (
+                  <div className="px-3 pb-2 text-xs text-muted">
+                    Your local ID:
                     <div className="mt-1 select-all rounded-lg bg-surface2/70 px-2 py-1 font-mono text-[11px] text-text">
                       {userId}
                     </div>
                   </div>
                 ) : (
-                  <div className="px-3 pb-2 text-xs text-muted">No ID yet. Generate one to start.</div>
+                  <div className="px-3 pb-2 text-xs text-muted">
+                    No account yet. Continue with your email to save across devices.
+                  </div>
                 )}
 
                 <hr className="my-1 border-border/70" />
 
-                {!userId ? (
-                  <button
-                    role="menuitem"
-                    className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                    onClick={() => { setAccountOpen(false); openOnboarding("create"); }}
-                  >
-                    Generate ID
-                  </button>
-                ) : (
+                {!hasToken ? (
                   <>
                     <button
                       role="menuitem"
                       className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                      onClick={copyId}
+                      onClick={() => { setAccountOpen(false); openAuth(); }}
                     >
-                      Copy ID
+                      Continue with email
                     </button>
 
-                    {/* Single QR entry */}
+                    {userId && (
+                      <>
+                        <button
+                          role="menuitem"
+                          className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
+                          onClick={copyId}
+                        >
+                          Copy ID
+                        </button>
+
+                        {/* Single QR entry */}
+                        <button
+                          role="menuitem"
+                          className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
+                          onClick={() => setShowQr((v) => !v)}
+                        >
+                          {showQr ? "Hide QR code" : "Show QR code"}
+                        </button>
+
+                        {showQr && (
+                          <div className="mx-3 mt-2 rounded-lg border border-border bg-surface2/70 p-3 text-center">
+                            {qrUrl ? (
+                              <>
+                                <img
+                                  src={qrUrl}
+                                  alt="Scan to open on phone"
+                                  className="mx-auto rounded-lg border border-border"
+                                  width={160}
+                                  height={160}
+                                />
+                                <div className="mt-2 flex items-center justify-center gap-2">
+                                  <a
+                                    href={qrUrl}
+                                    download="cs2tracker-open-on-phone.png"
+                                    className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-surface/60"
+                                  >
+                                    Download PNG
+                                  </a>
+                                  <button
+                                    className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-surface/60"
+                                    onClick={() => {
+                                      try {
+                                        const origin = window.location.origin;
+                                        const r = window.location.pathname + window.location.search;
+                                        const url = `${origin}/pair?id=${encodeURIComponent(userId!)}&r=${encodeURIComponent(r)}`;
+                                        navigator.clipboard.writeText(url);
+                                      } catch {}
+                                    }}
+                                  >
+                                    Copy link
+                                  </button>
+                                </div>
+                                <p className="mt-1 text-[11px] text-muted">
+                                  Scan on your phone — it opens with this same ID and page.
+                                </p>
+                              </>
+                            ) : (
+                              <p className="text-xs text-muted">Generating QR…</p>
+                            )}
+                          </div>
+                        )}
+
+                        <button
+                          role="menuitem"
+                          className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
+                          onClick={replaceId}
+                        >
+                          Replace ID (new one)
+                        </button>
+                      </>
+                    )}
+
+                    <button
+                      role="menuitem"
+                      className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-red-300 hover:bg-red-400/10"
+                      onClick={resetLocal}
+                    >
+                      Clear local data
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {/* Signed-in actions */}
                     <button
                       role="menuitem"
                       className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
@@ -254,7 +364,7 @@ function signOut(router: any) {
                                   try {
                                     const origin = window.location.origin;
                                     const r = window.location.pathname + window.location.search;
-                                    const url = `${origin}/pair?id=${encodeURIComponent(userId!)}&r=${encodeURIComponent(r)}`;
+                                    const url = `${origin}/pair?id=${encodeURIComponent(userId ?? "")}&r=${encodeURIComponent(r)}`;
                                     navigator.clipboard.writeText(url);
                                   } catch {}
                                 }}
@@ -263,7 +373,7 @@ function signOut(router: any) {
                               </button>
                             </div>
                             <p className="mt-1 text-[11px] text-muted">
-                              Scan on your phone — it opens with this same ID and page.
+                              Scan on your phone — it opens with this same page.
                             </p>
                           </>
                         ) : (
@@ -274,29 +384,23 @@ function signOut(router: any) {
 
                     <button
                       role="menuitem"
-                      className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                      onClick={replaceId}
-                    >
-                      Replace ID (new one)
-                    </button>
-                    <button
-                      role="menuitem"
                       className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-red-300 hover:bg-red-400/10"
-                      onClick={resetLocal}
+                      onClick={signOut}
                     >
-                      Clear local data
+                      Sign out
                     </button>
                   </>
                 )}
 
                 <hr className="my-2 border-border/70" />
 
+                {/* Route all recovery/create flows to the new email modal */}
                 <button
                   role="menuitem"
                   className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                  onClick={() => { setAccountOpen(false); openOnboarding("recover"); }}
+                  onClick={() => { setAccountOpen(false); openAuth(); }}
                 >
-                  Recover ID
+                  Sign in / Recover by email
                 </button>
               </div>
             )}
@@ -337,4 +441,3 @@ function signOut(router: any) {
     </header>
   );
 }
-
