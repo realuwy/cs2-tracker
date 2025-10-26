@@ -6,6 +6,7 @@ import { Inter, Manrope } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import AuthModalHost from "@/components/AuthModalHost";
+// import OnboardingModalHost from "@/components/OnboardingModalHost"; // ← keep file, don't mount
 
 // Fonts
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
