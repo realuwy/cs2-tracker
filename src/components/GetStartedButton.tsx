@@ -31,3 +31,4 @@ export default function GetStartedButton({
     </button>
   );
 }
+export { getExistingId as getUserId };
