@@ -1,8 +1,13 @@
 // src/components/auth-modal.tsx
 "use client";
 
-// Legacy Auth modal (Supabase) replaced by ID onboarding.
-// Keep this file as a harmless no-op to satisfy any old imports.
-export default function AuthModalHost() {
+/**
+ * Legacy Auth Modal (no-op)
+ * This is a stub to keep builds green while migrating off Supabase.
+ * Safe to delete once all references are removed.
+ */
+
+export default function AuthModal() {
+  // No UI, no side-effects
   return null;
 }
