@@ -2,18 +2,22 @@
 "use client";
 
 /**
- * Legacy Supabase auth modal (removed).
- * We keep this stub so any old imports won’t break the build.
- * The new flow uses OnboardingModalHost (ID-based).
+ * Legacy Auth modal (Supabase) — shimmed out.
+ * We now use the ID-based Onboarding flow instead.
+ * If any code still triggers this modal, we forward to the new onboarding.
  */
-export default function LegacyAuthModal() {
-  return null;
-}
 
-// Optional helper so old code that tried to "open" the auth modal doesn’t explode.
-// It now just opens the new onboarding modal instead.
-export function openAuthModal() {
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent("onboard:open", { detail: { tab: "create" } }));
-  }
+import { useEffect } from "react";
+
+export default function AuthModal() {
+  // If something tries to open the old auth modal, open the new onboarding instead.
+  useEffect(() => {
+    const open = () =>
+      window.dispatchEvent(new CustomEvent("onboard:open", { detail: { tab: "create" } }));
+    window.addEventListener("auth:open", open);
+    return () => window.removeEventListener("auth:open", open);
+  }, []);
+
+  // Nothing to render; this is just a compatibility layer.
+  return null;
 }
