@@ -1,47 +1,36 @@
+// src/app/api/recover/route.ts
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
-import { kv, P } from "@/lib/kv";
+import { kv, emailKey } from "@/lib/kv";
 
 export const runtime = "nodejs";
 
-const hasResend = !!process.env.RESEND_API_KEY;
-const resend = hasResend ? new Resend(process.env.RESEND_API_KEY!) : null;
-const FROM = process.env.RESEND_FROM || "CS2 Tracker <onboarding@resend.dev>";
-const REPLY_TO = process.env.RESEND_REPLY_TO || undefined;
-
-type Body = { email: string };
-const norm = (e?: string) => (e || "").trim().toLowerCase();
-
 export async function POST(req: Request) {
   try {
-    const { email } = (await req.json()) as Body;
-    const em = norm(email);
-    if (!em) return NextResponse.json({ error: "Email required" }, { status: 400 });
-
-    if (
-      !process.env.UPSTASH_REDIS_REST_URL ||
-      !process.env.UPSTASH_REDIS_REST_TOKEN ||
-      !hasResend
-    ) {
-      return NextResponse.json({ ok: false, message: "Recovery not configured" }, { status: 202 });
+    const { email, sendEmail } = await req.json().catch(() => ({}));
+    if (!email || typeof email !== "string") {
+      return NextResponse.json({ error: "Missing email" }, { status: 400 });
     }
 
-    const uid = (await kv.get<string>(P(`email:${em}`))) || "";
-    const text = uid
-      ? `Here is your CS2 Tracker ID:\n\n${uid}\n\nPaste it in the app to access your data.\n`
-      : `If an ID is linked to this email, you’ll receive it shortly. Otherwise, open CS2 Tracker and create a new ID.`;
+    const id = await kv.get<string>(emailKey(email));
+    if (!id) {
+      return NextResponse.json({ error: "Email not found" }, { status: 404 });
+    }
 
-    await resend!.emails.send({
-      from: FROM,
-      to: em,
-      subject: "Your CS2 Tracker ID",
-      text,
-      reply_to: REPLY_TO,
-    });
+    // Optional: email the ID (keeps your existing Resend setup useful)
+    if (sendEmail && process.env.RESEND_API_KEY) {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      await resend.emails.send({
+        from: "CS2 Tracker <no-reply@your-domain>",
+        to: email,
+        subject: "Your CS2 Tracker ID",
+        text: `Here is your CS2 Tracker ID:\n\n${id}\n\nYou can paste this into the app or scan your QR to pair.`,
+      });
+    }
 
-    return NextResponse.json({ ok: true });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Internal error" }, { status: 500 });
+    return NextResponse.json({ ok: true, id });
+  } catch (e) {
+    return NextResponse.json({ error: "recover failed" }, { status: 500 });
   }
 }
 
