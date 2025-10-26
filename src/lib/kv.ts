@@ -1,9 +1,14 @@
+// Small wrapper for Upstash KV (Redis)
 import { Redis } from "@upstash/redis";
 
-export const kv = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
+export const kv = Redis.fromEnv();
 
-export const envPrefix = process.env.VERCEL_ENV === "preview" ? "preview" : "prod";
-export const P = (k: string) => `${envPrefix}:${k}`;
+export type PairRecord = {
+  id: string;                 // local-first user ID from desktop
+  status: "pending" | "claimed";
+  createdAt: number;          // ms
+  claimedAt?: number;         // ms
+};
+
+export const PAIR_TTL_SECONDS = 180; // 3 minutes
+export const pairKey = (code: string) => `pair:${code}`;
