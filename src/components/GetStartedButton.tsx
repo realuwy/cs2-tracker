@@ -12,16 +12,10 @@ export default function GetStartedButton({
   const router = useRouter();
 
   const onClick = useCallback(() => {
-    // Ensure an ID exists (creates one if missing)
     const userId = getExistingId();
-
-    // Broadcast for any listeners (dashboard picks this up)
     try {
-      window.dispatchEvent(
-        new CustomEvent("id:changed", { detail: { userId } })
-      );
+      window.dispatchEvent(new CustomEvent("id:changed", { detail: { userId } }));
     } catch {}
-
     router.push("/dashboard");
   }, [router]);
 
@@ -29,7 +23,7 @@ export default function GetStartedButton({
     <button type="button" className={className} onClick={onClick}>
       Get Started
     </button>
-    export { getExistingId as getUserId };
   );
 }
+
 
