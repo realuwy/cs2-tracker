@@ -78,25 +78,29 @@ export default function AppHeader() {
     return () => window.removeEventListener("mousedown", closeOnOutside);
   }, [menuOpen, accountOpen]);
 
-  // Generate QR when toggled on (encodes /pair?email=<email>&r=<route>)
-  useEffect(() => {
-    let mounted = true;
-    async function makeQr() {
-      if (!accountOpen || !email || !showQr) return;
-      try {
-        const { toDataURL } = await import("qrcode");
-        const origin = window.location.origin;
-        const r = window.location.pathname + window.location.search;
-        const url = `${origin}/pair?email=${encodeURIComponent(email)}&r=${encodeURIComponent(r)}`;
-        const dataUrl = await toDataURL(url, { width: 160, margin: 1 });
-        if (mounted) setQrUrl(dataUrl);
-      } catch {
-        if (mounted) setQrUrl(null);
-      }
+// inside useEffect that generates the QR
+useEffect(() => {
+  let mounted = true;
+  async function makeQr() {
+    if (!accountOpen || !userId) return;
+    try {
+      const { toDataURL } = await import("qrcode");
+      const site =
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        (typeof window !== "undefined" ? window.location.origin : "");
+      const link = `${site}/open?id=${encodeURIComponent(userId)}`;
+      const url = await toDataURL(link, { width: 160, margin: 1 });
+      if (mounted) setQrUrl(url);
+    } catch {
+      if (mounted) setQrUrl(null);
     }
-    makeQr();
-    return () => { mounted = false; };
-  }, [accountOpen, email, showQr]);
+  }
+  makeQr();
+  return () => {
+    mounted = false;
+  };
+}, [accountOpen, userId]);
+
 
   function signOut() {
     localStorage.removeItem("cs2:email");
