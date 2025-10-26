@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { generateUserId, setUserId, clearAllLocalData } from "@/lib/id";
+import { getExistingId, setUserId, clearAllLocalData } from "@/lib/id";
 
 // Fallback reader for the guest id from localStorage
 function getExistingId(): string | null {
