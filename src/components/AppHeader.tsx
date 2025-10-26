@@ -119,6 +119,12 @@ export default function AppHeader() {
     router.push("/");
     openOnboarding("create");
   }
+function signOut(router: any) {
+  localStorage.removeItem("cs2:email");
+  localStorage.removeItem("cs2:token");
+  window.dispatchEvent(new Event("auth:changed"));
+  router.push("/");
+}
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
