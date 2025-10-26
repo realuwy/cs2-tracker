@@ -3,12 +3,17 @@
 export const dynamic = "force-dynamic";
 
 /* =============================================================================
-   CS2 Tracker – Dashboard Page (with correct Dashboard Guard placement)
+   CS2 Tracker – Dashboard Page (ID-based cloud sync: Upstash KV/Redis)
+   - No Supabase imports/usages
+   - Restores rows from local + remote (by userId), merges, then persists both
+   - Debounced save to local + remote whenever rows change
 ============================================================================= */
 
 import type React from "react";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { InvItem } from "@/lib/api"; // keep InvItem for Row typing
+import { InvItem } from "@/lib/api";
+import { getUserId } from "@/lib/id";
+import { fetchRemoteRows, saveRemoteRows } from "@/lib/rows-sync";
 
 /* ----------------------------- constants ----------------------------- */
 
@@ -487,17 +492,25 @@ function RowCard({
 /* ----------------------------- component ----------------------------- */
 
 export default function DashboardPage() {
-  // --- Dashboard Guard state (but don't early-return yet) ---
+  // render-safe guard (keeps your original pattern)
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
 
-  // state
+  // rows + sorting
   const [rows, setRows] = useState<Row[]>([]);
   const [spMap, setSpMap] = useState<Record<string, number>>({});
   const [sort, dispatchSort] = useReducer(sortReducer, { key: "item", dir: "asc" });
 
+  // device ID for cloud sync
+  const [userId, setUserIdState] = useState<string | null>(null);
+  useEffect(() => {
+    setUserIdState(getUserId());
+    const onChange = (e: any) => setUserIdState(e?.detail?.userId ?? getUserId());
+    window.addEventListener("id:changed", onChange);
+    return () => window.removeEventListener("id:changed", onChange);
+  }, []);
 
-  // controls
+  // manual add controls
   const [mName, setMName] = useState("");
   const [mWear, setMWear] = useState<WearCode>("");
   const [mFloat, setMFloat] = useState("");
@@ -507,45 +520,80 @@ export default function DashboardPage() {
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [skinportUpdatedAt, setSkinportUpdatedAt] = useState<number | null>(null);
   const [steamUpdatedAt, setSteamUpdatedAt] = useState<number | null>(null);
-
   const [refreshing, setRefreshing] = useState(false);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editRow, setEditRow] = useState<Row | null>(null);
 
+  /* =========================
+     RESTORE + MERGE (local + cloud by userId)
+     ========================= */
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      // 1) local
+      let localRows: Row[] = [];
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        localRows = normalizeRows(raw ? JSON.parse(raw) : []);
+      } catch {}
+
+      // 2) remote
+      let remoteRows: Row[] = [];
+      try {
+        if (userId) {
+          const raw = await fetchRemoteRows(userId);
+          remoteRows = normalizeRows(raw);
+        }
+      } catch {}
+
+      // 3) merge and set
+      const merged = mergeLists(localRows, remoteRows);
+      if (!cancelled) setRows(merged);
+
+      // 4) persist back to both sides
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+        localStorage.setItem(STORAGE_TS_KEY, String(Date.now()));
+      } catch {}
+      try {
+        if (userId) await saveRemoteRows(userId, merged);
+      } catch {}
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   /* =========================
-     EFFECTS
+     DEBOUNCED SAVE (local + cloud) whenever rows change
+     ========================= */
+  const saveTimer = useRef<number | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(async () => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+        localStorage.setItem(STORAGE_TS_KEY, String(Date.now()));
+      } catch {}
+      try {
+        if (userId) await saveRemoteRows(userId, rows);
+      } catch {}
+    }, 300);
+
+    return () => {
+      if (saveTimer.current) window.clearTimeout(saveTimer.current);
+    };
+  }, [rows, userId]);
+
+  /* =========================
+     PRICES / IMAGES
      ========================= */
 
-async function loadData() {
-  const token = localStorage.getItem("cs2:token") || "";
-  const res = await fetch("/api/data/load", { headers: { Authorization: `Bearer ${token}` } });
-  if (res.status === 401) throw new Error("not-auth");
-  return res.json();
-}
-
-async function saveData(data: any) {
-  const token = localStorage.getItem("cs2:token") || "";
-  const res = await fetch("/api/data/save", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error("save-failed");
-  return res.json();
-}
-
-  // Load legacy bookmarklet (optional)
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("cs2_items");
-      if (raw) setRows(normalizeRows(JSON.parse(raw)));
-    } catch {}
-  }, []);
-
-
-  // Skinport map + images
   async function refreshSkinport() {
     try {
       const [priceRes, imgRes] = await Promise.all([
@@ -619,12 +667,10 @@ async function saveData(data: any) {
     }
   }
 
-  // Initial Skinport refresh
   useEffect(() => {
     refreshSkinport();
   }, []);
 
-  // Lazy image hydration via by-name API (Skinport→Steam)
   const hydratedNamesRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     let cancelled = false;
@@ -668,79 +714,7 @@ async function saveData(data: any) {
     };
   }, [rows]);
 
-  // Back-to-top visibility
-  useEffect(() => {
-    if (typeof window === "undefined") return; // SSR guard
-    const onScroll = () => setShowBackToTop(window.scrollY > 600);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  // Scroll to top
-  const scrollToTop = () => {
-    if (typeof window === "undefined") return;
-    const prefersReduced = window
-      .matchMedia("(prefers-reduced-motion: reduce)")
-      .matches;
-    window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
-  };
-
-  // Manual add
-  function addManual() {
-    if (!mName.trim()) return;
-    const parsed = parseNameForWear(mName.trim());
-    const nameNoWear = stripNone(parsed.nameNoWear);
-    const nonWear = isNonWearCategory(nameNoWear);
-    const wearToUse: WearCode = nonWear ? "" : (mWear || parsed.wear || "");
-    const market_hash_name = stripNone(toMarketHash(nameNoWear, wearToUse));
-    const spAUD = spMap[market_hash_name] ?? spMap[stripNone(market_hash_name)];
-    const priceAUD = typeof spAUD === "number" ? spAUD : undefined;
-    const newRow: Row = {
-      market_hash_name,
-      name: market_hash_name,
-      nameNoWear,
-      wear: wearToUse,
-      pattern: mPattern.trim() || undefined,
-      float: mFloat.trim() || undefined,
-      image: "",
-      inspectLink: "",
-      quantity: mQty,
-      skinportAUD: spAUD,
-      priceAUD,
-      totalAUD: priceAUD ? priceAUD * mQty : undefined,
-      source: "manual",
-    };
-    setRows((r) => mergeRows([newRow, ...r]));
-    setMName("");
-    setMWear("");
-    setMFloat("");
-    setMPattern("");
-    setMQty(1);
-  }
-
-  // Remove / Update qty
-  function removeRow(idx: number) {
-    setRows((r) => r.filter((_, i) => i !== idx));
-  }
-
-  function updateQty(idx: number, qty: number) {
-    const q = Math.max(1, Math.floor(qty || 1));
-    setRows((r) =>
-      r.map((row, i) =>
-        i === idx
-          ? {
-              ...row,
-              quantity: q,
-              totalAUD:
-                typeof row.skinportAUD === "number" ? row.skinportAUD * q : row.totalAUD,
-            }
-          : row
-      )
-    );
-  }
-
-  // Steam backfill (prices by name)
+  // steam backfill (by name)
   const pricesFetchingRef = useRef(false);
   async function backfillSomeSteamPrices(max = 8) {
     if (pricesFetchingRef.current) return;
@@ -803,12 +777,10 @@ async function saveData(data: any) {
     }
   }
 
-  // Initial Steam backfill
   useEffect(() => {
     backfillSomeSteamPrices(12);
   }, []);
 
-  // Auto-refresh every 15 minutes
   useEffect(() => {
     if (typeof window === "undefined") return;
     const tick = async () => {
@@ -919,8 +891,9 @@ async function saveData(data: any) {
   }
 
   /* ----------------------------- render ----------------------------- */
- // ✅ Guard is here (after all hooks ran). Rendering-only guard is safe.
+
   if (!ready) return null;
+
   return (
     <div className="mx-auto max-w-6xl p-6 space-y-6">
       {/* Top row: Left Manual Add / Right Stats */}
@@ -1335,30 +1308,93 @@ async function saveData(data: any) {
       />
 
       {/* Back to top */}
-      <button
-        type="button"
-        aria-label="Back to top"
-        onClick={scrollToTop}
-        className={[
-          "fixed bottom-6 right-6 z-50 rounded-full bg-surface/90 shadow-lg shadow-black/40",
-          "backdrop-blur px-4 h-12 inline-flex items-center gap-2 text-text",
-          "border border-border hover:bg-surface2 transition-all duration-200",
-          showBackToTop
-            ? "opacity-100 translate-y-0 pointer-events-auto"
-            : "opacity-0 translate-y-3 pointer-events-none",
-        ].join(" ")}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="-mt-[1px]">
-          <path
-            d="M6 14l6-6 6 6"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <span className="text-sm">Top</span>
-      </button>
+      <BackToTopButton visible={showBackToTop} onClick={() => {
+        const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
+      }} />
     </div>
+  );
+
+  /* ----------------------------- small helpers ----------------------------- */
+
+  function addManual() {
+    if (!mName.trim()) return;
+    const parsed = parseNameForWear(mName.trim());
+    const nameNoWear = stripNone(parsed.nameNoWear);
+    const nonWear = isNonWearCategory(nameNoWear);
+    const wearToUse: WearCode = nonWear ? "" : (mWear || parsed.wear || "");
+    const market_hash_name = stripNone(toMarketHash(nameNoWear, wearToUse));
+    const spAUD = spMap[market_hash_name] ?? spMap[stripNone(market_hash_name)];
+    const priceAUD = typeof spAUD === "number" ? spAUD : undefined;
+    const newRow: Row = {
+      market_hash_name,
+      name: market_hash_name,
+      nameNoWear,
+      wear: wearToUse,
+      pattern: mPattern.trim() || undefined,
+      float: mFloat.trim() || undefined,
+      image: "",
+      inspectLink: "",
+      quantity: mQty,
+      skinportAUD: spAUD,
+      priceAUD,
+      totalAUD: priceAUD ? priceAUD * mQty : undefined,
+      source: "manual",
+    };
+    setRows((r) => mergeRows([newRow, ...r]));
+    setMName("");
+    setMWear("");
+    setMFloat("");
+    setMPattern("");
+    setMQty(1);
+  }
+
+  function removeRow(idx: number) {
+    setRows((r) => r.filter((_, i) => i !== idx));
+  }
+}
+
+function BackToTopButton({
+  visible,
+  onClick,
+}: {
+  visible: boolean;
+  onClick: () => void;
+}) {
+  // mount scroll watcher
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onScroll = () =>
+      setShown(window.scrollY > 600);
+    const [setShown] = [(v: boolean) => { /* no-op in external usage */ }];
+    // NOTE: kept simple; we handle visibility via prop from parent
+    return () => {};
+  }, []);
+
+  return (
+    <button
+      type="button"
+      aria-label="Back to top"
+      onClick={onClick}
+      className={[
+        "fixed bottom-6 right-6 z-50 rounded-full bg-surface/90 shadow-lg shadow-black/40",
+        "backdrop-blur px-4 h-12 inline-flex items-center gap-2 text-text",
+        "border border-border hover:bg-surface2 transition-all duration-200",
+        visible
+          ? "opacity-100 translate-y-0 pointer-events-auto"
+          : "opacity-0 translate-y-3 pointer-events-none",
+      ].join(" ")}
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="-mt-[1px]">
+        <path
+          d="M6 14l6-6 6 6"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+      <span className="text-sm">Top</span>
+    </button>
   );
 }
