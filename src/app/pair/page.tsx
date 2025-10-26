@@ -1,8 +1,11 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function PairPage() {
+export const dynamic = "force-dynamic"; // avoid prerender errors for CSR page
+
+function PairContent() {
   const params = useSearchParams();
   const router = useRouter();
   const code = params.get("code") || "";
@@ -30,14 +33,11 @@ export default function PairPage() {
           return;
         }
 
-        // Save the ID locally and broadcast same event your header listens to
         localStorage.setItem("cs2:id", data.id);
         window.dispatchEvent(new Event("id:changed"));
 
         setMsg("Linked! Redirecting to your dashboard…");
-        if (!cancelled) {
-          setTimeout(() => router.replace("/dashboard"), 600);
-        }
+        if (!cancelled) setTimeout(() => router.replace("/dashboard"), 600);
       } catch {
         setMsg("Network error. Try rescanning.");
       }
@@ -55,3 +55,16 @@ export default function PairPage() {
     </div>
   );
 }
+
+export default function PairPage() {
+  return (
+    <Suspense fallback={
+      <div className="mx-auto flex min-h-[60vh] max-w-md items-center justify-center p-6 text-zinc-300">
+        Loading…
+      </div>
+    }>
+      <PairContent />
+    </Suspense>
+  );
+}
+
