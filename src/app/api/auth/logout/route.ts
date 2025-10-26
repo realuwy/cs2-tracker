@@ -9,18 +9,19 @@ export const runtime = "nodejs";
 
 export async function POST() {
   const jar = cookies();
+
   [...SESSION_COOKIE_NAMES, ...EMAIL_COOKIE_NAMES].forEach((name) => {
     if (jar.get(name)) {
-      jar.set({
-        name,
-        value: "",
+      // ✅ Next 14 cookies API
+      jar.set(name, "", {
         path: "/",
         httpOnly: true,
-        sameSite: "Lax",
+        sameSite: "lax",
         secure: true,
         expires: new Date(0),
       });
     }
   });
+
   return NextResponse.json({ ok: true });
 }
