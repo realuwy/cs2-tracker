@@ -1355,23 +1355,15 @@ useEffect(() => {
   }
 }
 
-function BackToTopButton({
-  visible,
-  onClick,
-}: {
-  visible: boolean;
-  onClick: () => void;
-}) {
-  // mount scroll watcher
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const onScroll = () =>
-      setShown(window.scrollY > 600);
-    const [setShown] = [(v: boolean) => { /* no-op in external usage */ }];
-    // NOTE: kept simple; we handle visibility via prop from parent
-    return () => {};
-  }, []);
-
+;function BackToTopButton(
+  {
+    visible,
+    onClick,
+  }: {
+    visible: boolean;
+    onClick: () => void;
+  }
+) {
   return (
     <button
       type="button"
