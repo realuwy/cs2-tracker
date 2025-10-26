@@ -24,7 +24,103 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
     </Link>
   );
 }
+function OpenOnPhoneButton() {
+  const [open, setOpen] = useState(false);
+  const [code, setCode] = useState<string | null>(null);
+  const [status, setStatus] = useState<"idle"|"pending"|"claimed"|"expired">("idle");
+  const [qrText, setQrText] = useState<string>("");
 
+  const id = typeof window !== "undefined" ? localStorage.getItem("cs2:id") : null;
+
+  const begin = async () => {
+    if (!id) return;
+    setOpen(true);
+    setStatus("pending");
+    setCode(null);
+    try {
+      const res = await fetch("/api/pair/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to start");
+      const c = data.code as string;
+      setCode(c);
+      const origin = window.location.origin;
+      setQrText(`${origin}/pair?code=${c}`);
+    } catch {
+      setStatus("expired");
+    }
+  };
+
+  // Poll status while modal open + we have a code
+  useEffect(() => {
+    if (!open || !code) return;
+    let alive = true;
+    const iv = setInterval(async () => {
+      if (!alive) return;
+      const res = await fetch(`/api/pair/status?code=${code}`);
+      const data = await res.json();
+      if (data.status === "claimed") {
+        setStatus("claimed");
+        clearInterval(iv);
+      } else if (data.status === "expired") {
+        setStatus("expired");
+        clearInterval(iv);
+      }
+    }, 1500);
+    return () => {
+      alive = false;
+      clearInterval(iv);
+    };
+  }, [open, code]);
+
+  return (
+    <>
+      <button
+        onClick={begin}
+        className="w-full rounded-md bg-zinc-800 px-3 py-2 text-left text-sm hover:bg-zinc-700"
+      >
+        Open on phone (QR)
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-zinc-900 p-6 text-white shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Scan to continue on phone</h2>
+              <button onClick={() => setOpen(false)} className="rounded-md px-2 py-1 text-zinc-300 hover:bg-zinc-800">✕</button>
+            </div>
+
+            {qrText ? (
+              <div className="flex flex-col items-center gap-3">
+                {/* Use your existing QR component; otherwise use a lightweight lib */}
+                {/* Example if you already had a QR component: <Qr value={qrText} size={180} /> */}
+                <img
+                  alt="QR"
+                  className="rounded-lg bg-white p-2"
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrText)}`}
+                  width={220}
+                  height={220}
+                />
+                <p className="text-sm text-zinc-300 break-all">{qrText}</p>
+              </div>
+            ) : (
+              <p className="text-sm text-zinc-400">Generating QR…</p>
+            )}
+
+            <div className="mt-4 rounded-lg border border-zinc-800 p-3 text-sm">
+              {status === "pending" && <span className="text-amber-300">Waiting for your phone…</span>}
+              {status === "claimed" && <span className="text-emerald-400">Connected! You can close this.</span>}
+              {status === "expired" && <span className="text-rose-400">Expired. Close and try again.</span>}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 function DotsButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
