@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { getUserId, generateUserId, setUserId, clearAllLocalData } from "@/lib/id";
 
 /* ----------------------------- NavLink ----------------------------- */
 
@@ -35,10 +34,9 @@ export default function AppHeader() {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [userId, setUserIdState] = useState<string | null>(null);
 
   // auth state (email login)
-  const [authedEmail, setAuthedEmail] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
   const [hasToken, setHasToken] = useState(false);
 
   // Single QR (shown inside Account dropdown)
@@ -48,35 +46,18 @@ export default function AppHeader() {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const acctRef = useRef<HTMLDivElement | null>(null);
 
-  // helpers
   const openAuth = () => window.dispatchEvent(new Event("auth:open"));
 
   const readAuth = () => {
-    const email = typeof window !== "undefined" ? localStorage.getItem("cs2:email") : null;
-    const token = typeof window !== "undefined" ? localStorage.getItem("cs2:token") : null;
-    setAuthedEmail(email);
-    setHasToken(!!token);
+    const e = typeof window !== "undefined" ? localStorage.getItem("cs2:email") : null;
+    const t = typeof window !== "undefined" ? localStorage.getItem("cs2:token") : null;
+    setEmail(e);
+    setHasToken(!!t);
   };
 
-  // load initial ID + auth snapshot
-  useEffect(() => {
-    setUserIdState(getUserId());
-    readAuth();
-  }, []);
-
-  // refresh header ID when route changes
-  useEffect(() => {
-    setUserIdState(getUserId());
-  }, [pathname]);
-
-  // react to ID changes from elsewhere (legacy)
-  useEffect(() => {
-    const onChange = (e: any) => setUserIdState(e?.detail?.userId ?? getUserId());
-    window.addEventListener("id:changed", onChange);
-    return () => window.removeEventListener("id:changed", onChange);
-  }, []);
-
-  // react to auth changes (email OTP flow)
+  // initial snapshot + refresh on route & auth changes
+  useEffect(() => { readAuth(); }, []);
+  useEffect(() => { readAuth(); }, [pathname]);
   useEffect(() => {
     const onAuth = () => readAuth();
     window.addEventListener("auth:changed", onAuth);
@@ -97,16 +78,16 @@ export default function AppHeader() {
     return () => window.removeEventListener("mousedown", closeOnOutside);
   }, [menuOpen, accountOpen]);
 
-  // Generate QR when toggled on (encodes /pair?id=<ID>&r=<route>)
+  // Generate QR when toggled on (encodes /pair?email=<email>&r=<route>)
   useEffect(() => {
     let mounted = true;
     async function makeQr() {
-      if (!accountOpen || !userId || !showQr) return;
+      if (!accountOpen || !email || !showQr) return;
       try {
         const { toDataURL } = await import("qrcode");
         const origin = window.location.origin;
         const r = window.location.pathname + window.location.search;
-        const url = `${origin}/pair?id=${encodeURIComponent(userId)}&r=${encodeURIComponent(r)}`;
+        const url = `${origin}/pair?email=${encodeURIComponent(email)}&r=${encodeURIComponent(r)}`;
         const dataUrl = await toDataURL(url, { width: 160, margin: 1 });
         if (mounted) setQrUrl(dataUrl);
       } catch {
@@ -115,38 +96,30 @@ export default function AppHeader() {
     }
     makeQr();
     return () => { mounted = false; };
-  }, [accountOpen, userId, showQr]);
-
-  function copyId() {
-    if (!userId) return;
-    navigator.clipboard.writeText(userId);
-  }
-
-  function replaceId() {
-    const next = generateUserId();
-    setUserId(next);
-    setUserIdState(next);
-  }
-
-  // Legacy clear + now open the email auth modal
-  function resetLocal() {
-    clearAllLocalData();
-    localStorage.removeItem("cs2:email");
-    localStorage.removeItem("cs2:token");
-    setAuthedEmail(null);
-    setHasToken(false);
-    setUserIdState(null);
-    router.push("/");
-    openAuth();
-  }
+  }, [accountOpen, email, showQr]);
 
   function signOut() {
     localStorage.removeItem("cs2:email");
     localStorage.removeItem("cs2:token");
-    setAuthedEmail(null);
-    setHasToken(false);
+    // optional: clean up any legacy keys
+    localStorage.removeItem("cs2:id");
     window.dispatchEvent(new Event("auth:changed"));
+    setShowQr(false);
+    setAccountOpen(false);
     router.push("/");
+  }
+
+  function clearLocal() {
+    // clears all local app data on this device
+    localStorage.removeItem("cs2:email");
+    localStorage.removeItem("cs2:token");
+    localStorage.removeItem("cs2:id"); // legacy
+    window.dispatchEvent(new Event("auth:changed"));
+    setShowQr(false);
+    setAccountOpen(false);
+    router.push("/");
+    // Optionally reopen auth modal:
+    // openAuth();
   }
 
   return (
@@ -200,11 +173,9 @@ export default function AppHeader() {
                 <span className="rounded bg-emerald-400/15 px-1.5 py-[1px] text-[10px] text-emerald-300">
                   Signed in
                 </span>
-              ) : userId ? (
-                <span className="badge badge-accent">ID ready</span>
               ) : (
                 <span className="rounded bg-amber-400/15 px-1.5 py-[1px] text-[10px] text-amber-300">
-                  New
+                  Guest
                 </span>
               )}
               <svg viewBox="0 0 24 24" width="14" height="14" className="opacity-70">
@@ -220,19 +191,12 @@ export default function AppHeader() {
                   <div className="px-3 pb-2 text-xs text-muted">
                     Signed in as:
                     <div className="mt-1 select-all rounded-lg bg-surface2/70 px-2 py-1 font-mono text-[11px] text-text">
-                      {authedEmail}
-                    </div>
-                  </div>
-                ) : userId ? (
-                  <div className="px-3 pb-2 text-xs text-muted">
-                    Your local ID:
-                    <div className="mt-1 select-all rounded-lg bg-surface2/70 px-2 py-1 font-mono text-[11px] text-text">
-                      {userId}
+                      {email}
                     </div>
                   </div>
                 ) : (
                   <div className="px-3 pb-2 text-xs text-muted">
-                    No account yet. Continue with your email to save across devices.
+                    You’re using guest mode. Sign in with your email to sync across devices.
                   </div>
                 )}
 
@@ -245,85 +209,13 @@ export default function AppHeader() {
                       className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
                       onClick={() => { setAccountOpen(false); openAuth(); }}
                     >
-                      Continue with email
+                      Sign in with email
                     </button>
-
-                    {userId && (
-                      <>
-                        <button
-                          role="menuitem"
-                          className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                          onClick={copyId}
-                        >
-                          Copy ID
-                        </button>
-
-                        {/* Single QR entry */}
-                        <button
-                          role="menuitem"
-                          className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                          onClick={() => setShowQr((v) => !v)}
-                        >
-                          {showQr ? "Hide QR code" : "Show QR code"}
-                        </button>
-
-                        {showQr && (
-                          <div className="mx-3 mt-2 rounded-lg border border-border bg-surface2/70 p-3 text-center">
-                            {qrUrl ? (
-                              <>
-                                <img
-                                  src={qrUrl}
-                                  alt="Scan to open on phone"
-                                  className="mx-auto rounded-lg border border-border"
-                                  width={160}
-                                  height={160}
-                                />
-                                <div className="mt-2 flex items-center justify-center gap-2">
-                                  <a
-                                    href={qrUrl}
-                                    download="cs2tracker-open-on-phone.png"
-                                    className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-surface/60"
-                                  >
-                                    Download PNG
-                                  </a>
-                                  <button
-                                    className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-surface/60"
-                                    onClick={() => {
-                                      try {
-                                        const origin = window.location.origin;
-                                        const r = window.location.pathname + window.location.search;
-                                        const url = `${origin}/pair?id=${encodeURIComponent(userId!)}&r=${encodeURIComponent(r)}`;
-                                        navigator.clipboard.writeText(url);
-                                      } catch {}
-                                    }}
-                                  >
-                                    Copy link
-                                  </button>
-                                </div>
-                                <p className="mt-1 text-[11px] text-muted">
-                                  Scan on your phone — it opens with this same ID and page.
-                                </p>
-                              </>
-                            ) : (
-                              <p className="text-xs text-muted">Generating QR…</p>
-                            )}
-                          </div>
-                        )}
-
-                        <button
-                          role="menuitem"
-                          className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                          onClick={replaceId}
-                        >
-                          Replace ID (new one)
-                        </button>
-                      </>
-                    )}
 
                     <button
                       role="menuitem"
                       className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-red-300 hover:bg-red-400/10"
-                      onClick={resetLocal}
+                      onClick={clearLocal}
                     >
                       Clear local data
                     </button>
@@ -364,7 +256,7 @@ export default function AppHeader() {
                                   try {
                                     const origin = window.location.origin;
                                     const r = window.location.pathname + window.location.search;
-                                    const url = `${origin}/pair?id=${encodeURIComponent(userId ?? "")}&r=${encodeURIComponent(r)}`;
+                                    const url = `${origin}/pair?email=${encodeURIComponent(email ?? "")}&r=${encodeURIComponent(r)}`;
                                     navigator.clipboard.writeText(url);
                                   } catch {}
                                 }}
@@ -373,7 +265,7 @@ export default function AppHeader() {
                               </button>
                             </div>
                             <p className="mt-1 text-[11px] text-muted">
-                              Scan on your phone — it opens with this same page.
+                              Scan on your phone — it opens this same page and signs you in.
                             </p>
                           </>
                         ) : (
@@ -394,7 +286,7 @@ export default function AppHeader() {
 
                 <hr className="my-2 border-border/70" />
 
-                {/* Route all recovery/create flows to the new email modal */}
+                {/* Always offer email flow entry point */}
                 <button
                   role="menuitem"
                   className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
