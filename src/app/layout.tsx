@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { Inter, Manrope } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import AuthModalHost from "@/components/AuthModalHost";
 
 // Fonts
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
