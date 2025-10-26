@@ -1,13 +1,28 @@
 // src/components/auth-modal.tsx
 "use client";
 
-/**
- * Legacy Auth Modal (no-op)
- * This is a stub to keep builds green while migrating off Supabase.
- * Safe to delete once all references are removed.
- */
+import React from "react";
 
-export default function AuthModal() {
-  // No UI, no side-effects
-  return null;
+// 👇 add this props type
+type AuthModalProps = {
+  onClose?: () => void;
+};
+
+// 👇 make sure your default export accepts the prop
+export default function AuthModal({ onClose }: AuthModalProps) {
+  // ...existing code...
+
+  // wherever you close the modal, ALSO call onClose?.()
+  // examples (adapt these to your code):
+
+  // close button handler:
+  // const close = () => { setOpen(false); onClose?.(); };
+
+  // after successful action:
+  // setOpen(false);
+  // onClose?.();
+
+  return (
+    // ...existing JSX...
+  );
 }
