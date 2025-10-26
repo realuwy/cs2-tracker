@@ -1,72 +1,69 @@
 // src/lib/kv.ts
-// Thin wrapper around Upstash Redis + handy key + rate-limit helpers
+// Upstash Redis helpers + namespaced keys + simple rate limiter
 
 import { Redis } from "@upstash/redis";
 
-// Ensure you’ve set:
+// Env vars required on Vercel:
 //   UPSTASH_REDIS_REST_URL
 //   UPSTASH_REDIS_REST_TOKEN
 export const kv = Redis.fromEnv();
+// Some older files import `redis` — keep a compatible alias:
+export const redis = kv;
 
-// ---- Key helpers -----------------------------------------------------------
+const NS = "cs2"; // namespace prefix
 
-const NS = "cs2"; // namespace prefix to keep keys tidy
+/* -------------------------- key helpers -------------------------- */
 
+// email-based auth code storage
 export const codeKey = (email: string) =>
   `${NS}:auth:code:${email.trim().toLowerCase()}`;
 
+// per-email user meta (e.g., link userId <-> email)
 export const userMetaKey = (email: string) =>
   `${NS}:user:meta:${email.trim().toLowerCase()}`;
 
-// Inventory blob by ID (JSON string)
+// id-based inventory blob (JSON string)
 export const userDataKey = (userId: string) =>
   `${NS}:data:${userId.trim()}`;
 
-// Rate-limit buckets
+// new: id-based “rows” (inventory rows) + last-updated timestamp
+export const rowsKey = (userId: string) =>
+  `${NS}:rows:${userId.trim()}`;
+export const rowsTsKey = (userId: string) =>
+  `${NS}:rows:${userId.trim()}:ts`;
+
+// rate-limit buckets
 export const rlKeyIP = (ip: string) => `${NS}:rl:ip:${ip}`;
 export const rlKeySend = (email: string) =>
   `${NS}:rl:send:${email.trim().toLowerCase()}`;
 
-// ---- Rate limiting ---------------------------------------------------------
+/* ------------------------ rate limiter -------------------------- */
 
 export type RateResult = {
-  ok: boolean;          // within the limit?
-  count: number;        // current count in the window
-  remaining: number;    // how many left before blocking
-  resetAt: number;      // epoch ms when the bucket will reset
+  ok: boolean;       // within limit?
+  count: number;     // current hits in window
+  remaining: number; // how many left
+  resetAt: number;   // epoch ms when bucket resets
 };
 
 /**
- * Sliding-window-ish limiter using INCR + EXPIRE.
- * First hit sets TTL; subsequent hits share that TTL.
- *
- * @param key        redis key for the bucket
- * @param limit      max hits allowed within windowSec
- * @param windowSec  window length in seconds
+ * Simple window limiter using INCR + EXPIRE.
+ * First hit sets TTL; subsequent hits share it.
  */
 export async function rlBump(
   key: string,
   limit: number,
   windowSec: number
 ): Promise<RateResult> {
-  // INCR returns the incremented value
   const count = (await kv.incr<number>(key)) ?? 0;
-
-  // If this is the first hit, attach TTL for the window
   if (count === 1) {
     await kv.expire(key, windowSec);
   }
-
-  // Figure out remaining TTL to compute resetAt
-  // Upstash doesn't expose TTL via the high-level SDK; use raw command.
-  // Returns seconds to expire or -1 if no TTL (rare here).
   const ttlSec = (await kv.ttl<number>(key)) ?? windowSec;
-  const resetAt = Date.now() + Math.max(0, ttlSec) * 1000;
-
   return {
     ok: count <= limit,
     count,
     remaining: Math.max(0, limit - count),
-    resetAt,
+    resetAt: Date.now() + Math.max(0, ttlSec) * 1000,
   };
 }
