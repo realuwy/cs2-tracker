@@ -5,16 +5,16 @@ import dynamic from "next/dynamic";
 import { Inter, Manrope } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { Suspense } from "react";
 
 // Fonts
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" });
 
-// Client-only shells
+// Client-only shells (no SSR)
 const AppHeader = dynamic(() => import("@/components/AppHeader"), { ssr: false });
 const SiteFooter = dynamic(() => import("@/components/Footer"), { ssr: false });
 const OnboardingModalHost = dynamic(() => import("@/components/OnboardingModalHost"), { ssr: false });
+// If you re-enable Contact later, keep it client-only too:
 const ContactModalHost = dynamic(() => import("@/components/ContactModalHost"), { ssr: false });
 
 export const metadata: Metadata = {
@@ -25,23 +25,20 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      {/* Sticky-footer layout: flex column, main grows */}
       <body className={`${inter.variable} ${manrope.variable} min-h-dvh flex flex-col bg-body text-text antialiased`}>
         <AppHeader />
         <main id="main-content" className="flex-1">{children}</main>
         <SiteFooter />
 
-        {/* Modal hosts (client-only) */}
-        <Suspense fallback={null}>
-          <OnboardingModalHost />
-          <ContactModalHost />
-        </Suspense>
+        {/* Modal hosts */}
+        <OnboardingModalHost />
+        <ContactModalHost />
 
-        {/* Analytics */}
         <Analytics />
         <SpeedInsights />
       </body>
     </html>
   );
 }
+
 
