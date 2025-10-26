@@ -5,7 +5,17 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { getUserId as getExistingId, generateUserId, setUserId, clearAllLocalData } from "@/lib/id";
+import { generateUserId, setUserId, clearAllLocalData } from "@/lib/id";
+
+// Fallback reader for the guest id from localStorage
+function getExistingId(): string | null {
+  try {
+    const v = localStorage.getItem("cs2_user_id");
+    return v && v.length > 0 ? v : null;
+  } catch {
+    return null;
+  }
+}
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
   const pathname = usePathname();
