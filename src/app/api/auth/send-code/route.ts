@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { codeKey, rlBump, rlKeyIP, rlKeySend, kv, userMetaKey } from "@/lib/kv";
 
+export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 function sixDigits() {
