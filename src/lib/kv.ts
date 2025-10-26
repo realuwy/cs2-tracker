@@ -1,19 +1,24 @@
-// src/lib/kv.ts
 import { Redis } from "@upstash/redis";
+import crypto from "crypto";
 
 export const kv = Redis.fromEnv();
 
-// Pairing (QR handoff)
-export type PairRecord = {
-  id: string;
-  status: "pending" | "claimed";
-  createdAt: number;
-  claimedAt?: number;
-};
+// --- email hashing (lowercased) so keys don't expose PII ---
+export function emailHash(email: string) {
+  return crypto.createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
+}
 
-export const PAIR_TTL_SECONDS = 180;
-export const pairKey = (code: string) => `pair:${code}`;
+// --- key builders ---
+export const codeKey     = (email: string) => `code:${emailHash(email)}`;        // stores { code, tries }
+export const userMetaKey = (email: string) => `user:${emailHash(email)}:meta`;   // { email, id }
+export const userDataKey = (email: string) => `user:${emailHash(email)}:data`;   // dashboard JSON
 
-// Email ↔ ID linking
-export const emailKey = (email: string) => `email:${email.toLowerCase()}`; // email -> id
-export const idEmailKey = (id: string) => `id:${id}:email`;               // id -> email
+// --- minimal rate limits (KV counters with TTL) ---
+export async function rlBump(key: string, max: number, ttlSec: number) {
+  const count = await kv.incr(key);
+  if (count === 1) await kv.expire(key, ttlSec);
+  if (count > max) return false;
+  return true;
+}
+export const rlKeySend   = (email: string) => `rl:send:${emailHash(email)}`; // per-email send limit
+export const rlKeyIP     = (ip: string)    => `rl:ip:${ip}`;                 // per-IP limit
