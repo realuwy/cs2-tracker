@@ -1,36 +1,40 @@
 "use client";
+import { useEffect, useState } from "react";
 
-export default function BackToTopButton({
-  visible,
-  onClick,
-}: {
-  visible: boolean;
-  onClick: () => void;
-}) {
+type Props = {
+  /** If provided, bypass internal scroll logic and just show/hide via prop */
+  visible?: boolean;
+  /** Optional custom click handler (default: smooth scroll to top) */
+  onClick?: () => void;
+};
+
+export default function BackToTopButton({ visible, onClick }: Props) {
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    if (visible !== undefined) return; // controlled by prop
+    const onScroll = () => setShow(window.scrollY > 600);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [visible]);
+
+  const isVisible = visible ?? show;
+  if (!isVisible) return null;
+
+  const handleClick = () => {
+    if (onClick) return onClick();
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
+  };
+
   return (
     <button
-      type="button"
       aria-label="Back to top"
-      onClick={onClick}
-      className={[
-        "fixed bottom-6 right-6 z-50 rounded-full bg-surface/90 shadow-lg shadow-black/40",
-        "backdrop-blur px-4 h-12 inline-flex items-center gap-2 text-text",
-        "border border-border hover:bg-surface2 transition-all duration-200",
-        visible
-          ? "opacity-100 translate-y-0 pointer-events-auto"
-          : "opacity-0 translate-y-3 pointer-events-none",
-      ].join(" ")}
+      onClick={handleClick}
+      className="fixed bottom-6 right-6 z-40 rounded-full border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-medium text-accent backdrop-blur hover:bg-accent/15"
     >
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="-mt-[1px]">
-        <path
-          d="M6 14l6-6 6 6"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-      <span className="text-sm">Top</span>
+      ↑ Top
     </button>
   );
 }
