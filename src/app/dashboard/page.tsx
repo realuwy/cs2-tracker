@@ -1355,7 +1355,7 @@ useEffect(() => {
   }
 }
 
-;function BackToTopButton(
+function BackToTopButton(
   {
     visible,
     onClick,
