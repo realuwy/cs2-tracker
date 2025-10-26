@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { generateUserId, setUserId } from "@/lib/id";
+import { getExistingId, setUserId } from "@/lib/id";
 
 type Tab = "create" | "paste" | "recover";
 const ENABLE_RECOVERY = process.env.NEXT_PUBLIC_ENABLE_RECOVERY === "true";
@@ -51,7 +51,7 @@ export default function OnboardingModalHost() {
     setBusy(true);
     setMsg("");
 
-    const id = generateUserId();
+    const id = getExistingId();
     setUserId(id);
 
     let info = "Your ID was created.";
