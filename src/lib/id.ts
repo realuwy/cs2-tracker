@@ -40,9 +40,11 @@ export function clearAllLocalData() {
     window.localStorage.removeItem("cs2:dashboard:rows:updatedAt");
     window.localStorage.removeItem("cs2_items"); // legacy
   } catch {}
-  if (typeof window !== "undefined") {
+    if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("id:changed", { detail: { userId: null } }));
-   
-    export { getExistingId as getUserId };
+  }
+
+// Back-compat alias must be at module top-level (not inside any function/if)
+export { getExistingId as getUserId };
   }
 }
