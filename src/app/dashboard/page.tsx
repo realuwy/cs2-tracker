@@ -14,6 +14,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { InvItem } from "@/lib/api";
 import { getExistingId } from "@/lib/id";
 import { fetchRemoteRows, saveRemoteRows } from "@/lib/rows-sync";
+import BackToTopButton from "@/components/BackToTopButton";
 
 /* ----------------------------- constants ----------------------------- */
 
