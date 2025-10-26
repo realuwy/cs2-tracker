@@ -33,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Modal hosts */}
         <OnboardingModalHost />
         <ContactModalHost />
+        <AuthModalHost />
 
         <Analytics />
         <SpeedInsights />
