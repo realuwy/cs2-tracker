@@ -5,7 +5,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { getUserId, generateUserId, setUserId, clearAllLocalData } from "@/lib/id";
+import {
+  getExistingId, // ⬅️ do NOT auto-create
+  generateUserId,
+  setUserId,
+  clearAllLocalData,
+} from "@/lib/id";
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
   const pathname = usePathname();
@@ -55,27 +60,24 @@ export default function AppHeader() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [userId, setUserIdState] = useState<string | null>(null);
 
-  // QR UI state
+  // QR state
   const [showQr, setShowQr] = useState(false);
   const [qrUrl, setQrUrl] = useState<string | null>(null);
 
   const menuRef = useRef<HTMLDivElement | null>(null);
   const acctRef = useRef<HTMLDivElement | null>(null);
 
+  // read existing id on mount & on path change
   useEffect(() => {
-    setUserIdState(getUserId());
+    setUserIdState(getExistingId());
   }, []);
-
-  // refresh header ID when route changes
   useEffect(() => {
-    setUserIdState(getUserId());
+    setUserIdState(getExistingId());
   }, [pathname]);
 
-  // react to ID changes from elsewhere (onboarding, clear, replace)
+  // reflect id change events
   useEffect(() => {
-    const onChange = (e: any) => {
-      setUserIdState(e?.detail?.userId ?? getUserId());
-    };
+    const onChange = (e: any) => setUserIdState(e?.detail?.userId ?? getExistingId());
     window.addEventListener("id:changed", onChange);
     return () => window.removeEventListener("id:changed", onChange);
   }, []);
@@ -94,27 +96,27 @@ export default function AppHeader() {
     return () => window.removeEventListener("mousedown", closeOnOutside);
   }, [menuOpen, accountOpen]);
 
-  // ✅ generate QR when the Account menu is open AND we have a userId
+  // lazy-generate QR for the existing ID
   useEffect(() => {
     let mounted = true;
-
     async function makeQr() {
       if (!accountOpen || !userId) return;
       try {
         const { toDataURL } = await import("qrcode");
-
-        // link to the “open on phone” endpoint carrying the token
-        const origin =
-          typeof window !== "undefined" ? window.location.origin : "https://cs2tracker.app";
-        const deepLink = `${origin}/open?token=${encodeURIComponent(userId)}`;
-
-        const url = await toDataURL(deepLink, { width: 160, margin: 1 });
+        const site =
+          typeof window !== "undefined"
+            ? window.location.origin
+            : process.env.NEXT_PUBLIC_SITE_URL || "";
+        // deep-link that imports ID on the other device and lands at dashboard
+        const link = `${site}/open?uid=${encodeURIComponent(userId)}&next=${encodeURIComponent(
+          "/dashboard"
+        )}`;
+        const url = await toDataURL(link, { width: 160, margin: 1 });
         if (mounted) setQrUrl(url);
       } catch {
         if (mounted) setQrUrl(null);
       }
     }
-
     makeQr();
     return () => {
       mounted = false;
@@ -127,6 +129,11 @@ export default function AppHeader() {
   function copyId() {
     if (!userId) return;
     navigator.clipboard.writeText(userId);
+  }
+
+  function createId() {
+    const next = generateUserId();
+    setUserIdState(next);
   }
 
   function replaceId() {
@@ -142,10 +149,19 @@ export default function AppHeader() {
     openOnboarding("create");
   }
 
+  const badge =
+    userId == null ? (
+      <span className="rounded bg-amber-400/15 px-1.5 py-[1px] text-[10px] text-amber-300">
+        New
+      </span>
+    ) : (
+      <span className="badge badge-accent">Guest</span>
+    );
+
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
-        {/* left brand */}
+        {/* brand */}
         <Link
           href="/"
           aria-label="CS2 Tracker home"
@@ -183,37 +199,48 @@ export default function AppHeader() {
           <div className="relative" ref={acctRef}>
             <button
               type="button"
-              onClick={() => { setAccountOpen((v) => !v); if (accountOpen) setShowQr(false); }}
+              onClick={() => {
+                setAccountOpen((v) => !v);
+                if (accountOpen) setShowQr(false);
+              }}
               aria-haspopup="menu"
               aria-expanded={accountOpen}
               className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface2/70 px-3 py-1.5 text-sm hover:bg-surface transition focus:outline-none focus:ring-2 focus:ring-accent/30"
             >
               <span>Account</span>
-              {userId ? (
-                <span className="badge badge-accent">ID ready</span>
-              ) : (
-                <span className="rounded bg-amber-400/15 px-1.5 py-[1px] text-[10px] text-amber-300">
-                  New
-                </span>
-              )}
+              {badge}
               <svg viewBox="0 0 24 24" width="14" height="14" className="opacity-70">
-                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                <path
+                  d="M6 9l6 6 6-6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </button>
 
             {accountOpen && (
-              <div role="menu" className="absolute right-0 mt-2 w-72 rounded-xl border border-border bg-surface p-2 shadow-xl">
-                <div className="px-2 pb-2 pt-1 text-[10px] uppercase tracking-wider text-muted">Identity</div>
+              <div
+                role="menu"
+                className="absolute right-0 mt-2 w-72 rounded-xl border border-border bg-surface p-2 shadow-xl"
+              >
+                <div className="px-2 pb-2 pt-1 text-[10px] uppercase tracking-wider text-muted">
+                  Identity
+                </div>
 
                 {userId ? (
                   <div className="px-3 pb-2 text-xs text-muted">
-                    Your ID:
+                    You’re in <b>Guest mode</b>. Your anonymous ID:
                     <div className="mt-1 select-all rounded-lg bg-surface2/70 px-2 py-1 font-mono text-[11px] text-text">
                       {userId}
                     </div>
                   </div>
                 ) : (
-                  <div className="px-3 pb-2 text-xs text-muted">No ID yet. Generate one to start.</div>
+                  <div className="px-3 pb-2 text-xs text-muted">
+                    No ID yet. Create a guest ID to sync between devices.
+                  </div>
                 )}
 
                 <hr className="my-1 border-border/70" />
@@ -222,7 +249,7 @@ export default function AppHeader() {
                   <button
                     role="menuitem"
                     className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                    onClick={() => { setAccountOpen(false); openOnboarding("create"); }}
+                    onClick={createId}
                   >
                     Generate ID
                   </button>
@@ -250,7 +277,7 @@ export default function AppHeader() {
                           <>
                             <img
                               src={qrUrl}
-                              alt="Open on phone"
+                              alt="Scan on your phone to import this ID"
                               className="mx-auto rounded-lg border border-border"
                               width={160}
                               height={160}
@@ -258,19 +285,19 @@ export default function AppHeader() {
                             <div className="mt-2 flex items-center justify-center gap-2">
                               <a
                                 href={qrUrl}
-                                download="cs2tracker-open.png"
+                                download="cs2tracker-id.png"
                                 className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-surface/60"
                               >
                                 Download PNG
                               </a>
                               <button
                                 className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-surface/60"
-                                onClick={() => userId && navigator.clipboard.writeText(userId)}
+                                onClick={() => navigator.clipboard.writeText(userId!)}
                               >
-                                Copy token
+                                Copy ID text
                               </button>
                             </div>
-                            <p className="mt-1 text-[11px] text-muted">Scan on your phone to open this session.</p>
+                            <p className="mt-1 text-[11px] text-muted">Opens /open and links this device.</p>
                           </>
                         ) : (
                           <p className="text-xs text-muted">Generating QR…</p>
@@ -285,6 +312,7 @@ export default function AppHeader() {
                     >
                       Replace ID (new one)
                     </button>
+
                     <button
                       role="menuitem"
                       className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-red-300 hover:bg-red-400/10"
@@ -300,7 +328,9 @@ export default function AppHeader() {
                 <button
                   role="menuitem"
                   className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                  onClick={() => { setAccountOpen(false); openOnboarding("recover"); }}
+                  onClick={() =>
+                    window.dispatchEvent(new CustomEvent("onboard:open", { detail: { tab: "recover" } }))
+                  }
                 >
                   Recover ID
                 </button>
@@ -314,10 +344,42 @@ export default function AppHeader() {
             {menuOpen && (
               <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-surface p-2 shadow-xl">
                 <ul className="space-y-1 text-sm">
-                  <li><Link href="/" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>Home</Link></li>
-                  <li><Link href="/dashboard" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>Dashboard</Link></li>
-                  <li><Link href="/about" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>About</Link></li>
-                  <li><Link href="/privacy" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>Privacy</Link></li>
+                  <li>
+                    <Link
+                      href="/"
+                      className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Home
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/dashboard"
+                      className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Dashboard
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/about"
+                      className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      About
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/privacy"
+                      className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Privacy
+                    </Link>
+                  </li>
                 </ul>
               </div>
             )}
