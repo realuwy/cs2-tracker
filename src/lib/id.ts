@@ -42,5 +42,7 @@ export function clearAllLocalData() {
   } catch {}
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("id:changed", { detail: { userId: null } }));
+   
+    export { getExistingId as getUserId };
   }
 }
