@@ -96,6 +96,11 @@ export default function HomePage() {
     </div>
   );
 }
+function openAuth() {
+  window.dispatchEvent(new Event("auth:open"));
+}
+...
+<button onClick={openAuth}>Get Started</button>
 
 function Feature({ title, body }: { title: string; body: string }) {
   return (
