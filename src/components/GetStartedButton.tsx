@@ -1,32 +1,33 @@
-// src/components/GetStartedButton.tsx
 "use client";
 
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { getUserId } from "@/lib/id";
+import { getExistingId } from "@/lib/id";
 
 export default function GetStartedButton({
   className = "btn-accent",
-  children = "Get Started",
 }: {
   className?: string;
-  children?: React.ReactNode;
 }) {
   const router = useRouter();
 
   const onClick = useCallback(() => {
-    const id = getUserId();
-    if (id) {
-      router.push("/dashboard");
-    } else {
-      // open the ID onboarding modal
-      window.dispatchEvent(new CustomEvent("onboard:open", { detail: { tab: "create" } }));
-    }
+    // Ensure an ID exists (creates one if missing)
+    const userId = getExistingId();
+
+    // Broadcast for any listeners (dashboard picks this up)
+    try {
+      window.dispatchEvent(
+        new CustomEvent("id:changed", { detail: { userId } })
+      );
+    } catch {}
+
+    router.push("/dashboard");
   }, [router]);
 
   return (
-    <button type="button" onClick={onClick} className={className}>
-      {children}
+    <button type="button" className={className} onClick={onClick}>
+      Get Started
     </button>
   );
 }
