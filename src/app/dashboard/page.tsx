@@ -1,4 +1,3 @@
-// src/app/dashboard/page.tsx
 "use client";
 export const dynamic = "force-dynamic";
 
@@ -9,7 +8,6 @@ export const dynamic = "force-dynamic";
    - Debounced save to local + remote whenever rows change
 ============================================================================= */
 
-import type React from "react";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { InvItem } from "@/lib/api";
 import { getExistingId } from "@/lib/id";
@@ -165,8 +163,7 @@ const cmpNum = (a: unknown, b: unknown, dir: 1 | -1) => {
 const cmpWear = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
   const ra = wearRank(a);
   const rb = wearRank(b);
-  const am = ra === 99,
-    bm = rb === 99;
+  const am = ra === 99, bm = rb === 99;
   if (am && bm) return 0;
   if (am) return 1;
   if (bm) return -1;
@@ -185,8 +182,7 @@ function sanitizeSteam(aud: number | undefined, skinport?: number): number | und
   if (aud === undefined || !isFinite(aud) || aud <= 0) return undefined;
   if (aud > 20000) return undefined;
   if (typeof skinport === "number" && skinport > 0) {
-    const lo = skinport * 0.5,
-      hi = skinport * 3;
+    const lo = skinport * 0.5, hi = skinport * 3;
     if (aud < lo || aud > hi) return undefined;
     if (skinport < 50 && aud > 100) return undefined;
   }
@@ -493,7 +489,7 @@ function RowCard({
 /* ----------------------------- component ----------------------------- */
 
 export default function DashboardPage() {
-  // render-safe guard (keeps your original pattern)
+  // render-safe guard
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
 
@@ -503,14 +499,21 @@ export default function DashboardPage() {
   const [sort, dispatchSort] = useReducer(sortReducer, { key: "item", dir: "asc" });
 
   // device ID for cloud sync
-const [userId, setUserId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
-useEffect(() => {
-  // when another part of the app changes the ID, reflect it here
-  const onChange = (e: CustomEvent<{ userId?: string }>) => {
-    const next = e && e.detail && e.detail.userId ? e.detail.userId : getExistingId();
-    setUserIdState(next);
-  };
+  useEffect(() => {
+    // initial load
+    setUserId(getExistingId());
+
+    // reflect changes broadcast elsewhere in the app
+    const onChange = (e: Event) => {
+      const ce = e as CustomEvent<{ userId?: string }>;
+      setUserId(ce.detail?.userId ?? getExistingId());
+    };
+
+    window.addEventListener("id:changed", onChange as EventListener);
+    return () => window.removeEventListener("id:changed", onChange as EventListener);
+  }, []);
 
   // manual add controls
   const [mName, setMName] = useState("");
@@ -526,6 +529,14 @@ useEffect(() => {
 
   const [editOpen, setEditOpen] = useState(false);
   const [editRow, setEditRow] = useState<Row | null>(null);
+
+  // show back-to-top after scroll
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > 600);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   /* =========================
      RESTORE + MERGE (local + cloud by userId)
@@ -1310,10 +1321,13 @@ useEffect(() => {
       />
 
       {/* Back to top */}
-      <BackToTopButton visible={showBackToTop} onClick={() => {
-        const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
-      }} />
+      <BackToTopButton
+        visible={showBackToTop}
+        onClick={() => {
+          const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+          window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
+        }}
+      />
     </div>
   );
 
@@ -1354,8 +1368,5 @@ useEffect(() => {
   function removeRow(idx: number) {
     setRows((r) => r.filter((_, i) => i !== idx));
   }
-}
- return (
-  );
 }
 
