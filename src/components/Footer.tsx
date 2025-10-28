@@ -1,34 +1,64 @@
-// src/components/Footer.tsx
+// src/components/SiteFooter.tsx
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 
 export default function SiteFooter() {
-  const openContact = () => window.dispatchEvent(new CustomEvent("contact:open"));
+  const year = new Date().getFullYear();
 
   return (
-    <footer role="contentinfo" className="flex-shrink-0 border-t border-border bg-surface/60">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-6 text-sm text-muted md:flex-row">
-        {/* Left: brand + alpha */}
-        <div className="flex items-center gap-3">
+    <footer className="border-t border-border bg-surface/90 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-6 sm:flex-row sm:px-6">
+        {/* Brand (match AppHeader) */}
+        <Link
+          href="/"
+          aria-label="CS2 Tracker home"
+          className="group inline-flex items-center gap-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+        >
+          <Image
+            src="/logo-arrow.png"
+            alt=""
+            width={20}
+            height={20}
+            className="inline-block select-none drop-shadow-[0_0_10px_var(--tw-shadow-color)] [--tw-shadow-color:theme(colors.accent.glow)]"
+          />
           <span className="inline-flex items-center gap-2">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
-            <span className="text-text">CS2 Tracker</span>
+            <span className="text-sm font-semibold tracking-wide text-text">CS2 Tracker</span>
+            <span className="rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent">
+              alpha
+            </span>
           </span>
-          <span className="badge badge-accent">alpha</span>
-        </div>
+        </Link>
 
-        {/* Center: links */}
-        <nav className="flex items-center gap-6">
-          <Link href="/about" className="link-muted">About</Link>
-          <Link href="/privacy" className="link-muted">Privacy</Link>
-          <button type="button" onClick={openContact} className="link-muted bg-transparent p-0">
-            Contact
-          </button>
+        {/* Footer nav */}
+        <nav className="text-sm">
+          <ul className="flex items-center gap-6 text-text/90">
+            <li>
+              <Link href="/about" className="hover:text-accent transition-colors">
+                About
+              </Link>
+            </li>
+            <li>
+              <Link href="/privacy" className="hover:text-accent transition-colors">
+                Privacy
+              </Link>
+            </li>
+            <li>
+              <a
+                href="https://x.com/im_uwy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-accent transition-colors"
+              >
+                Follow on Twitter
+              </a>
+            </li>
+          </ul>
         </nav>
 
-        {/* Right: credit */}
-        <div className="whitespace-nowrap">© {new Date().getFullYear()} CS2 Tracker</div>
+        {/* Right copyright */}
+        <div className="text-xs text-muted">© {year} CS2 Tracker</div>
       </div>
     </footer>
   );
