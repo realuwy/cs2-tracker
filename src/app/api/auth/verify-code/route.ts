@@ -5,6 +5,10 @@ import { signToken } from "@/lib/auth";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+window.dispatchEvent(new Event("auth:changed"));
+router.refresh?.();
+router.push("/dashboard");
+
 export async function POST(req: Request) {
   try {
     const { email, code } = await req.json().catch(() => ({}));
