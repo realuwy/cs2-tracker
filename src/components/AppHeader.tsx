@@ -6,6 +6,16 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
+function clearLocalWithConfirm() {
+  if (!confirm("This clears your local inventory on this device. Cloud data stays intact. Continue?")) return;
+  try {
+    const keys = ["cs2:dashboard:rows", "cs2:dashboard:rows:updatedAt"];
+    keys.forEach((k) => localStorage.removeItem(k));
+    window.dispatchEvent(new Event("storage")); // if you listen elsewhere
+    alert("Local inventory cleared.");
+  } catch {}
+}
+
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
   const pathname = usePathname();
   const active = pathname === href || (href !== "/" && pathname?.startsWith(href));
