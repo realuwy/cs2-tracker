@@ -1,51 +1,35 @@
-// src/app/api/auth/verify-code/route.ts
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-// TODO: replace with your real verifier (e.g., Upstash, Supabase, Resend etc.)
-async function verifyCode(email: string, code: string): Promise<boolean> {
-  // Return true if the code matches for that email
-  // Example placeholder:
-  return typeof email === "string" && typeof code === "string" && code.length > 0;
-}
-
-function setSessionCookie(value: string) {
-  const jar = cookies();
-  jar.set({
-    name: "session",
-    value,                // ideally a signed JWT or opaque token
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    secure: true,
-    maxAge: 60 * 60 * 24 * 30, // 30 days
-  });
-}
+type Body = { email?: string; code?: string };
 
 export async function POST(req: Request) {
+  let email = "";
+  let code = "";
   try {
-    const { email, code } = await req.json().catch(() => ({} as any));
-    if (!email || !code) {
-      return NextResponse.json({ ok: false, error: "Missing email or code" }, { status: 400 });
-    }
-
-    const ok = await verifyCode(email, code);
-    if (!ok) {
-      return NextResponse.json({ ok: false, error: "Invalid code" }, { status: 401 });
-    }
-
-    // Create/attach a session for this email
-    // In production, store a proper token; this is a placeholder
-    setSessionCookie(JSON.stringify({ email }));
-
-    return NextResponse.json(
-      { ok: true, email },
-      { headers: { "cache-control": "no-store, max-age=0" } }
-    );
-  } catch (err) {
-    return NextResponse.json({ ok: false, error: "Bad request" }, { status: 400 });
+    const b = (await req.json()) as Body;
+    email = (b.email || "").trim().toLowerCase();
+    code = (b.code || "").trim();
+  } catch {
+    return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
+
+  if (!email || code.length < 6) {
+    return Response.json({ error: "Email or code invalid" }, { status: 400 });
+  }
+
+  // TODO: Validate code against your store. For now, accept any 6+ chars.
+  // If valid, set cookie with the email so the app can read session state.
+  const jar = cookies();
+  jar.set("cs2_email", email, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: true,
+    path: "/",
+    maxAge: 60 * 60 * 24 * 180, // 180 days
+  });
+
+  return Response.json({ ok: true }, { status: 200 });
 }
 
