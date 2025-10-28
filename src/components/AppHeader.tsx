@@ -72,6 +72,41 @@ export default function AppHeader() {
     }
   }
 
+useEffect(() => {
+  // when login completes elsewhere
+  const onAuthChanged = () => {
+    // re-fetch email
+    (async () => {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        const data: { email: string | null } = await res.json();
+        setEmail(data?.email ?? null);
+      } catch {
+        setEmail(null);
+      }
+    })();
+  };
+  window.addEventListener("auth:changed", onAuthChanged);
+  return () => window.removeEventListener("auth:changed", onAuthChanged);
+}, []);
+
+useEffect(() => {
+  // refresh when the tab regains focus or visibility changes
+  const refetch = () =>
+    fetch("/api/auth/me", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setEmail(d?.email ?? null))
+      .catch(() => setEmail(null));
+
+  window.addEventListener("focus", refetch);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") refetch();
+  });
+  return () => {
+    window.removeEventListener("focus", refetch);
+  };
+}, []);
+
   useEffect(() => {
     setCheckingAuth(true);
     refreshAuth();
