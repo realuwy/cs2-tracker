@@ -1,20 +1,16 @@
+// src/app/dashboard/page.tsx
 "use client";
 export const dynamic = "force-dynamic";
 
 /* =============================================================================
-   CS2 Tracker – Dashboard Page (ID-based cloud sync: Upstash KV/Redis)
-   - No Supabase imports/usages
-   - Restores rows from local + remote (by userId), merges, then persists both
-   - Debounced save to local + remote whenever rows change
+   CS2 Tracker – Dashboard (clean compile baseline)
+   - Local-only persistence (we'll add email→cloud sync after compile is green)
+   - Manual add, edit dialog, sorting, price refresh, images
 ============================================================================= */
 
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { InvItem } from "@/lib/api";
-import { getExistingId } from "@/lib/id";
-import { fetchRemoteRows, saveRemoteRows } from "@/lib/rows-sync";
 import BackToTopButton from "@/components/BackToTopButton";
-import { useEmail } from "@/lib/useEmail";
-import { fetchRemoteRowsByEmail, saveRemoteRowsByEmail } from "@/lib/rows-sync";
+
 /* ----------------------------- constants ----------------------------- */
 
 const STORAGE_KEY = "cs2:dashboard:rows";
@@ -33,7 +29,7 @@ type WearCode = (typeof WEAR_OPTIONS)[number]["code"];
 const wearLabel = (code?: string) =>
   WEAR_OPTIONS.find((w) => w.code === code)?.label ?? "";
 
-/** Only for display under item name — hides "(none)". */
+/** Display under item name — hides "(none)". */
 const wearLabelForRow = (code?: WearCode) => (code ? wearLabel(code) : "");
 
 const LABEL_TO_CODE: Record<string, WearCode> = {
@@ -84,51 +80,21 @@ function Pill({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function DashboardPage() {
-  const { email } = useEmail();
-
-  // 1) Restore on mount (merge local + cloud if email)
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const raw = localStorage.getItem("cs2:dashboard:rows");
-      const local: Row[] = normalizeRows(raw ? JSON.parse(raw) : []);
-
-      if (!email) {
-        if (!cancelled) setRows(local);
-        return;
-      }
-
-      const remote = normalizeRows(await fetchRemoteRowsByEmail(email));
-      const merged = mergeLists(local, remote); // your existing merge helper
-      if (!cancelled) setRows(merged);
-
-      // persist back to local + cloud
-      localStorage.setItem("cs2:dashboard:rows", JSON.stringify(merged));
-      localStorage.setItem("cs2:dashboard:rows:updatedAt", String(Date.now()));
-      await saveRemoteRowsByEmail(email, merged);
-    })();
-    return () => { cancelled = true; };
-  }, [email]);
-
-  // 2) Debounced save → always save local; if email, also cloud
-  useEffect(() => {
-    const id = window.setTimeout(async () => {
-      localStorage.setItem("cs2:dashboard:rows", JSON.stringify(rows));
-      localStorage.setItem("cs2:dashboard:rows:updatedAt", String(Date.now()));
-      if (email) await saveRemoteRowsByEmail(email, rows);
-    }, 300);
-    return () => window.clearTimeout(id);
-  }, [rows, email]);
-
-type Row = Omit<InvItem, "pattern" | "float"> & {
+type Row = {
+  market_hash_name: string;
+  name: string;
+  nameNoWear: string;
+  wear?: WearCode;
   pattern?: string;
   float?: string;
+  image: string;
+  inspectLink?: string;
+  quantity?: number;
   skinportAUD?: number;
   steamAUD?: number;
   priceAUD?: number;
   totalAUD?: number;
-  source: "steam" | "manual";
+  source?: "steam" | "manual";
   steamFetchedAt?: number;
 };
 
@@ -142,12 +108,11 @@ function rowKey(r: Row): string {
 
 function mergeRows(rows: Row[]): Row[] {
   const map = new Map<string, Row>();
-
   for (const r0 of rows) {
     const key = rowKey(r0);
     const existing = map.get(key);
     const qAdd = Math.max(1, Number(r0.quantity ?? 1));
-    const spUnit = isMissingNum(r0.skinportAUD) ? undefined : Number(r0.skinportAUD);
+    const spUnit = typeof r0.skinportAUD === "number" ? r0.skinportAUD : undefined;
 
     if (!existing) {
       map.set(key, {
@@ -157,9 +122,8 @@ function mergeRows(rows: Row[]): Row[] {
       });
     } else {
       const qNext = Math.max(1, Number(existing.quantity ?? 1)) + qAdd;
-      const spUnitExisting = isMissingNum(existing.skinportAUD)
-        ? undefined
-        : Number(existing.skinportAUD);
+      const spUnitExisting =
+        typeof existing.skinportAUD === "number" ? existing.skinportAUD : undefined;
       map.set(key, {
         ...existing,
         quantity: qNext,
@@ -168,7 +132,6 @@ function mergeRows(rows: Row[]): Row[] {
       });
     }
   }
-
   return Array.from(map.values());
 }
 
@@ -210,12 +173,10 @@ const cmpWear = (a: string | undefined, b: string | undefined, dir: 1 | -1) => {
 
 function toMarketHash(nameNoWear: string, wear?: WearCode) {
   if (!wear) return nameNoWear;
-  if (!["FN", "MW", "FT", "WW", "BS"].includes(wear)) return nameNoWear;
   const lbl = wearLabel(wear);
   return lbl ? `${nameNoWear} (${lbl})` : nameNoWear;
 }
 
-// Steam must be within [0.5x..3x] of Skinport and not insane
 function sanitizeSteam(aud: number | undefined, skinport?: number): number | undefined {
   if (aud === undefined || !isFinite(aud) || aud <= 0) return undefined;
   if (aud > 20000) return undefined;
@@ -227,7 +188,6 @@ function sanitizeSteam(aud: number | undefined, skinport?: number): number | und
   return aud;
 }
 
-/** Normalize arbitrary data into Row[] safely (prevents type mismatch) */
 function normalizeRows(input: any): Row[] {
   const arr = Array.isArray(input) ? input : [];
   return arr.map((r: any) => ({
@@ -249,40 +209,13 @@ function normalizeRows(input: any): Row[] {
   }));
 }
 
-/** Merge two lists by rowKey; quantities add; keep any defined prices/images */
-function mergeLists(a: Row[], b: Row[]): Row[] {
-  const map = new Map<string, Row>();
-  const add = (r: Row) => {
-    const k = rowKey(r);
-    const ex = map.get(k);
-    if (!ex) {
-      map.set(k, { ...r });
-      return;
-    }
-    const newQty =
-      Math.max(1, Number(ex.quantity ?? 1)) + Math.max(1, Number(r.quantity ?? 1));
-    const priceUnit = ex.skinportAUD ?? r.skinportAUD;
-    map.set(k, {
-      ...ex,
-      quantity: newQty,
-      image: ex.image || r.image || "",
-      skinportAUD: ex.skinportAUD ?? r.skinportAUD,
-      steamAUD: ex.steamAUD ?? r.steamAUD,
-      priceAUD: priceUnit,
-      totalAUD: typeof priceUnit === "number" ? priceUnit * newQty : ex.totalAUD ?? r.totalAUD,
-    });
-  };
-  a.forEach(add);
-  b.forEach(add);
-  return Array.from(map.values());
-}
-
-/* ----------------------------- types ----------------------------- */
+/* ----------------------------- sorting ----------------------------- */
 
 type SortKey = "item" | "wear" | "pattern" | "float" | "qty" | "skinport" | "steam";
 type SortDir = "asc" | "desc";
 type SortState = { key: SortKey; dir: SortDir };
 type SortAction = { type: "toggle"; key: SortKey };
+
 function sortReducer(state: SortState, action: SortAction): SortState {
   if (state.key === action.key) {
     return { key: state.key, dir: state.dir === "asc" ? "desc" : "asc" };
@@ -325,7 +258,6 @@ function EditRowDialog({
     const nameNoWear = stripNone(name.trim() || row.nameNoWear);
     const nonWear = isNonWearCategory(nameNoWear);
     const wearToUse: WearCode = nonWear ? "" : wear;
-
     const mhn = stripNone(toMarketHash(nameNoWear, wearToUse));
     const spAUD = spMap[mhn] ?? spMap[stripNone(mhn)];
     const priceAUD = typeof spAUD === "number" ? spAUD : undefined;
@@ -488,16 +420,7 @@ function RowCard({
             title="Edit"
             onClick={onEdit}
           >
-            <svg
-              viewBox="0 0 24 24"
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-            </svg>
+            ✏️
           </button>
           <button
             type="button"
@@ -505,18 +428,7 @@ function RowCard({
             title="Delete"
             onClick={onDelete}
           >
-            <svg
-              viewBox="0 0 24 24"
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M3 6h18" />
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-              <path d="M10 11v6M14 11v6" />
-              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-            </svg>
+            🗑️
           </button>
         </div>
       </div>
@@ -536,23 +448,6 @@ export default function DashboardPage() {
   const [spMap, setSpMap] = useState<Record<string, number>>({});
   const [sort, dispatchSort] = useReducer(sortReducer, { key: "item", dir: "asc" });
 
-  // device ID for cloud sync
-  const [userId, setUserId] = useState<string | null>(null);
-
-  useEffect(() => {
-    // initial load
-    setUserId(getExistingId());
-
-    // reflect changes broadcast elsewhere in the app
-    const onChange = (e: Event) => {
-      const ce = e as CustomEvent<{ userId?: string }>;
-      setUserId(ce.detail?.userId ?? getExistingId());
-    };
-
-    window.addEventListener("id:changed", onChange as EventListener);
-    return () => window.removeEventListener("id:changed", onChange as EventListener);
-  }, []);
-
   // manual add controls
   const [mName, setMName] = useState("");
   const [mWear, setMWear] = useState<WearCode>("");
@@ -568,78 +463,36 @@ export default function DashboardPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editRow, setEditRow] = useState<Row | null>(null);
 
-  // show back-to-top after scroll
+  /* =========================
+     RESTORE (local only for now)
+     ========================= */
   useEffect(() => {
-    const onScroll = () => setShowBackToTop(window.scrollY > 600);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const local = normalizeRows(raw ? JSON.parse(raw) : []);
+      setRows(local);
+    } catch {
+      setRows([]);
+    }
   }, []);
 
   /* =========================
-     RESTORE + MERGE (local + cloud by userId)
-     ========================= */
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      // 1) local
-      let localRows: Row[] = [];
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        localRows = normalizeRows(raw ? JSON.parse(raw) : []);
-      } catch {}
-
-      // 2) remote
-      let remoteRows: Row[] = [];
-      try {
-        if (userId) {
-          const raw = await fetchRemoteRows(userId);
-          remoteRows = normalizeRows(raw);
-        }
-      } catch {}
-
-      // 3) merge and set
-      const merged = mergeLists(localRows, remoteRows);
-      if (!cancelled) setRows(merged);
-
-      // 4) persist back to both sides
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-        localStorage.setItem(STORAGE_TS_KEY, String(Date.now()));
-      } catch {}
-      try {
-        if (userId) await saveRemoteRows(userId, merged);
-      } catch {}
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
-
-  /* =========================
-     DEBOUNCED SAVE (local + cloud) whenever rows change
+     DEBOUNCED SAVE (local only for now)
      ========================= */
   const saveTimer = useRef<number | null>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
-
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    saveTimer.current = window.setTimeout(async () => {
+    saveTimer.current = window.setTimeout(() => {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
         localStorage.setItem(STORAGE_TS_KEY, String(Date.now()));
       } catch {}
-      try {
-        if (userId) await saveRemoteRows(userId, rows);
-      } catch {}
     }, 300);
-
     return () => {
       if (saveTimer.current) window.clearTimeout(saveTimer.current);
     };
-  }, [rows, userId]);
+  }, [rows]);
 
   /* =========================
      PRICES / IMAGES
@@ -657,6 +510,7 @@ export default function DashboardPage() {
         images?: Record<string, string>;
         updatedAt?: number;
       } = await priceRes.json();
+
       const extraImgData: { images?: Record<string, string> } =
         (await (imgRes as any)?.json?.()) ?? {};
 
@@ -695,11 +549,7 @@ export default function DashboardPage() {
           const img =
             row.image && row.image.trim() !== ""
               ? row.image
-              : findImage(
-                  row.market_hash_name,
-                  row.nameNoWear,
-                  (row.wear as string | undefined)
-                );
+              : findImage(row.market_hash_name, row.nameNoWear, (row.wear as string | undefined));
 
           const saneSteam = sanitizeSteam(row.steamAUD, sp);
 
@@ -725,7 +575,6 @@ export default function DashboardPage() {
   const hydratedNamesRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     let cancelled = false;
-
     (async () => {
       const batch: Array<{ name: string; idx: number }> = [];
       for (let i = 0; i < rows.length && batch.length < 6; i++) {
@@ -740,32 +589,25 @@ export default function DashboardPage() {
 
       for (const { name, idx } of batch) {
         try {
-          const resp = await fetch(
-            `/api/images/by-name?name=${encodeURIComponent(name)}`
-          );
+          const resp = await fetch(`/api/images/by-name?name=${encodeURIComponent(name)}`);
           const data: { url: string | null } = await resp.json();
           if (cancelled) return;
 
           if (typeof data.url === "string" && data.url.length > 0) {
             const url = data.url;
             setRows((prev) =>
-              prev.map((row, i) => {
-                if (i === idx) return { ...row, image: url };
-                if ((row as any).image == null) return { ...row, image: "" };
-                return row;
-              })
+              prev.map((row, i) => (i === idx ? { ...row, image: url } : row))
             );
           }
         } catch {}
       }
     })();
-
     return () => {
       cancelled = true;
     };
   }, [rows]);
 
-  // steam backfill (by name)
+  // Steam price backfill
   const pricesFetchingRef = useRef(false);
   async function backfillSomeSteamPrices(max = 8) {
     if (pricesFetchingRef.current) return;
@@ -799,9 +641,7 @@ export default function DashboardPage() {
 
           for (const name of variants) {
             try {
-              const resp = await fetch(
-                `/api/prices/steam?name=${encodeURIComponent(name)}`
-              );
+              const resp = await fetch(`/api/prices/steam?name=${encodeURIComponent(name)}`);
               const data: { aud?: number | null } = await resp.json();
               const parsed = typeof data?.aud === "number" ? data.aud : undefined;
               const sane = sanitizeSteam(parsed, r.skinportAUD);
@@ -854,41 +694,21 @@ export default function DashboardPage() {
     copy.sort((a, b) => {
       let c = 0;
       switch (sort.key) {
-        case "item":
-          c = cmpStr(a.nameNoWear, b.nameNoWear, dir);
-          break;
-        case "wear":
-          c = cmpWear(a.wear as string, b.wear as string, dir);
-          break;
-        case "pattern":
-          c = cmpNum(a.pattern, b.pattern, dir);
-          break;
-        case "float":
-          c = cmpNum(a.float, b.float, dir);
-          break;
-        case "qty":
-          c = cmpNum(a.quantity, b.quantity, dir);
-          break;
-        case "skinport":
-          c = cmpNum(a.skinportAUD, b.skinportAUD, dir);
-          break;
-        case "steam":
-          c = cmpNum(a.steamAUD, b.steamAUD, dir);
-          break;
+        case "item": c = cmpStr(a.nameNoWear, b.nameNoWear, dir); break;
+        case "wear": c = cmpWear(a.wear as string, b.wear as string, dir); break;
+        case "pattern": c = cmpNum(a.pattern, b.pattern, dir); break;
+        case "float": c = cmpNum(a.float, b.float, dir); break;
+        case "qty": c = cmpNum(a.quantity, b.quantity, dir); break;
+        case "skinport": c = cmpNum(a.skinportAUD, b.skinportAUD, dir); break;
+        case "steam": c = cmpNum(a.steamAUD, b.steamAUD, dir); break;
       }
       if (c === 0) c = cmpStr(a.nameNoWear, b.nameNoWear, 1);
       return c;
     });
 
     const totalItems = copy.reduce((acc, r) => acc + (r.quantity ?? 1), 0);
-    const totalSkinport = copy.reduce(
-      (s, r) => s + (r.skinportAUD ?? 0) * (r.quantity ?? 1),
-      0
-    );
-    const totalSteam = copy.reduce(
-      (s, r) => s + (r.steamAUD ?? 0) * (r.quantity ?? 1),
-      0
-    );
+    const totalSkinport = copy.reduce((s, r) => s + (r.skinportAUD ?? 0) * (r.quantity ?? 1), 0);
+    const totalSteam = copy.reduce((s, r) => s + (r.steamAUD ?? 0) * (r.quantity ?? 1), 0);
 
     return [copy, { totalItems, totalSkinport, totalSteam }] as const;
   }, [rows, sort]);
@@ -903,16 +723,12 @@ export default function DashboardPage() {
     const WEAR_TAIL =
       /\s+\((Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)\)\s*$/i;
     const stripWearAndNone = (s: string) => stripNone(s).replace(WEAR_TAIL, "");
-
     const set = new Set<string>();
-
     Object.keys(spMap).forEach((k) => set.add(stripWearAndNone(k)));
-
     rows.forEach((r) => {
       if (r.market_hash_name) set.add(stripWearAndNone(r.market_hash_name));
       if (r.nameNoWear) set.add(stripWearAndNone(r.nameNoWear));
     });
-
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [spMap, rows]);
 
@@ -942,6 +758,13 @@ export default function DashboardPage() {
   }
 
   /* ----------------------------- render ----------------------------- */
+
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > 600);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll as any);
+  }, []);
 
   if (!ready) return null;
 
@@ -1016,9 +839,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="mb-1 block text-[11px] tracking-wide text-muted">
-                Float (note)
-              </label>
+              <label className="mb-1 block text-[11px] tracking-wide text-muted">Float (note)</label>
               <input
                 className="h-12 w-full rounded-xl border border-border bg-surface2 px-3 text-sm placeholder:text-muted outline-none focus:border-accent/60 focus:ring-2 focus:ring-accent/30 transition"
                 placeholder="0.1234"
@@ -1028,9 +849,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="mb-1 block text-[11px] tracking-wide text-muted">
-                Pattern (note)
-              </label>
+              <label className="mb-1 block text-[11px] tracking-wide text-muted">Pattern (note)</label>
               <input
                 className="h-12 w-full rounded-xl border border-border bg-surface2 px-3 text-sm placeholder:text-muted outline-none focus:border-accent/60 focus:ring-2 focus:ring-accent/30 transition"
                 placeholder="123"
@@ -1042,9 +861,7 @@ export default function DashboardPage() {
             <div className="md:col-span-12">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="w-44">
-                  <label className="mb-1 block text-[11px] tracking-wide text-muted">
-                    Quantity
-                  </label>
+                  <label className="mb-1 block text-[11px] tracking-wide text-muted">Quantity</label>
                   <div className="flex h-12 items-stretch overflow-hidden rounded-xl border border-border bg-surface2">
                     <button
                       type="button"
@@ -1075,13 +892,7 @@ export default function DashboardPage() {
                   className="btn-accent h-12 flex-1 disabled:opacity-60"
                 >
                   <span className="inline-flex w-full items-center justify-center gap-2 font-medium">
-                    <svg
-                      className="h-4 w-4"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M12 5v14M5 12h14" />
                     </svg>
                     Add
@@ -1151,8 +962,7 @@ export default function DashboardPage() {
               <div className="text-xs uppercase tracking-wide text-muted">Skinport total</div>
               <div className="mt-1 text-xl font-medium">A${totals.totalSkinport.toFixed(2)}</div>
               <div className="mt-1 text-xs text-muted">
-                {rows.filter((r) => typeof r.skinportAUD === "number").length}/{rows.length} priced •{" "}
-                {formatTime(skinportUpdatedAt)}
+                {rows.filter((r) => typeof r.skinportAUD === "number").length}/{rows.length} priced • {formatTime(skinportUpdatedAt)}
               </div>
             </div>
 
@@ -1160,8 +970,7 @@ export default function DashboardPage() {
               <div className="text-xs uppercase tracking-wide text-muted">Steam total</div>
               <div className="mt-1 text-xl font-medium">A${totals.totalSteam.toFixed(2)}</div>
               <div className="mt-1 text-xs text-muted">
-                {rows.filter((r) => typeof r.steamAUD === "number").length}/{rows.length} priced •{" "}
-                {formatTime(steamUpdatedAt)}
+                {rows.filter((r) => typeof r.steamAUD === "number").length}/{rows.length} priced • {formatTime(steamUpdatedAt)}
               </div>
             </div>
           </div>
@@ -1285,16 +1094,7 @@ export default function DashboardPage() {
                             setEditOpen(true);
                           }}
                         >
-                          <svg
-                            viewBox="0 0 24 24"
-                            className="h-4 w-4"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M12 20h9" />
-                            <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                          </svg>
+                          ✏️
                         </button>
 
                         <button
@@ -1303,18 +1103,7 @@ export default function DashboardPage() {
                           title="Delete"
                           onClick={() => removeRow(orig)}
                         >
-                          <svg
-                            viewBox="0 0 24 24"
-                            className="h-4 w-4"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M3 6h18" />
-                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                            <path d="M10 11v6M14 11v6" />
-                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                          </svg>
+                          🗑️
                         </button>
                       </div>
                     </td>
@@ -1380,6 +1169,7 @@ export default function DashboardPage() {
     const market_hash_name = stripNone(toMarketHash(nameNoWear, wearToUse));
     const spAUD = spMap[market_hash_name] ?? spMap[stripNone(market_hash_name)];
     const priceAUD = typeof spAUD === "number" ? spAUD : undefined;
+
     const newRow: Row = {
       market_hash_name,
       name: market_hash_name,
@@ -1395,6 +1185,7 @@ export default function DashboardPage() {
       totalAUD: priceAUD ? priceAUD * mQty : undefined,
       source: "manual",
     };
+
     setRows((r) => mergeRows([newRow, ...r]));
     setMName("");
     setMWear("");
@@ -1406,5 +1197,8 @@ export default function DashboardPage() {
   function removeRow(idx: number) {
     setRows((r) => r.filter((_, i) => i !== idx));
   }
+
+  // TODO: when email is present, merge local with cloud, then save to both sides
+  // TODO: debounce save to cloud (email) + local
 }
 
