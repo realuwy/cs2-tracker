@@ -13,7 +13,8 @@ import { InvItem } from "@/lib/api";
 import { getExistingId } from "@/lib/id";
 import { fetchRemoteRows, saveRemoteRows } from "@/lib/rows-sync";
 import BackToTopButton from "@/components/BackToTopButton";
-
+import { useEmail } from "@/lib/useEmail";
+import { fetchRemoteRowsByEmail, saveRemoteRowsByEmail } from "@/lib/rows-sync";
 /* ----------------------------- constants ----------------------------- */
 
 const STORAGE_KEY = "cs2:dashboard:rows";
@@ -82,6 +83,43 @@ function Pill({ children }: { children: React.ReactNode }) {
     </span>
   );
 }
+
+export default function DashboardPage() {
+  const { email } = useEmail();
+
+  // 1) Restore on mount (merge local + cloud if email)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const raw = localStorage.getItem("cs2:dashboard:rows");
+      const local: Row[] = normalizeRows(raw ? JSON.parse(raw) : []);
+
+      if (!email) {
+        if (!cancelled) setRows(local);
+        return;
+      }
+
+      const remote = normalizeRows(await fetchRemoteRowsByEmail(email));
+      const merged = mergeLists(local, remote); // your existing merge helper
+      if (!cancelled) setRows(merged);
+
+      // persist back to local + cloud
+      localStorage.setItem("cs2:dashboard:rows", JSON.stringify(merged));
+      localStorage.setItem("cs2:dashboard:rows:updatedAt", String(Date.now()));
+      await saveRemoteRowsByEmail(email, merged);
+    })();
+    return () => { cancelled = true; };
+  }, [email]);
+
+  // 2) Debounced save → always save local; if email, also cloud
+  useEffect(() => {
+    const id = window.setTimeout(async () => {
+      localStorage.setItem("cs2:dashboard:rows", JSON.stringify(rows));
+      localStorage.setItem("cs2:dashboard:rows:updatedAt", String(Date.now()));
+      if (email) await saveRemoteRowsByEmail(email, rows);
+    }, 300);
+    return () => window.clearTimeout(id);
+  }, [rows, email]);
 
 type Row = Omit<InvItem, "pattern" | "float"> & {
   pattern?: string;
