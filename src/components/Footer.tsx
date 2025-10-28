@@ -51,7 +51,7 @@ export default function SiteFooter() {
                 rel="noopener noreferrer"
                 className="hover:text-accent transition-colors"
               >
-                Follow on Twitter
+                X
               </a>
             </li>
           </ul>
