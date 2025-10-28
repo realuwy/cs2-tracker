@@ -46,7 +46,7 @@ export default function SiteFooter() {
             </li>
             <li>
               <a
-                href="https://x.com/im_uwy"
+                href=""
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-accent transition-colors"
