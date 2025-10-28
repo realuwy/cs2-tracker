@@ -2,28 +2,34 @@
 
 const ID_KEY = "cs2:userId";
 
-/** Returns existing ID or creates & stores a new one. */
+/** Read the existing ID without creating one. Returns null if none. */
+export function peekUserId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const v = localStorage.getItem(ID_KEY);
+    return v && v.trim() ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Create a fresh new ID (does NOT store it). */
+export function generateNewId(): string {
+  return (typeof crypto !== "undefined" && "randomUUID" in crypto)
+    ? crypto.randomUUID()
+    : "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+}
+
+/** Returns existing ID or creates & stores a new one (for flows that need it now). */
 export function getExistingId(): string {
-  if (typeof window === "undefined") {
-    // SSR safety: generate a deterministic placeholder (not persisted)
-    return "server-" + "xxxxxxxxxxxx".replace(/x/g, () =>
-      Math.floor(Math.random() * 16).toString(16)
-    );
-  }
+  const existing = peekUserId();
+  if (existing) return existing;
 
-  let id = localStorage.getItem(ID_KEY);
-  if (!id || id.trim() === "") {
-    id = (typeof crypto !== "undefined" && "randomUUID" in crypto)
-      ? crypto.randomUUID()
-      : "id-" +
-        Date.now().toString(36) +
-        "-" +
-        Math.random().toString(36).slice(2, 8);
-
-    try {
-      localStorage.setItem(ID_KEY, id);
-    } catch {}
-  }
+  // Only runs on client
+  const id = generateNewId();
+  try {
+    localStorage.setItem(ID_KEY, id);
+  } catch {}
   return id;
 }
 
@@ -61,7 +67,7 @@ export function clearAllLocalData() {
     toDelete.forEach((k) => localStorage.removeItem(k));
   } catch {}
 
-  // Also clear user id key if it exists but not prefixed (safety)
+  // Also clear user id key explicitly
   try {
     localStorage.removeItem(ID_KEY);
   } catch {}
@@ -71,5 +77,8 @@ export function clearAllLocalData() {
   } catch {}
 }
 
+/* -------------------------------------------------------------------------- */
+/* Back-compat: older code imported `getUserId`                                */
+/* -------------------------------------------------------------------------- */
 export { getExistingId as getUserId };
 
