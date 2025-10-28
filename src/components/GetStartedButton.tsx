@@ -2,7 +2,6 @@
 
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { getExistingId } from "@/lib/id";
 
 export default function GetStartedButton({
   className = "btn-accent",
@@ -12,11 +11,7 @@ export default function GetStartedButton({
   const router = useRouter();
 
   const onClick = useCallback(() => {
-    const userId = getExistingId();
-    try {
-      window.dispatchEvent(new CustomEvent("id:changed", { detail: { userId } }));
-    } catch {}
-    router.push("/dashboard");
+    router.push("/login"); // email sign-in page
   }, [router]);
 
   return (
