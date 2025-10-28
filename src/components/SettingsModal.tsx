@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { clearAllLocalData, getUserId } from "@/lib/id";
+import { clearAllLocalData } from "@/lib/id";
 
 type Props = {
   open: boolean;
@@ -135,6 +135,14 @@ export default function SettingsModal({ open, onClose }: Props) {
       ev.currentTarget.value = "";
     }
   }
+async function resendCode() {
+  try {
+    await fetch("/api/auth/resend", { method: "POST" });
+    alert("Verification email sent again. Check your inbox.");
+  } catch {
+    alert("Could not send email. Try again.");
+  }
+}
 
   function resetAll() {
     clearAllLocalData();
