@@ -1,4 +1,3 @@
-// src/components/AppHeader.tsx
 "use client";
 
 import Link from "next/link";
@@ -7,20 +6,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
 function clearLocalWithConfirm() {
-  if (
-    !confirm(
-      "This clears your local inventory on this device. Cloud data (for signed-in email) stays intact. Continue?"
-    )
-  )
-    return;
+  if (!confirm("This clears your local inventory on this device. Cloud data (for signed-in email) stays intact. Continue?")) return;
   try {
     const keys = ["cs2:dashboard:rows", "cs2:dashboard:rows:updatedAt"];
     keys.forEach((k) => localStorage.removeItem(k));
     window.dispatchEvent(new Event("storage"));
     alert("Local inventory cleared.");
-  } catch {
-    // ignore
-  }
+  } catch {}
 }
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
@@ -69,14 +61,12 @@ export default function AppHeader() {
 
   const [email, setEmail] = useState<string | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
-
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
 
   const menuRef = useRef<HTMLDivElement | null>(null);
   const acctRef = useRef<HTMLDivElement | null>(null);
 
-  // Fetch current auth (email) from server
   const refreshAuth = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/me", { cache: "no-store" });
@@ -89,25 +79,17 @@ export default function AppHeader() {
     }
   }, []);
 
-  // Initial load + on route change
   useEffect(() => {
     setCheckingAuth(true);
     refreshAuth();
   }, [refreshAuth, pathname]);
 
-  // React to successful login/logout elsewhere
   useEffect(() => {
-    const onAuthChanged = () => {
-      refreshAuth();
-      try {
-        router.refresh?.();
-      } catch {}
-    };
+    const onAuthChanged = () => refreshAuth();
     window.addEventListener("auth:changed", onAuthChanged);
     return () => window.removeEventListener("auth:changed", onAuthChanged);
-  }, [refreshAuth, router]);
+  }, [refreshAuth]);
 
-  // Refresh when tab regains focus / becomes visible
   useEffect(() => {
     const refetch = () => refreshAuth();
     const onVis = () => {
@@ -121,7 +103,6 @@ export default function AppHeader() {
     };
   }, [refreshAuth]);
 
-  // click-outside to close menus
   useEffect(() => {
     const closeOnOutside = (e: MouseEvent) => {
       const t = e.target as Node;
@@ -135,13 +116,10 @@ export default function AppHeader() {
   async function logoutEmail() {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
-    } catch {
-      // ignore
-    } finally {
-      setEmail(null);
-      window.dispatchEvent(new Event("auth:changed"));
-      router.refresh();
-    }
+    } catch {}
+    setEmail(null);
+    window.dispatchEvent(new Event("auth:changed"));
+    router.refresh();
   }
 
   async function resendCode() {
@@ -163,7 +141,6 @@ export default function AppHeader() {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
-        {/* brand */}
         <Link
           href="/"
           aria-label="CS2 Tracker home"
@@ -179,13 +156,10 @@ export default function AppHeader() {
           />
           <span className="inline-flex items-center gap-2">
             <span className="text-sm font-semibold tracking-wide text-text">CS2 Tracker</span>
-            <span className="rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent">
-              alpha
-            </span>
+            <span className="rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent">alpha</span>
           </span>
         </Link>
 
-        {/* center nav (desktop) */}
         <nav className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 md:block">
           <ul className="flex items-center gap-8 text-sm text-text">
             <li><NavLink href="/">Home</NavLink></li>
@@ -195,9 +169,7 @@ export default function AppHeader() {
           </ul>
         </nav>
 
-        {/* right actions */}
         <div className="flex items-center gap-2">
-          {/* account dropdown */}
           <div className="relative" ref={acctRef}>
             <button
               type="button"
@@ -213,10 +185,7 @@ export default function AppHeader() {
             </button>
 
             {accountOpen && (
-              <div
-                role="menu"
-                className="absolute right-0 mt-2 w-80 rounded-xl border border-border bg-surface p-2 shadow-xl"
-              >
+              <div role="menu" className="absolute right-0 mt-2 w-80 rounded-xl border border-border bg-surface p-2 shadow-xl">
                 <div className="px-2 pb-2 pt-1 text-[10px] uppercase tracking-wider text-muted">
                   {email ? "Signed in" : "Sign in"}
                 </div>
@@ -232,41 +201,19 @@ export default function AppHeader() {
 
                     <hr className="my-2 border-border/70" />
 
-                    <button
-                      role="menuitem"
-                      className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                      onClick={() => {
-                        setAccountOpen(false);
-                        router.push("/dashboard");
-                      }}
-                    >
+                    <button className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70" onClick={() => router.push("/dashboard")}>
                       Open dashboard
                     </button>
 
-                    <button
-                      role="menuitem"
-                      className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                      onClick={resendCode}
-                    >
+                    <button className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70" onClick={resendCode}>
                       Resend verification email
                     </button>
 
-                    <button
-                      role="menuitem"
-                      className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                      onClick={() => {
-                        setAccountOpen(false);
-                        clearLocalWithConfirm();
-                      }}
-                    >
+                    <button className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70" onClick={clearLocalWithConfirm}>
                       Clear local data
                     </button>
 
-                    <button
-                      role="menuitem"
-                      className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-red-300 hover:bg-red-400/10"
-                      onClick={logoutEmail}
-                    >
+                    <button className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-red-300 hover:bg-red-400/10" onClick={logoutEmail}>
                       Sign out
                     </button>
                   </>
@@ -277,79 +224,21 @@ export default function AppHeader() {
                       className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
                       onClick={() => {
                         setAccountOpen(false);
-                        router.push("/login");
+                        window.dispatchEvent(new Event("auth:open")); // 🔥 opens modal instead of navigating
                       }}
                     >
                       Sign in with email
                     </button>
 
-                    <button
-                      role="menuitem"
-                      className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                      onClick={() => {
-                        setAccountOpen(false);
-                        clearLocalWithConfirm();
-                      }}
-                    >
+                    <button className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70" onClick={clearLocalWithConfirm}>
                       Clear local data
                     </button>
 
-                    <button
-                      role="menuitem"
-                      className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-amber-300 hover:bg-amber-400/10"
-                      onClick={resendCode}
-                    >
+                    <button className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-amber-300 hover:bg-amber-400/10" onClick={resendCode}>
                       Resend verification email
                     </button>
                   </>
                 )}
-              </div>
-            )}
-          </div>
-
-          {/* mobile dots menu */}
-          <div className="relative md:hidden" ref={menuRef}>
-            <DotsButton onClick={() => setMenuOpen((v) => !v)} aria-label="Open menu" />
-            {menuOpen && (
-              <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-surface p-2 shadow-xl">
-                <ul className="space-y-1 text-sm">
-                  <li>
-                    <Link
-                      href="/"
-                      className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Home
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/dashboard"
-                      className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Dashboard
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/about"
-                      className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      About
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/privacy"
-                      className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Privacy
-                    </Link>
-                  </li>
-                </ul>
               </div>
             )}
           </div>
