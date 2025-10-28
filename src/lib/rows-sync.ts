@@ -1,25 +1,19 @@
-// src/lib/rows-sync.ts
-export type Rows = any[];
+export type Row = any; // keep your Row type import if you have it
 
-/** Fetch remote rows for an id. Returns [] if none. */
-export async function fetchRemoteRows(id: string): Promise<Rows> {
-  const res = await fetch(`/api/rows/get?id=${encodeURIComponent(id)}`, {
-    cache: "no-store",
-  });
+const KS = { cloudKeyFor(email: string) { return `cs2:rows:${email.toLowerCase()}`; } };
+
+// --- Direct Upstash REST via your existing API proxy (adjust if needed)
+export async function fetchRemoteRowsByEmail(email: string): Promise<Row[]> {
+  const res = await fetch(`/api/rows/get?email=${encodeURIComponent(email)}`, { cache: "no-store" });
   if (!res.ok) return [];
-  const j = await res.json();
-  return Array.isArray(j?.rows) ? j.rows : [];
+  const data = await res.json().catch(() => ({}));
+  return Array.isArray(data?.rows) ? data.rows : [];
 }
 
-/** Save rows for an id (fire-and-forget safe). */
-export async function saveRemoteRows(id: string, rows: Rows): Promise<void> {
-  try {
-    await fetch(`/api/rows/set`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id, rows }),
-    });
-  } catch {
-    // ignore network errors; we'll retry on next edit
-  }
+export async function saveRemoteRowsByEmail(email: string, rows: Row[]): Promise<void> {
+  await fetch(`/api/rows/set`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email, rows }),
+  }).catch(() => {});
 }
