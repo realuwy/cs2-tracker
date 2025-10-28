@@ -3,17 +3,24 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
 function clearLocalWithConfirm() {
-  if (!confirm("This clears your local inventory on this device. Cloud data stays intact. Continue?")) return;
+  if (
+    !confirm(
+      "This clears your local inventory on this device. Cloud data (for signed-in email) stays intact. Continue?"
+    )
+  )
+    return;
   try {
     const keys = ["cs2:dashboard:rows", "cs2:dashboard:rows:updatedAt"];
     keys.forEach((k) => localStorage.removeItem(k));
-    window.dispatchEvent(new Event("storage")); // if you listen elsewhere
+    window.dispatchEvent(new Event("storage"));
     alert("Local inventory cleared.");
-  } catch {}
+  } catch {
+    // ignore
+  }
 }
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
@@ -69,8 +76,8 @@ export default function AppHeader() {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const acctRef = useRef<HTMLDivElement | null>(null);
 
-  // Load auth (email only)
-  async function refreshAuth() {
+  // Fetch current auth (email) from server
+  const refreshAuth = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/me", { cache: "no-store" });
       const data: { email: string | null } = await res.json();
@@ -80,51 +87,39 @@ export default function AppHeader() {
     } finally {
       setCheckingAuth(false);
     }
-  }
+  }, []);
 
-useEffect(() => {
-  // when login completes elsewhere
-  const onAuthChanged = () => {
-    // re-fetch email
-    (async () => {
-      try {
-        const res = await fetch("/api/auth/me", { cache: "no-store" });
-        const data: { email: string | null } = await res.json();
-        setEmail(data?.email ?? null);
-      } catch {
-        setEmail(null);
-      }
-    })();
-  };
-  window.addEventListener("auth:changed", onAuthChanged);
-  return () => window.removeEventListener("auth:changed", onAuthChanged);
-}, []);
-
-useEffect(() => {
-  // refresh when the tab regains focus or visibility changes
-  const refetch = () =>
-    fetch("/api/auth/me", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => setEmail(d?.email ?? null))
-      .catch(() => setEmail(null));
-
-  window.addEventListener("focus", refetch);
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") refetch();
-  });
-  return () => {
-    window.removeEventListener("focus", refetch);
-  };
-}, []);
-
+  // Initial load + on route change
   useEffect(() => {
     setCheckingAuth(true);
     refreshAuth();
-  }, []);
+  }, [refreshAuth, pathname]);
 
+  // React to successful login/logout elsewhere
   useEffect(() => {
-    refreshAuth();
-  }, [pathname]);
+    const onAuthChanged = () => {
+      refreshAuth();
+      try {
+        router.refresh?.();
+      } catch {}
+    };
+    window.addEventListener("auth:changed", onAuthChanged);
+    return () => window.removeEventListener("auth:changed", onAuthChanged);
+  }, [refreshAuth, router]);
+
+  // Refresh when tab regains focus / becomes visible
+  useEffect(() => {
+    const refetch = () => refreshAuth();
+    const onVis = () => {
+      if (document.visibilityState === "visible") refetch();
+    };
+    window.addEventListener("focus", refetch);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("focus", refetch);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [refreshAuth]);
 
   // click-outside to close menus
   useEffect(() => {
@@ -140,14 +135,19 @@ useEffect(() => {
   async function logoutEmail() {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // ignore
+    } finally {
       setEmail(null);
+      window.dispatchEvent(new Event("auth:changed"));
       router.refresh();
-    } catch {}
+    }
   }
 
   async function resendCode() {
     try {
-      await fetch("/api/auth/resend", { method: "POST" });
+      const res = await fetch("/api/auth/resend", { method: "POST" });
+      if (!res.ok) throw new Error();
       alert("Verification email sent again. Check your inbox.");
     } catch {
       alert("Could not send email. Try again shortly.");
@@ -213,7 +213,10 @@ useEffect(() => {
             </button>
 
             {accountOpen && (
-              <div role="menu" className="absolute right-0 mt-2 w-80 rounded-xl border border-border bg-surface p-2 shadow-xl">
+              <div
+                role="menu"
+                className="absolute right-0 mt-2 w-80 rounded-xl border border-border bg-surface p-2 shadow-xl"
+              >
                 <div className="px-2 pb-2 pt-1 text-[10px] uppercase tracking-wider text-muted">
                   {email ? "Signed in" : "Sign in"}
                 </div>
@@ -232,17 +235,31 @@ useEffect(() => {
                     <button
                       role="menuitem"
                       className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                      onClick={() => router.push("/dashboard")}
+                      onClick={() => {
+                        setAccountOpen(false);
+                        router.push("/dashboard");
+                      }}
                     >
                       Open dashboard
                     </button>
 
                     <button
                       role="menuitem"
-                      className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-amber-300 hover:bg-amber-400/10"
+                      className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
                       onClick={resendCode}
                     >
                       Resend verification email
+                    </button>
+
+                    <button
+                      role="menuitem"
+                      className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
+                      onClick={() => {
+                        setAccountOpen(false);
+                        clearLocalWithConfirm();
+                      }}
+                    >
+                      Clear local data
                     </button>
 
                     <button
@@ -258,10 +275,25 @@ useEffect(() => {
                     <button
                       role="menuitem"
                       className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                      onClick={() => { setAccountOpen(false); router.push("/login"); }}
+                      onClick={() => {
+                        setAccountOpen(false);
+                        router.push("/login");
+                      }}
                     >
                       Sign in with email
                     </button>
+
+                    <button
+                      role="menuitem"
+                      className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
+                      onClick={() => {
+                        setAccountOpen(false);
+                        clearLocalWithConfirm();
+                      }}
+                    >
+                      Clear local data
+                    </button>
+
                     <button
                       role="menuitem"
                       className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-amber-300 hover:bg-amber-400/10"
@@ -281,10 +313,42 @@ useEffect(() => {
             {menuOpen && (
               <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-surface p-2 shadow-xl">
                 <ul className="space-y-1 text-sm">
-                  <li><Link href="/" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>Home</Link></li>
-                  <li><Link href="/dashboard" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>Dashboard</Link></li>
-                  <li><Link href="/about" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>About</Link></li>
-                  <li><Link href="/privacy" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>Privacy</Link></li>
+                  <li>
+                    <Link
+                      href="/"
+                      className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Home
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/dashboard"
+                      className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Dashboard
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/about"
+                      className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      About
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/privacy"
+                      className="block rounded-lg px-3 py-2 hover:bg-surface2/70"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Privacy
+                    </Link>
+                  </li>
                 </ul>
               </div>
             )}
