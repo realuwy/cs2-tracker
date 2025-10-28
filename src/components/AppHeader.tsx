@@ -5,13 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import {
-  peekUserId,        // read-only, no auto-create
-  getExistingId,     // create on demand
-  generateNewId,     // explicit new id
-  setUserId,
-  clearAllLocalData,
-} from "@/lib/id";
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
   const pathname = usePathname();
@@ -57,144 +50,70 @@ export default function AppHeader() {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Email auth state (server-driven)
   const [email, setEmail] = useState<string | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
-  // Guest ID state (local-only, used when no email session)
-  const [guestId, setGuestId] = useState<string | null>(null);
-
-  // UI state
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [showQr, setShowQr] = useState(false);
-  const [qrUrl, setQrUrl] = useState<string | null>(null);
 
   const menuRef = useRef<HTMLDivElement | null>(null);
   const acctRef = useRef<HTMLDivElement | null>(null);
 
-  // Load initial auth + guest state (peek only — DO NOT create here)
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setCheckingAuth(true);
-      try {
-        const res = await fetch("/api/auth/me", { cache: "no-store" });
-        const data: { email: string | null } = await res.json();
-        if (!cancelled) setEmail(data?.email ?? null);
-      } catch {
-        if (!cancelled) setEmail(null);
-      } finally {
-        if (!cancelled) setCheckingAuth(false);
-      }
+  // Load auth (email only)
+  async function refreshAuth() {
+    try {
+      const res = await fetch("/api/auth/me", { cache: "no-store" });
+      const data: { email: string | null } = await res.json();
+      setEmail(data?.email ?? null);
+    } catch {
+      setEmail(null);
+    } finally {
+      setCheckingAuth(false);
+    }
+  }
 
-      // reflect local guest ID but don't create one
-      setGuestId(peekUserId());
-    })();
-    return () => {
-      cancelled = true;
-    };
+  useEffect(() => {
+    setCheckingAuth(true);
+    refreshAuth();
   }, []);
 
-  // Refresh on route change (useful after verify redirect)
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/auth/me", { cache: "no-store" });
-        const data: { email: string | null } = await res.json();
-        setEmail(data?.email ?? null);
-      } catch {
-        setEmail(null);
-      }
-      setGuestId(peekUserId()); // still peek, do not create
-    })();
+    refreshAuth();
   }, [pathname]);
-
-  // React to ID changes fired elsewhere
-  useEffect(() => {
-    const onChange = (e: any) => setGuestId(e?.detail?.userId ?? peekUserId());
-    window.addEventListener("id:changed", onChange);
-    return () => window.removeEventListener("id:changed", onChange);
-  }, []);
 
   // click-outside to close menus
   useEffect(() => {
     const closeOnOutside = (e: MouseEvent) => {
       const t = e.target as Node;
       if (menuOpen && menuRef.current && !menuRef.current.contains(t)) setMenuOpen(false);
-      if (accountOpen && acctRef.current && !acctRef.current.contains(t)) {
-        setAccountOpen(false);
-        setShowQr(false);
-      }
+      if (accountOpen && acctRef.current && !acctRef.current.contains(t)) setAccountOpen(false);
     };
     window.addEventListener("mousedown", closeOnOutside);
     return () => window.removeEventListener("mousedown", closeOnOutside);
   }, [menuOpen, accountOpen]);
 
-  // Generate QR for guest ID only (email users don’t need QR)
-  useEffect(() => {
-    let mounted = true;
-    async function makeQr() {
-      if (!accountOpen || !!email || !guestId) return;
-      try {
-        const { toDataURL } = await import("qrcode");
-        const site =
-          typeof window !== "undefined"
-            ? `${location.protocol}//${location.host}`
-            : "https://cs2tracker.app";
-        const url = await toDataURL(`${site}/open?guest=${encodeURIComponent(guestId)}`, {
-          width: 160,
-          margin: 1,
-        });
-        if (mounted) setQrUrl(url);
-      } catch {
-        if (mounted) setQrUrl(null);
-      }
-    }
-    makeQr();
-    return () => {
-      mounted = false;
-    };
-  }, [accountOpen, email, guestId]);
-
-  const openOnboarding = (tab?: "create" | "paste" | "recover") =>
-    window.dispatchEvent(new CustomEvent("onboard:open", { detail: { tab } }));
-
-  // Guest-only helpers
-  function copyId() {
-    if (!guestId) return;
-    navigator.clipboard.writeText(guestId);
-  }
-
-  function replaceId() {
-    const next = generateNewId();
-    setUserId(next);   // persists + broadcasts "id:changed"
-    setGuestId(next);  // update local state immediately
-  }
-
-  function resetLocal() {
-    clearAllLocalData();
-    setGuestId(null);
-    router.push("/");
-    openOnboarding("create");
-  }
-
   async function logoutEmail() {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
       setEmail(null);
-      // keep any local guest ID
+      router.refresh();
+    } catch {}
+  }
+
+  async function resendCode() {
+    try {
+      await fetch("/api/auth/resend", { method: "POST" });
+      alert("Verification email sent again. Check your inbox.");
     } catch {
-      // ignore
+      alert("Could not send email. Try again shortly.");
     }
   }
 
-  // Simpler label: never “ID ready” on first load
   const accountLabel = email
     ? `Account  ${email}`
     : checkingAuth
     ? "Account  …"
-    : "Account  Guest";
+    : "Account  Sign in";
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
@@ -237,25 +156,24 @@ export default function AppHeader() {
           <div className="relative" ref={acctRef}>
             <button
               type="button"
-              onClick={() => { setAccountOpen((v) => !v); if (accountOpen) setShowQr(false); }}
+              onClick={() => setAccountOpen((v) => !v)}
               aria-haspopup="menu"
               aria-expanded={accountOpen}
               className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface2/70 px-3 py-1.5 text-sm hover:bg-surface transition focus:outline-none focus:ring-2 focus:ring-accent/30"
             >
               <span>{accountLabel}</span>
-              <svg viewBox="0 0 24 24" width={14} height={14} className="opacity-70">
-                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              <svg viewBox="0 0 24 24" width="14" height="14" className="opacity-70">
+                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
 
             {accountOpen && (
               <div role="menu" className="absolute right-0 mt-2 w-80 rounded-xl border border-border bg-surface p-2 shadow-xl">
                 <div className="px-2 pb-2 pt-1 text-[10px] uppercase tracking-wider text-muted">
-                  {email ? "Signed in" : "Identity"}
+                  {email ? "Signed in" : "Sign in"}
                 </div>
 
                 {email ? (
-                  /* ===== EMAIL ACCOUNT MENU ===== */
                   <>
                     <div className="px-3 pb-2 text-xs text-muted">
                       Email:
@@ -276,130 +194,35 @@ export default function AppHeader() {
 
                     <button
                       role="menuitem"
+                      className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-amber-300 hover:bg-amber-400/10"
+                      onClick={resendCode}
+                    >
+                      Resend verification email
+                    </button>
+
+                    <button
+                      role="menuitem"
                       className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-red-300 hover:bg-red-400/10"
                       onClick={logoutEmail}
                     >
                       Sign out
                     </button>
-
-                    <p className="px-3 pt-1 text-[11px] text-muted">
-                      Signing out keeps your local items; they can sync again after you sign in.
-                    </p>
                   </>
                 ) : (
-                  /* ===== GUEST (ID) MENU ===== */
                   <>
-                    {guestId ? (
-                      <div className="px-3 pb-2 text-xs text-muted">
-                        Your ID:
-                        <div className="mt-1 select-all rounded-lg bg-surface2/70 px-2 py-1 font-mono text-[11px] text-text">
-                          {guestId}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="px-3 pb-2 text-xs text-muted">
-                        No ID yet. Generate one to start or sign in with email.
-                      </div>
-                    )}
-
-                    <hr className="my-1 border-border/70" />
-
-                    {!guestId ? (
-                      <button
-                        role="menuitem"
-                        className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                        onClick={() => {
-                          // Create and set an ID only when user chooses
-                          const id = getExistingId();
-                          setUserId(id);
-                          setGuestId(id);
-                          // (optional) open dashboard immediately:
-                          // router.push("/dashboard");
-                        }}
-                      >
-                        Generate ID
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          role="menuitem"
-                          className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                          onClick={copyId}
-                        >
-                          Copy ID
-                        </button>
-
-                        <button
-                          role="menuitem"
-                          className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                          onClick={() => setShowQr((v) => !v)}
-                        >
-                          {showQr ? "Hide QR" : "Show QR"}
-                        </button>
-
-                        {showQr && (
-                          <div className="mx-3 mt-2 rounded-lg border border-border bg-surface2/70 p-3 text-center">
-                            {qrUrl ? (
-                              <>
-                                <img
-                                  src={qrUrl}
-                                  alt="Your CS2 Tracker ID QR"
-                                  className="mx-auto rounded-lg border border-border"
-                                  width={160}
-                                  height={160}
-                                />
-                                <div className="mt-2 flex items-center justify-center gap-2">
-                                  <a
-                                    href={qrUrl}
-                                    download="cs2tracker-id.png"
-                                    className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-surface/60"
-                                  >
-                                    Download PNG
-                                  </a>
-                                  <button
-                                    className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-surface/60"
-                                    onClick={() => guestId && navigator.clipboard.writeText(guestId)}
-                                  >
-                                    Copy ID text
-                                  </button>
-                                </div>
-                                <p className="mt-1 text-[11px] text-muted">Scan to import your ID on another device.</p>
-                              </>
-                            ) : (
-                              <p className="text-xs text-muted">Generating QR…</p>
-                            )}
-                          </div>
-                        )}
-
-                        <button
-                          role="menuitem"
-                          className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                          onClick={() => {
-                            const next = generateNewId();
-                            setUserId(next);
-                            setGuestId(next);
-                          }}
-                        >
-                          Replace ID (new one)
-                        </button>
-                        <button
-                          role="menuitem"
-                          className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-red-300 hover:bg-red-400/10"
-                          onClick={resetLocal}
-                        >
-                          Clear local data
-                        </button>
-                      </>
-                    )}
-
-                    <hr className="my-2 border-border/70" />
-
                     <button
                       role="menuitem"
                       className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
                       onClick={() => { setAccountOpen(false); router.push("/login"); }}
                     >
                       Sign in with email
+                    </button>
+                    <button
+                      role="menuitem"
+                      className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-amber-300 hover:bg-amber-400/10"
+                      onClick={resendCode}
+                    >
+                      Resend verification email
                     </button>
                   </>
                 )}
