@@ -5,7 +5,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { getExistingId, setUserId, clearAllLocalData } from "@/lib/id";
+import {
+  peekUserId,        // read-only, no auto-create
+  getExistingId,     // create on demand
+  generateNewId,     // explicit new id
+  setUserId,
+  clearAllLocalData,
+} from "@/lib/id";
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
   const pathname = usePathname();
@@ -67,7 +73,7 @@ export default function AppHeader() {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const acctRef = useRef<HTMLDivElement | null>(null);
 
-  // Load initial auth + guest state
+  // Load initial auth + guest state (peek only — DO NOT create here)
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -82,8 +88,8 @@ export default function AppHeader() {
         if (!cancelled) setCheckingAuth(false);
       }
 
-      // Always reflect local guest ID (used only when no email)
-      setGuestId(getExistingId());
+      // reflect local guest ID but don't create one
+      setGuestId(peekUserId());
     })();
     return () => {
       cancelled = true;
@@ -100,13 +106,13 @@ export default function AppHeader() {
       } catch {
         setEmail(null);
       }
-      setGuestId(getExistingId());
+      setGuestId(peekUserId()); // still peek, do not create
     })();
   }, [pathname]);
 
   // React to ID changes fired elsewhere
   useEffect(() => {
-    const onChange = (e: any) => setGuestId(e?.detail?.userId ?? getExistingId());
+    const onChange = (e: any) => setGuestId(e?.detail?.userId ?? peekUserId());
     window.addEventListener("id:changed", onChange);
     return () => window.removeEventListener("id:changed", onChange);
   }, []);
@@ -161,10 +167,7 @@ export default function AppHeader() {
   }
 
   function replaceId() {
-    const next =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : "id-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+    const next = generateNewId();
     setUserId(next);   // persists + broadcasts "id:changed"
     setGuestId(next);  // update local state immediately
   }
@@ -180,18 +183,17 @@ export default function AppHeader() {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
       setEmail(null);
-      // keep guest ID so the user still has local data
+      // keep any local guest ID
     } catch {
       // ignore
     }
   }
 
+  // Simpler label: never “ID ready” on first load
   const accountLabel = email
     ? `Account  ${email}`
     : checkingAuth
     ? "Account  …"
-    : guestId
-    ? "Account  ID ready"
     : "Account  Guest";
 
   return (
@@ -241,8 +243,8 @@ export default function AppHeader() {
               className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface2/70 px-3 py-1.5 text-sm hover:bg-surface transition focus:outline-none focus:ring-2 focus:ring-accent/30"
             >
               <span>{accountLabel}</span>
-              <svg viewBox="0 0 24 24" width="14" height="14" className="opacity-70">
-                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              <svg viewBox="0 0 24 24" width={14} height={14} className="opacity-70">
+                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
 
@@ -280,7 +282,6 @@ export default function AppHeader() {
                       Sign out
                     </button>
 
-                    {/* Keep a subtle note that local data stays */}
                     <p className="px-3 pt-1 text-[11px] text-muted">
                       Signing out keeps your local items; they can sync again after you sign in.
                     </p>
@@ -307,7 +308,14 @@ export default function AppHeader() {
                       <button
                         role="menuitem"
                         className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                        onClick={() => { setAccountOpen(false); openOnboarding("create"); }}
+                        onClick={() => {
+                          // Create and set an ID only when user chooses
+                          const id = getExistingId();
+                          setUserId(id);
+                          setGuestId(id);
+                          // (optional) open dashboard immediately:
+                          // router.push("/dashboard");
+                        }}
                       >
                         Generate ID
                       </button>
@@ -366,7 +374,11 @@ export default function AppHeader() {
                         <button
                           role="menuitem"
                           className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                          onClick={replaceId}
+                          onClick={() => {
+                            const next = generateNewId();
+                            setUserId(next);
+                            setGuestId(next);
+                          }}
                         >
                           Replace ID (new one)
                         </button>
