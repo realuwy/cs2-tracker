@@ -9,6 +9,25 @@ const EMAIL_COOKIE_NAMES = ["auth_email", "email"];
 
 export const runtime = "nodejs";
 
+export const dynamic = "force-dynamic";
+
+export async function GET() {
+  // ... read auth cookie / session and derive email
+  const email = /* your lookup here, or null */ null;
+
+  return new Response(JSON.stringify({ email }), {
+    status: 200,
+    headers: {
+      "content-type": "application/json",
+      "cache-control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      pragma: "no-cache",
+      expires: "0",
+      "surrogate-control": "no-store",
+    },
+  });
+}
+
+
 export async function GET() {
   try {
     const jar = cookies();
