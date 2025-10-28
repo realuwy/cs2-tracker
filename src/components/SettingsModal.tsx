@@ -3,272 +3,133 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { clearAllLocalData } from "@/lib/id";
+import { clearAllLocalData } from "@/lib/id"; // keep if you still want the "clear data" action
 
 type Props = {
   open: boolean;
   onClose: () => void;
 };
 
-const EMAIL_KEY = "cs2:email";
-
 export default function SettingsModal({ open, onClose }: Props) {
   const router = useRouter();
-  const [userId, setUserId] = useState<string | null>(null);
-  const [email, setEmail] = useState<string>("");
-  const [linkedEmail, setLinkedEmail] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setUserId(getUserId());
-    if (typeof window !== "undefined") {
-      const saved = window.localStorage.getItem(EMAIL_KEY);
-      setLinkedEmail(saved && saved.trim() ? saved : null);
-      if (!email && saved) setEmail(saved);
-    }
+    if (!open) return;
+    (async () => {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        const data: { email: string | null } = await res.json();
+        setEmail(data?.email ?? null);
+      } catch {
+        setEmail(null);
+      }
+    })();
   }, [open]);
 
   if (!open) return null;
 
-  async function linkEmail() {
-    if (!userId) {
-      setErr("Create or paste an ID first.");
-      return;
-    }
-    const e = email.trim().toLowerCase();
-    if (!e || !/^\S+@\S+\.\S+$/.test(e)) {
-      setErr("Enter a valid email.");
-      return;
-    }
-
-    setBusy(true);
-    setMsg(null);
-    setErr(null);
+  async function resendCode() {
+    setLoading(true);
     try {
-      const res = await fetch("/api/register-id", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email: e, userId }),
-      });
-
-      if (res.status === 409) {
-        // Email already linked to a different ID (or duplicate per your API)
-        setErr("That email is already linked to another ID.");
-        return;
-      }
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || "Failed to link email.");
-      }
-
-      // Save locally for quick status display
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(EMAIL_KEY, e);
-      }
-      setLinkedEmail(e);
-      setMsg("Email linked successfully.");
-    } catch (e: any) {
-      setErr(e?.message || "Failed to link email.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function unlinkEmailLocalOnly() {
-    // Optional: you could add a server-side "unlink" endpoint in future.
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(EMAIL_KEY);
-    }
-    setLinkedEmail(null);
-    setMsg("Email unlinked locally.");
-  }
-
-  function recoverByEmail() {
-    window.dispatchEvent(
-      new CustomEvent("onboard:open", { detail: { tab: "recover" } })
-    );
-    onClose();
-  }
-
-  function copyId() {
-    if (!userId) return;
-    navigator.clipboard.writeText(userId);
-    setMsg("ID copied to clipboard.");
-  }
-
-  async function exportData() {
-    try {
-      const raw = localStorage.getItem("cs2:dashboard:rows") ?? "[]";
-      const blob = new Blob([raw], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "cs2tracker-portfolio.json";
-      a.click();
-      URL.revokeObjectURL(url);
-      setMsg("Exported portfolio JSON.");
+      await fetch("/api/auth/resend", { method: "POST" });
+      // keep it simple; you can swap to a toast later
+      alert("Verification email sent. Check your inbox.");
     } catch {
-      setErr("Failed to export data.");
-    }
-  }
-
-  async function importData(ev: React.ChangeEvent<HTMLInputElement>) {
-    const file = ev.target.files?.[0];
-    if (!file) return;
-    try {
-      const text = await file.text();
-      // naive validation — ensure it's an array
-      const parsed = JSON.parse(text);
-      if (!Array.isArray(parsed)) throw new Error("Invalid file.");
-      localStorage.setItem("cs2:dashboard:rows", JSON.stringify(parsed));
-      localStorage.setItem("cs2:dashboard:rows:updatedAt", String(Date.now()));
-      setMsg("Imported portfolio JSON.");
-      // trigger UI to refresh if needed
-      router.refresh?.();
-    } catch (e: any) {
-      setErr(e?.message || "Failed to import data.");
+      alert("Could not send email. Try again shortly.");
     } finally {
-      // reset input so same file can be re-picked
-      ev.currentTarget.value = "";
+      setLoading(false);
     }
   }
-async function resendCode() {
-  try {
-    await fetch("/api/auth/resend", { method: "POST" });
-    alert("Verification email sent again. Check your inbox.");
-  } catch {
-    alert("Could not send email. Try again.");
-  }
-}
 
-  function resetAll() {
+  async function signOut() {
+    setLoading(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      setEmail(null);
+      onClose();
+      router.refresh();
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function clearLocal() {
     clearAllLocalData();
-    setLinkedEmail(null);
-    setMsg("Local data cleared.");
-    router.push("/");
-    window.dispatchEvent(new CustomEvent("onboard:open", { detail: { tab: "create" } }));
-    onClose();
+    alert("Local data cleared.");
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="relative w-full max-w-lg rounded-2xl border border-border bg-surface p-6 shadow-card">
-        <div className="flex items-start justify-between">
-          <h2 className="text-xl font-bold">Settings</h2>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Account & Settings</h2>
           <button
-            className="rounded-lg border border-border bg-surface2/70 px-2 py-1 hover:bg-surface"
+            className="rounded-lg border border-border px-2 py-1 text-sm hover:bg-surface2/70"
             onClick={onClose}
           >
             Close
           </button>
         </div>
 
-        {/* ID */}
-        <div className="mt-4 rounded-xl border border-border bg-surface2/60 p-4">
-          <div className="text-sm text-muted">Your ID</div>
-          <div className="mt-1 font-mono break-all text-sm text-text">
-            {userId ?? "No ID on this device"}
-          </div>
-          <div className="mt-2 flex gap-2">
-            <button
-              className="rounded-lg border border-border bg-surface px-3 py-1 text-sm hover:bg-surface/60 disabled:opacity-50"
-              onClick={copyId}
-              disabled={!userId}
-            >
-              Copy ID
-            </button>
-            <button
-              className="rounded-lg border border-border bg-surface px-3 py-1 text-sm hover:bg-surface/60"
-              onClick={recoverByEmail}
-            >
-              Recover by Email
-            </button>
-          </div>
-        </div>
-
-        {/* Email link/unlink */}
-        <div className="mt-4 rounded-xl border border-border bg-surface2/60 p-4">
-          <div className="text-sm text-muted">Email (for recovery only)</div>
-          {linkedEmail ? (
-            <div className="mt-2 flex items-center justify-between">
-              <div className="text-sm">
-                Linked: <span className="text-text">{linkedEmail}</span>
-              </div>
-              <button
-                className="rounded-lg border border-border bg-surface px-3 py-1 text-sm hover:bg-surface/60"
-                onClick={unlinkEmailLocalOnly}
-              >
-                Unlink (local)
-              </button>
+        <div className="space-y-4">
+          <section className="rounded-lg border border-border bg-surface2/50 p-3">
+            <div className="mb-1 text-xs uppercase tracking-wide text-muted">Status</div>
+            <div className="text-sm">
+              {email ? (
+                <>
+                  Signed in as{" "}
+                  <span className="rounded bg-surface px-1.5 py-0.5 font-mono text-[11px]">
+                    {email}
+                  </span>
+                </>
+              ) : (
+                "Not signed in"
+              )}
             </div>
-          ) : (
-            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-              <input
-                className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              <button
-                className="btn-accent px-4 py-2 text-sm disabled:opacity-50"
-                disabled={busy}
-                onClick={linkEmail}
-              >
-                {busy ? "Linking…" : "Link Email"}
-              </button>
-            </div>
-          )}
-          <p className="mt-2 text-xs text-muted">
-            We only store an email → ID mapping on the server. Your inventory remains local.
-          </p>
-        </div>
+          </section>
 
-        {/* Data controls */}
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border border-border bg-surface2/60 p-4">
-            <div className="text-sm font-medium">Export / Import</div>
-            <div className="mt-2 flex items-center gap-2">
-              <button
-                className="rounded-lg border border-border bg-surface px-3 py-1 text-sm hover:bg-surface/60"
-                onClick={exportData}
-              >
-                Export JSON
-              </button>
-              <label className="rounded-lg border border-border bg-surface px-3 py-1 text-sm hover:bg-surface/60 cursor-pointer">
-                Import JSON
-                <input
-                  type="file"
-                  accept="application/json"
-                  onChange={importData}
-                  className="hidden"
-                />
-              </label>
-            </div>
-          </div>
+          <section className="rounded-lg border border-border bg-surface2/50 p-3">
+            <div className="mb-2 text-xs uppercase tracking-wide text-muted">Email</div>
 
-          <div className="rounded-xl border border-border bg-surface2/60 p-4">
-            <div className="text-sm font-medium">Danger</div>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={resendCode}
+                disabled={loading}
+                className="rounded-lg border border-border px-3 py-2 text-left text-sm hover:bg-surface/70 disabled:opacity-60"
+              >
+                Resend verification email
+              </button>
+
+              {email && (
+                <button
+                  type="button"
+                  onClick={signOut}
+                  disabled={loading}
+                  className="rounded-lg border border-border px-3 py-2 text-left text-sm text-red-300 hover:bg-red-400/10 disabled:opacity-60"
+                >
+                  Sign out
+                </button>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-lg border border-border bg-surface2/50 p-3">
+            <div className="mb-2 text-xs uppercase tracking-wide text-muted">Data</div>
             <button
-              className="mt-2 w-full rounded-lg border border-red-400/50 bg-red-400/10 px-3 py-2 text-sm text-red-300 hover:bg-red-400/15"
-              onClick={resetAll}
+              type="button"
+              onClick={clearLocal}
+              className="w-full rounded-lg border border-border px-3 py-2 text-left text-sm hover:bg-surface/70"
             >
-              Reset local data
+              Clear local data
             </button>
-          </div>
+          </section>
         </div>
-
-        {/* Messages */}
-        {(msg || err) && (
-          <div className="mt-4 rounded-lg border border-border bg-surface2/60 p-3 text-sm">
-            {msg && <div className="text-emerald-300">{msg}</div>}
-            {err && <div className="text-red-300">{err}</div>}
-          </div>
-        )}
       </div>
     </div>
   );
 }
-
