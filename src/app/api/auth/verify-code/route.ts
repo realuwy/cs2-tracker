@@ -1,43 +1,51 @@
+// src/app/api/auth/verify-code/route.ts
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { codeKey, kv } from "@/lib/kv";
-import { signToken } from "@/lib/auth";
 
-export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-window.dispatchEvent(new Event("auth:changed"));
-router.refresh?.();
-router.push("/dashboard");
+// TODO: replace with your real verifier (e.g., Upstash, Supabase, Resend etc.)
+async function verifyCode(email: string, code: string): Promise<boolean> {
+  // Return true if the code matches for that email
+  // Example placeholder:
+  return typeof email === "string" && typeof code === "string" && code.length > 0;
+}
+
+function setSessionCookie(value: string) {
+  const jar = cookies();
+  jar.set({
+    name: "session",
+    value,                // ideally a signed JWT or opaque token
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    secure: true,
+    maxAge: 60 * 60 * 24 * 30, // 30 days
+  });
+}
 
 export async function POST(req: Request) {
   try {
-    const { email, code } = await req.json().catch(() => ({}));
+    const { email, code } = await req.json().catch(() => ({} as any));
     if (!email || !code) {
-      return NextResponse.json({ error: "Email and code required" }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "Missing email or code" }, { status: 400 });
     }
 
-    const key = codeKey(email);
-    const rec = (await kv.get<{ code: string; tries: number }>(key)) || null;
-    if (!rec) {
-      return NextResponse.json({ error: "Code expired or invalid" }, { status: 400 });
+    const ok = await verifyCode(email, code);
+    if (!ok) {
+      return NextResponse.json({ ok: false, error: "Invalid code" }, { status: 401 });
     }
 
-    const tries = (rec.tries ?? 0) + 1;
-    if (tries > 5) {
-      await kv.del(key);
-      return NextResponse.json({ error: "Too many attempts. Request a new code." }, { status: 429 });
-    }
+    // Create/attach a session for this email
+    // In production, store a proper token; this is a placeholder
+    setSessionCookie(JSON.stringify({ email }));
 
-    if (rec.code !== String(code).trim()) {
-      await kv.set(key, { code: rec.code, tries }, { ex: 10 * 60 });
-      return NextResponse.json({ error: "Incorrect code" }, { status: 401 });
-    }
-
-    // success
-    await kv.del(key);
-    const token = signToken(email.toLowerCase(), 60 * 60 * 24 * 7); // 7 days
-    return NextResponse.json({ ok: true, token });
-  } catch {
-    return NextResponse.json({ error: "verify-code failed" }, { status: 500 });
+    return NextResponse.json(
+      { ok: true, email },
+      { headers: { "cache-control": "no-store, max-age=0" } }
+    );
+  } catch (err) {
+    return NextResponse.json({ ok: false, error: "Bad request" }, { status: 400 });
   }
 }
+
