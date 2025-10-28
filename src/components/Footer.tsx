@@ -46,7 +46,7 @@ export default function SiteFooter() {
             </li>
             <li>
               <a
-                href=""
+                href="https://x.com/CS2_Tracker"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-accent transition-colors"
