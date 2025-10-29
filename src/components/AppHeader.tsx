@@ -5,13 +5,12 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
-function clearLocalWithConfirm() {
+async function clearLocalWithConfirm() {
   if (!confirm("This clears your local inventory on this device. Cloud data (for signed-in email) stays intact. Continue?")) return;
   try {
     const keys = ["cs2:dashboard:rows", "cs2:dashboard:rows:updatedAt"];
     keys.forEach((k) => localStorage.removeItem(k));
     window.dispatchEvent(new Event("storage"));
-    alert("Local inventory cleared.");
   } catch {}
 }
 
@@ -132,15 +131,13 @@ export default function AppHeader() {
     }
   }
 
-  const accountLabel = email
-    ? `Account  ${email}`
-    : checkingAuth
-    ? "Account  …"
-    : "Account  Sign in";
+  // Button text is ALWAYS "Account"
+  const accountLabel = "Account";
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
+        {/* brand */}
         <Link
           href="/"
           aria-label="CS2 Tracker home"
@@ -156,10 +153,13 @@ export default function AppHeader() {
           />
           <span className="inline-flex items-center gap-2">
             <span className="text-sm font-semibold tracking-wide text-text">CS2 Tracker</span>
-            <span className="rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent">alpha</span>
+            <span className="rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent">
+              alpha
+            </span>
           </span>
         </Link>
 
+        {/* center nav (desktop) */}
         <nav className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 md:block">
           <ul className="flex items-center gap-8 text-sm text-text">
             <li><NavLink href="/">Home</NavLink></li>
@@ -169,7 +169,9 @@ export default function AppHeader() {
           </ul>
         </nav>
 
+        {/* right actions */}
         <div className="flex items-center gap-2">
+          {/* account dropdown */}
           <div className="relative" ref={acctRef}>
             <button
               type="button"
@@ -186,34 +188,47 @@ export default function AppHeader() {
 
             {accountOpen && (
               <div role="menu" className="absolute right-0 mt-2 w-80 rounded-xl border border-border bg-surface p-2 shadow-xl">
-                <div className="px-2 pb-2 pt-1 text-[10px] uppercase tracking-wider text-muted">
-                  {email ? "Signed in" : "Sign in"}
+                <div className="px-3 pb-2 pt-1 text-[11px] uppercase tracking-wider text-muted">
+                  {checkingAuth
+                    ? "Checking…"
+                    : email
+                      ? `Signed in as ${email}`
+                      : "Sign in"}
                 </div>
 
                 {email ? (
                   <>
-                    <div className="px-3 pb-2 text-xs text-muted">
-                      Email:
-                      <div className="mt-1 select-all rounded-lg bg-surface2/70 px-2 py-1 font-mono text-[11px] text-text">
-                        {email}
-                      </div>
-                    </div>
-
                     <hr className="my-2 border-border/70" />
 
-                    <button className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70" onClick={() => router.push("/dashboard")}>
+                    <button
+                      role="menuitem"
+                      className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
+                      onClick={() => router.push("/dashboard")}
+                    >
                       Open dashboard
                     </button>
 
-                    <button className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70" onClick={resendCode}>
-                      Resend verification email
-                    </button>
-
-                    <button className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70" onClick={clearLocalWithConfirm}>
+                    <button
+                      role="menuitem"
+                      className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
+                      onClick={clearLocalWithConfirm}
+                    >
                       Clear local data
                     </button>
 
-                    <button className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-red-300 hover:bg-red-400/10" onClick={logoutEmail}>
+                    <button
+                      role="menuitem"
+                      className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
+                      onClick={resendCode}
+                    >
+                      Resend verification email
+                    </button>
+
+                    <button
+                      role="menuitem"
+                      className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-red-300 hover:bg-red-400/10"
+                      onClick={logoutEmail}
+                    >
                       Sign out
                     </button>
                   </>
@@ -222,23 +237,43 @@ export default function AppHeader() {
                     <button
                       role="menuitem"
                       className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
-                      onClick={() => {
-                        setAccountOpen(false);
-                        window.dispatchEvent(new Event("auth:open")); // 🔥 opens modal instead of navigating
-                      }}
+                      onClick={() => { setAccountOpen(false); window.dispatchEvent(new Event("auth:open")); }}
                     >
                       Sign in with email
                     </button>
 
-                    <button className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70" onClick={clearLocalWithConfirm}>
+                    <button
+                      role="menuitem"
+                      className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-surface2/70"
+                      onClick={clearLocalWithConfirm}
+                    >
                       Clear local data
                     </button>
 
-                    <button className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-amber-300 hover:bg-amber-400/10" onClick={resendCode}>
+                    <button
+                      role="menuitem"
+                      className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-amber-300 hover:bg-amber-400/10"
+                      onClick={resendCode}
+                    >
                       Resend verification email
                     </button>
                   </>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* mobile dots menu */}
+          <div className="relative md:hidden" ref={menuRef}>
+            <DotsButton onClick={() => setMenuOpen((v) => !v)} aria-label="Open menu" />
+            {menuOpen && (
+              <div className="absolute right-0 mt-2 w-56 rounded-xl border border-border bg-surface p-2 shadow-xl">
+                <ul className="space-y-1 text-sm">
+                  <li><Link href="/" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>Home</Link></li>
+                  <li><Link href="/dashboard" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>Dashboard</Link></li>
+                  <li><Link href="/about" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>About</Link></li>
+                  <li><Link href="/privacy" className="block rounded-lg px-3 py-2 hover:bg-surface2/70" onClick={() => setMenuOpen(false)}>Privacy</Link></li>
+                </ul>
               </div>
             )}
           </div>
